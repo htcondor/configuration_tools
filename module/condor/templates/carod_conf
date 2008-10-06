@@ -1,0 +1,12 @@
+[Broker]
+exchange=<%= exchange %>
+ip=<%= broker_ip %>
+port=<%= broker_port %>
+queue=<%= amqp_queue %>
+
+[Daemon]
+ip=127.0.0.1
+port=<%= ll_daemon_port %>
+queued_connections=<%= ll_connections %>
+lease_time=<%= ll_lease_time %>
+lease_check_interval=<%= ll_check_interval %>

@@ -1,0 +1,1 @@
+<%= node_name %>:5432:quill:quillwriter:<%= qwpw %>

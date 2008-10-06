@@ -1,0 +1,5 @@
+DAEMON_LIST = $(DAEMON_LIST), dbmsd
+DBMSD = $(SBIN)/condor_dbmsd
+DBMSD_ARGS = -f
+DBMSD_LOG = $(LOG)/DbmsdLog
+MAX_DBMSD_LOG = 10000000

@@ -1,0 +1,585 @@
+$feature_config_dir = "/var/lib/condor/feature_configs"
+
+define condortemplate($owner = root, $group = root, $mode = 644, $content,
+                      $backup = false, $recurse = false, $ensure = file) {
+
+   file { $name:
+          mode => $mode,
+          owner => $owner,
+          group => $group,
+          backup => $backup,
+          recurse => $recurse,
+          ensure => $ensure,
+          content => $content,
+          notify => Service["condor"],
+          require => [ Package["condor"], File["$feature_config_dir"],
+                       File["/etc/condor/condor_config"] ]
+   }
+}
+
+define condorfile($owner = root, $group = root, $mode = 644, $source,
+                  $backup = false, $recurse = false, $ensure = file) {
+
+   file { $name:
+          mode => $mode,
+          owner => $owner,
+          group => $group,
+          backup => $backup,
+          recurse => $recurse,
+          ensure => $ensure,
+          notify => Service["condor"],
+          source => "puppet:///condor/$source",
+          require => [ Package["condor"], File["$feature_config_dir"],
+                       File["/etc/condor/condor_config"] ]
+   }
+}
+
+class condor::condor_feature_dir {
+   file { "$feature_config_dir": 
+          owner => root,
+          group => root,
+          mode => 644,
+          ensure => directory,
+          require => Package["condor"];
+   }
+}
+
+class condor::condor_generate_config {
+   file { "/usr/libexec/condor/condor_generate_config.sh":
+          source => "puppet:///condor/condor_generate_config.sh",
+          owner => root,
+          group => root,
+          mode => 755,
+          ensure => file,
+          require => Package["condor"]
+   }
+}
+
+class condor::condor_quillwriter_pw {
+   file { "/var/lib/condor/spool/.pgpass":
+          content => template("condor/pgpass"),
+          owner => condor,
+          group => condor,
+          mode => 440,
+          ensure => file,
+          require => Package["condor"]
+   }
+}
+         
+
+class condor::condor_pkg {
+   package { condor:
+      ensure => installed
+   }
+}
+
+class condor::condor_svc {
+   service { condor:
+             enable => true,
+             ensure => running,
+             subscribe => [ File["/etc/condor/condor_config"],
+                            File["$feature_config_dir"], Package["condor"] ];
+   }
+}
+
+class condor::condor_config {
+   include condor_generate_config
+   file { "/etc/condor/condor_config":
+          source => "puppet:///condor/condor_config",
+          owner => root,
+          group => root,
+          mode => 644,
+          ensure => file,
+          require => [ Package["condor"], File["$feature_config_dir"],
+                       File["/usr/libexec/condor/condor_generate_config.sh"] ]
+   }
+}
+
+class condor::condor {
+   include condor_pkg
+   include condor_feature_dir
+   include condor_svc
+   include condor_config
+   include condor_dedicated_resource
+   include condor_dedicated_scheduler
+   include condor_dedicated_preemption
+   include condor_ha_scheduler
+   include condor_ha_central_manager
+   include condor_low_latency
+   include condor_EC2
+   include condor_EC2_enhanced
+   include condor_concurrency_limits
+   include condor_quill
+   include condor_dbmsd
+   include condor_viewserver
+   condorfile { "/var/lib/condor/condor_config.local":
+                source => "condor_config.local",
+                owner => root,
+                group => root,
+                ensure => file,
+                mode => 644,
+   }
+}
+
+class condor::condor_dedicated_resource {
+   include condor_feature_dir
+   include condor_pkg
+   include condor_svc
+   include condor_config
+   case $condor_startd_check {
+      1: { $dedicated_resource = $dedicated_resource }
+      default: { $dedicated_resource = false }
+   }
+   condortemplate { "$feature_config_dir/condor_dedicated_resource":
+                    content => $dedicated_resource ? {
+                               true => template("condor/condor_dedicated_resource"),
+                               default => " "
+                    },
+                    owner => root,
+                    group => root,
+                    mode => 644,
+                    ensure => $dedicated_resource ? {
+                              true => file,
+                              default => absent
+                    }
+   }
+}
+
+class condor::condor_dedicated_scheduler {
+   include condor_feature_dir
+   include condor_pkg
+   include condor_svc
+   include condor_config
+   case $condor_scheduler_check {
+      1: { $dedicated_scheduler = $dedicated_scheduler }
+      default: { $dedicated_scheduler = false }
+   }
+   condorfile { "$feature_config_dir/condor_dedicated_scheduler":
+                source => "condor_dedicated_scheduler",
+                owner => root,
+                group => root,
+                mode => 644,
+                ensure => $dedicated_scheduler ? {
+                          true => file,
+                          default => absent
+                }
+   }
+}
+
+class condor::condor_dedicated_preemption {
+   include condor_feature_dir
+   include condor_pkg
+   include condor_svc
+   include condor_config
+   case $condor_scheduler_check {
+      1: { $dedicated_preemption = $dedicated_preemption }
+      default: { $dedicated_preemption = false }
+   }
+   condorfile { "$feature_config_dir/condor_dedicated_preemption":
+                source => "condor_dedicated_preemption",
+                owner => root,
+                group => root,
+                mode => 644,
+                ensure => $dedicated_preemption ? {
+                          true => file,
+                          default => absent
+                }
+   }
+}
+
+class condor::condor_ha_scheduler {
+   include condor_feature_dir
+   include condor_pkg
+   include condor_svc
+   include condor_config
+   case $condor_scheduler_check {
+      1: { $ha_scheduler = $ha_scheduler }
+      default: { $ha_scheduler = false }
+   }
+   condortemplate { "$feature_config_dir/condor_ha_scheduler":
+                    content => $ha_scheduler ? {
+                               true => template("condor/condor_ha_scheduler"),
+                               default => " "
+                    },
+                    owner => root,
+                    group => root,
+                    mode => 644,
+                    ensure => $ha_scheduler ? {
+                              true => file,
+                              default => absent
+                    }
+   }
+}
+
+class condor::condor_ha_central_manager {
+   include condor_feature_dir
+   include condor_pkg
+   include condor_svc
+   include condor_config
+   case $condor_negotiator_check {
+      1: { $ha_central_manager = $condor_collector_check ? {
+                                    1 => $ha_central_manager,
+                                    default => false } }
+      default: { $ha_central_manager = false }
+   }
+   condortemplate { "$feature_config_dir/condor_ha_central_manager":
+                    content => $ha_central_manager ? {
+                               true => template("condor/condor_ha_central_manager"),
+                               default => " "
+                    },
+                    owner => root,
+                    group => root,
+                    mode => 644,
+                    ensure => $ha_central_manager ? {
+                              true => file,
+                              default => absent
+                    }
+   }
+}
+
+class condor::condor_low_latency {
+   include condor_feature_dir
+   include condor_pkg
+   include condor_svc
+   include condor_config
+   case $condor_startd_check {
+      1: { $low_latency = $low_latency }
+      default: { $low_latency = false }
+   }
+   condorfile { "$feature_config_dir/condor_low_latency":
+                source => "condor_low_latency",
+                owner => root,
+                group => root,
+                mode => 644,
+                ensure => $low_latency ? {
+                          true => file,
+                          default => absent
+                }
+   }
+   file { "/etc/opt/grid/carod.conf":
+          mode => 644,
+          owner => root,
+          group => root,
+          content => $low_latency ? {
+                     true => template("condor/carod_conf"),
+                     default => " "
+          },
+          ensure => $low_latency ? {
+                    true => file,
+                    default => absent
+          },
+          require => $low_latency? {
+                     true => Package["low-latency"],
+                     default => Package["condor"]
+          }
+   }
+   file { "/etc/opt/grid/job-hooks.conf":
+          mode => 644,
+          owner => root,
+          group => root,
+          content => $low_latency ? {
+                     true => template("condor/job-hooks_conf"),
+                     default => " "
+          },
+          ensure => $low_latency ? {
+                    true => file,
+                    default => absent
+          },
+          require => $low_latency? {
+                     true => Package["condor-job-hooks"],
+                     default => Package["condor"]
+          }
+   }
+   if $low_latency {
+      package { python-qpid:
+                ensure => installed
+      }
+      package { condor-job-hooks:
+                ensure => installed
+      }
+      package { low-latency:
+                ensure => installed,
+                require => [ Package["condor"], Package["python-qpid"],
+                             Package["condor-job-hooks"] ];
+      }
+   }
+   service { caro:
+             enable => $low_latency ? {
+                       true => true,
+                       default => false
+             },
+             ensure => $low_latency ? {
+                       true => running,
+                       default => stopped
+             },
+             subscribe => $low_latency ? {
+                          true => [ File["/etc/opt/grid/carod.conf"],
+                                    Package["low-latency"] ],
+                          default => File["/etc/opt/grid/carod.conf"]
+             }
+   }
+}
+
+class condor::condor_EC2 {
+   include condor_feature_dir
+   include condor_pkg
+   include condor_svc
+   include condor_config
+   condorfile { "$feature_config_dir/condor_EC2":
+                source => "condor_EC2",
+                owner => root,
+                group => root,
+                mode => 644,
+                ensure => $ec2 ? {
+                          true => file,
+                          default => absent
+                }
+   }
+}
+
+class condor::condor_EC2_enhanced {
+   include condor_feature_dir
+   include condor_pkg
+   include condor_svc
+   include condor_config
+   condortemplate { "$feature_config_dir/condor_EC2_enhanced":
+                    content => $ec2e ? {
+                               true => template("condor/condor_EC2_enhanced"),
+                               default => " "
+                    },
+                    owner => root,
+                    group => root,
+                    mode => 644,
+                    ensure => $ec2e ? {
+                              true => file,
+                              default => absent
+                    }
+   }
+   if $ec2e {
+      package { python-boto:
+                ensure => installed
+      }
+      package { ec2-enhanced-hooks:
+                ensure => installed
+      }
+      package { ec2-enhanced:
+                ensure => installed,
+                require => [ Package["condor"], Package["python-boto"],
+                             Package["ec2-enhanced-hooks"] ];
+      }
+   }
+}
+
+class condor::condor_concurrency_limits {
+   include condor_feature_dir
+   include condor_pkg
+   include condor_svc
+   include condor_config
+   condortemplate { "$feature_config_dir/condor_concurrency_limits":
+                    content => $concurrency_limits ? {
+                               true => template("condor/condor_concurrency_limits"),
+                               default => " "
+                    },
+                    owner => root,
+                    group => root,
+                    mode => 644,
+                    ensure => $concurrency_limits ? {
+                              true => file,
+                              default => absent
+                    }
+   }
+}
+
+class condor::condor_quill {
+   include condor_feature_dir
+   include condor_pkg
+   include condor_svc
+   include condor_config
+   include condor_quillwriter_pw
+   condortemplate { "$feature_config_dir/condor_quill":
+                    content => $quill ? {
+                               true => template("condor/condor_quill"),
+                               default => " "
+                    },
+                    owner => root,
+                    group => root,
+                    mode => 644,
+                    ensure => $quill ? {
+                              true => file,
+                              default => absent
+                    }
+   }
+}
+
+class condor::condor_dbmsd {
+   include condor_feature_dir
+   include condor_pkg
+   include condor_svc
+   include condor_config
+   include condor_quillwriter_pw
+   condorfile { "$feature_config_dir/condor_dbmsd":
+                source => "condor_dbmsd",
+                owner => root,
+                group => root,
+                mode => 644,
+                ensure => $dbmsd ? {
+                          true => file,
+                          default => absent
+                }
+   }
+}
+
+class condor::postgresql {
+   file { "/var/lib/pgsql/data/postgresql.conf":
+          mode => 600,
+          owner => postgres,
+          group => postgres,
+          source => "puppet:///condor/postgresql.conf",
+          ensure => $dbserver ? {
+                    true => file,
+                    default => absent
+          },
+          require => Package["postgresql-server"]
+   }
+   file { "/var/lib/pgsql/data/pg_hba.conf":
+          mode => 600,
+          owner => postgres,
+          group => postgres,
+          content => $dbserver ? {
+                     true => template("condor/pg_hba_conf"),
+                     default => " "
+          },
+          ensure => $dbserver ? {
+                    true => file,
+                    default => absent
+          },
+          require => Package["postgresql-server"]
+   }
+   file { "/usr/bin/condor_add_db_user.pl":
+          mode => 555,
+          owner => root,
+          group => root,
+          source => "puppet:///condor/condor_add_db_user.pl",
+          ensure => $dbserver ? {
+                    true => file,
+                    default => absent
+          },
+          require => Package["postgresql-server"]
+   }
+   file { "/var/lib/pgsql/common_createddl.sql":
+          mode => 444,
+          owner => root,
+          group => root,
+          source => "puppet:///condor/common_createddl.sql",
+          ensure => $dbserver ? {
+                    true => file,
+                    default => absent
+          },
+          require => Package["postgresql-server"]
+   }
+   file { "/var/lib/pgsql/pgsql_createddl.sql":
+          mode => 444,
+          owner => root,
+          group => root,
+          source => "puppet:///condor/pgsql_createddl.sql",
+          ensure => $dbserver ? {
+                    true => file,
+                    default => absent
+          },
+          require => Package["postgresql-server"]
+   }
+   package { postgresql-server:
+             ensure => installed
+   }
+   package { perl-Expect:
+             ensure => installed
+   }
+   service { postgresql:
+             enable => $dbserver ? {
+                       true => true,
+                       default => false
+             },
+             ensure => $dbserver ? {
+                       true => running,
+                       default => stopped
+             },
+             require => Exec["dbinit"],
+             subscribe => [ File["/var/lib/pgsql/data/postgresql.conf"],
+                            File["/var/lib/pgsql/data/pg_hba.conf"],
+                            Package["postgresql-server"] ];
+   }
+   exec { dbinit:
+          command => "/etc/init.d/postgresql initdb",
+          onlyif => "/usr/bin/test ! -f /var/lib/pgsql/data/PG_VERSION",
+          require => [ File["/var/lib/pgsql/data/pg_hba.conf"], 
+                       File["/var/lib/pgsql/data/postgresql.conf"] ];
+   }
+   exec { create_quillreader:
+          command => "condor_add_db_user.pl quillreader '$qrpw'",
+          path => "/usr/bin",
+          user => "postgres",
+          require => [ Package["perl-Expect"], Service["postgresql"],
+                       File["/usr/bin/condor_add_db_user.pl"] ]
+   }
+   exec { create_quillwriter:
+          command => "condor_add_db_user.pl quillwriter '$qwpw'",
+          path => "/usr/bin",
+          user => "postgres",
+          require => [ Package["perl-Expect"], Service["postgresql"],
+                       File["/usr/bin/condor_add_db_user.pl"] ]
+   }
+   exec { create_db:
+          command => "createdb -O quillwriter quill",
+          path => "/usr/bin",
+          user => "postgres",
+          require => [ Service["postgresql"], Exec["create_quillwriter"] ];
+   }
+   exec { condor_prog_lang:
+          command => "createlang plpgsql quill",
+          path => "/usr/bin",
+          user => "postgres",
+          require => [ Service["postgresql"], Exec["create_db"] ];
+   }
+   exec { condor_quill_schema1:
+          command => "psql quill quillwriter < /var/lib/pgsql/common_createddl.sql",
+          path => "/usr/bin",
+          user => "postgres",
+          require => [ Service["postgresql"], Exec["condor_prog_lang"] ];
+   }
+   exec { condor_quill_schema2:
+          command => "psql quill quillwriter < /var/lib/pgsql/pgsql_createddl.sql",
+          path => "/usr/bin",
+          user => "postgres",
+          require => [ Service["postgresql"], Exec["condor_quill_schema1"] ];
+   }
+}
+
+class condor::condor_viewserver {
+   include condor_feature_dir
+   include condor_pkg
+   include condor_svc
+   include condor_config
+   case $condor_collector_check {
+      1: { $viewserver = $viewserver }
+      default: { $viewserver = false }
+   }
+   file { "/var/lib/condor/pool_history":
+          owner => condor,
+          group => condor,
+          mode => 755,
+          ensure => $viewserver ? {
+                    true => directory,
+                    default => absent
+          }
+   }
+   condorfile { "$feature_config_dir/condor_viewserver":
+                source => "condor_viewserver",
+                owner => root,
+                group => root,
+                mode => 644,
+                ensure => $viewserver ? {
+                          true => file,
+                          default => absent
+                }
+   }
+}

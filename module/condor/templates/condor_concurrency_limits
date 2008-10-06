@@ -1,0 +1,10 @@
+# Schedd configuration
+CLAIM_RECYCLING_CONSIDER_LIMITS = TRUE
+
+# Negotiator configuration
+CONCURRENCY_LIMIT_DEFAULT = 200
+<% unless limits.nil? or limits == "" -%>
+
+# Per limit configurations
+<%= limits.split(",").collect { |lim| "#{lim}" }.join("\n") %>
+<% end -%>

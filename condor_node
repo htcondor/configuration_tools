@@ -1,9 +1,11 @@
 #!/usr/bin/perl
 
-my $node_name = $ARGV[0];
-my $config_dir = "/etc/puppet/modules/condor/node_configs"
+use File::Basename;
 
-if (! -f "$config_dir/$node_name")
+my $node_name = $ARGV[0];
+my $config_dir = "/etc/puppet/modules/condor/node_configs";
+
+if (! -f "$config_dir/$node_name" )
 {
    exit 0;
 }
@@ -17,26 +19,34 @@ print "classes:\n";
 print "  - condor::condor\n";
 #print "  - condor::postgresql\n";
 print "parameters:\n";
+print "  node_name: $node_name\n";
 foreach (@config)
 {
-   if (/^(.+)\s*=\s*(.+)$/)
+   if (/^([\S]+)\s*=\s*([\S]+)$/)
    {
       print "  $1: $2\n";
    }
-   elsif (/^(.+)$/)
+   elsif (/^([\S]+)\s*=\s*$/)
+   {
+      print "  $1:\n";
+   }
+   elsif (/^([\S]+)$/)
    {
       print "  $1: True\n";
-      if ($1 == "ha_central_manager")
+      if ($1 eq "ha_central_manager")
       {
-         my $list;
+         my $list = "$node_name";
          # Generate the list of other Central Managers
          @files = `grep -H ha_central_manager $config_dir/*`;
          foreach (@files)
          {
             /^(.+):.+$/;
-            $list = $list . "$1n";
+            my $filename = fileparse($1);
+            if ($filename ne $node_name)
+            {
+               $list = $list . ",$filename";
+            }
          }
-         chop $list;
          print "  cm_list: $list\n";
       }
    }

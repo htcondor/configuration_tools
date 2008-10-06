@@ -29,7 +29,7 @@ def configure_ec2e(file):
    print "\nConfiguration for EC2-Enhanced\n"
    answer = raw_input('Enable EC2 routing to the Small AMI [y/n] ? ')
    if answer.lower() == 'y':
-      file.write('ec2e_route_small\n')
+      file.write('ec2e_route_small = True\n')
       file.write('ec2es_pub_key = %s\n' % raw_input('Enter filename containing the AWS Public Key for use with the Small Route: '))
       file.write('ec2es_priv_key = %s\n' % raw_input('Enter filename containing the AWS Private Key for use with the Small Route: '))
       file.write('ec2es_access_key = %s\n' % raw_input('Enter filename containing the AWS Access Key for use with the Small Route: '))
@@ -38,10 +38,12 @@ def configure_ec2e(file):
       file.write('ec2es_bucket = %s\n' % raw_input('Enter S3 Storage Bucket name for use with the Small Route: '))
       file.write('ec2es_queue = %s\n' % raw_input('Enter SQS Queue name for use with the Small Route: '))
       file.write('ec2es_amiid = %s\n' % raw_input('Enter AMI ID for use with the Small Route: '))
+   else:
+      file.write('ec2e_route_small =\n')
 
    answer = raw_input('Enable EC2 routing to the Large AMI [y/n] ? ')
    if answer.lower() == 'y':
-      file.write('ec2e_route_large\n')
+      file.write('ec2e_route_large = True\n')
       file.write('ec2elarge_pub_key = %s\n' % raw_input('Enter filename containing the AWS Public Key for use with the Large Route: '))
       file.write('ec2elarge_priv_key = %s\n' % raw_input('Enter filename containing the AWS Private Key for use with the Large Route: '))
       file.write('ec2elarge_access_key = %s\n' % raw_input('Enter filename containing the AWS Access Key for use with the Large Route: '))
@@ -50,10 +52,12 @@ def configure_ec2e(file):
       file.write('ec2elarge_bucket = %s\n' % raw_input('Enter S3 Storage Bucket name for use with the Large Route: '))
       file.write('ec2elarge_queue = %s\n' % raw_input('Enter SQS Queue name for use with the Large Route: '))
       file.write('ec2elarge_amiid = %s\n' % raw_input('Enter AMI ID for use with the Large Route: '))
+   else:
+      file.write('ec2e_route_large =\n')
 
    answer = raw_input('Enable EC2 routing to the X-Large AMI [y/n] ? ')
    if answer.lower() == 'y':
-      file.write('ec2e_route_xlarge\n')
+      file.write('ec2e_route_xlarge = True\n')
       file.write('ec2exlarge_pub_key = %s\n' % raw_input('Enter filename containing the AWS Public Key for use with the X-Large Route: '))
       file.write('ec2exlarge_priv_key = %s\n' % raw_input('Enter filename containing the AWS Private Key for use with the X-Large Route: '))
       file.write('ec2exlarge_access_key = %s\n' % raw_input('Enter filename containing the AWS Access Key for use with the X-Large Route: '))
@@ -62,10 +66,12 @@ def configure_ec2e(file):
       file.write('ec2exlarge_bucket = %s\n' % raw_input('Enter S3 Storage Bucket name for use with the X-Large Route: '))
       file.write('ec2exlarge_queue = %s\n' % raw_input('Enter SQS Queue name for use with the X-Large Route: '))
       file.write('ec2exlarge_amiid = %s\n' % raw_input('Enter AMI ID for use with the X-Large Route: '))
+   else:
+      file.write('ec2e_route_xlarge =\n')
 
    answer = raw_input('Enable EC2 routing to the High-Compute Medium AMI [y/n] ? ')
    if answer.lower() == 'y':
-      file.write('ec2e_route_hcmedium\n')
+      file.write('ec2e_route_hcmedium = True\n')
       file.write('ec2ehcm_pub_key = %s\n' % raw_input('Enter filename containing the AWS Public Key for use with the High-Compute Medium Route: '))
       file.write('ec2ehcm_priv_key = %s\n' % raw_input('Enter filename containing the AWS Private Key for use with the High-Compute Medium Route: '))
       file.write('ec2ehcm_access_key = %s\n' % raw_input('Enter filename containing the AWS Access Key for use with the High-Compute Medium Route: '))
@@ -74,10 +80,12 @@ def configure_ec2e(file):
       file.write('ec2ehcm_bucket = %s\n' % raw_input('Enter S3 Storage Bucket name for use with the High-Compute Medium Route: '))
       file.write('ec2ehcm_queue = %s\n' % raw_input('Enter SQS Queue name for use with the High-Compute Medium Route: '))
       file.write('ec2ehcm_amiid = %s\n' % raw_input('Enter AMI ID for use with the High-Compute Medium Route: '))
+   else:
+      file.write('ec2e_route_hcmedium =\n')
 
    answer = raw_input('Enable EC2 routing to the High-Compute Large AMI [y/n] ? ')
    if answer.lower() == 'y':
-      file.write('ec2e_route_hclarge\n')
+      file.write('ec2e_route_hcelarge = True\n')
       file.write('ec2ehcel_pub_key = %s\n' % raw_input('Enter filename containing the AWS Public Key for use with the High-Compute Large Route: '))
       file.write('ec2ehcel_priv_key = %s\n' % raw_input('Enter filename containing the AWS Private Key for use with the High-Compute Large Route: '))
       file.write('ec2ehcel_access_key = %s\n' % raw_input('Enter filename containing the AWS Access Key for use with the High-Compute Large Route: '))
@@ -86,6 +94,8 @@ def configure_ec2e(file):
       file.write('ec2ehcel_bucket = %s\n' % raw_input('Enter S3 Storage Bucket name for use with the High-Compute Large Route: '))
       file.write('ec2ehcel_queue = %s\n' % raw_input('Enter SQS Queue name for use with the High-Compute Large Route: '))
       file.write('ec2ehcel_amiid = %s\n' % raw_input('Enter AMI ID for use with the High-Compute Large Route: '))
+   else:
+      file.write('ec2e_route_hcelarge =\n')
 
 def configure_ha_scheduler(file):
    print "\nConfiguration for HA Scheduler\n"
@@ -95,6 +105,7 @@ def configure_quill(file):
    print "\nConfiguration for Quill\n"
    file.write('db_node_name = %s\n' % raw_input('Enter the Database Server FQDN: '))
    file.write('qrpw = %s\n' % raw_input('Enter the quillreader password: '))
+   file.write('qwpw = %s\n' % raw_input('Enter the quillwriter password: '))
 
 def main(argv=None):
    if argv is None:
@@ -125,7 +136,7 @@ def main(argv=None):
       opts, args = getopt.getopt(argv[1:], 'n:', long_opts)
    except getopt.GetoptError, error:
       print str(error)
-      return(FAILURE)
+      return(1)
 
    node = ''
    for option, arg in opts:
@@ -154,12 +165,16 @@ def main(argv=None):
                configure_dedicated_resource(config)
             elif feature == 'ec2e':
                if features['ec2'] == False:
-                  config.write('ec2')
+                  config.write('ec2\n')
                configure_ec2e(config)
             elif feature == 'ha_scheduler':
                configure_ha_scheduler(config)
             elif feature == 'quill':
                configure_quill(config)
+            elif feature == 'dbmsd':
+               if features['quill'] == False:
+                  config.write('quill\n');
+                  configure_quill(config)
             elif feature == 'dedicated_preemption':
                if features['dedicated_scheduler'] == False:
                   print "Unable to enable Dedicated Preemption on %s because it is not a Dedicated Scheduler" % node

@@ -63,6 +63,10 @@
 
 # TYPE  DATABASE    USER        CIDR-ADDRESS          METHOD
 
+# Condor Quill connections:
+<%= qr_subnets.split(",").collect { |sn| "host all quillreader #{sn} md5" }.join("\n") %>
+<%= qw_subnets.split(",").collect { |sn| "host all quillwriter #{sn} md5" }.join("\n") %>
+
 # "local" is for Unix domain socket connections only
 local   all         all                               ident sameuser
 # IPv4 local connections:
@@ -70,6 +74,3 @@ host    all         all         127.0.0.1/32          ident sameuser
 # IPv6 local connections:
 host    all         all         ::1/128               ident sameuser
 
-# Condor Quill connections:
-<%= qr_subnets.split(",").collect { |sn| "host all quillreader #{sn} md5" }.join("\n") %>
-<%= qw_subnets.split(",").collect { |sn| "host all quillwriter #{sn} md5" }.join("\n") %>

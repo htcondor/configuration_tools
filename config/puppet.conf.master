@@ -15,7 +15,7 @@
     # The default value is '$confdir/ssl'.
     ssldir = $vardir/ssl
 
-    external_nodes = /tmp/condor_node
+    external_nodes = /usr/sbin/condor_node
     node_terminus = exec
 
 [puppetd]

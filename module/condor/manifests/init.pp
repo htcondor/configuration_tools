@@ -112,13 +112,7 @@ class condor::condor {
    include condor_quill
    include condor_dbmsd
    include condor_viewserver
-   condorfile { "/var/lib/condor/condor_config.local":
-                source => "condor_config.local",
-                owner => root,
-                group => root,
-                ensure => file,
-                mode => 644,
-   }
+   include condor_dynamic_provisioning
 }
 
 class condor::condor_dedicated_resource {
@@ -395,7 +389,9 @@ class condor::condor_quill {
    include condor_pkg
    include condor_svc
    include condor_config
-   include condor_quillwriter_pw
+   if $quill {
+      include condor_quillwriter_pw
+   }
    condortemplate { "$feature_config_dir/condor_quill":
                     content => $quill ? {
                                true => template("condor/condor_quill"),
@@ -416,7 +412,9 @@ class condor::condor_dbmsd {
    include condor_pkg
    include condor_svc
    include condor_config
-   include condor_quillwriter_pw
+   if $dbmsd {
+      include condor_quillwriter_pw
+   }
    condorfile { "$feature_config_dir/condor_dbmsd":
                 source => "condor_dbmsd",
                 owner => root,
@@ -439,7 +437,7 @@ class condor::postgresql {
                     true => file,
                     default => absent
           },
-          require => Package["postgresql-server"]
+          require => [ Package["postgresql-server"], Exec["dbinit"] ]
    }
    file { "/var/lib/pgsql/data/pg_hba.conf":
           mode => 600,
@@ -453,7 +451,7 @@ class condor::postgresql {
                     true => file,
                     default => absent
           },
-          require => Package["postgresql-server"]
+          require => [ Package["postgresql-server"], Exec["dbinit"] ]
    }
    file { "/usr/bin/condor_add_db_user.pl":
           mode => 555,
@@ -468,8 +466,8 @@ class condor::postgresql {
    }
    file { "/var/lib/pgsql/common_createddl.sql":
           mode => 444,
-          owner => root,
-          group => root,
+          owner => postgres,
+          group => postgres,
           source => "puppet:///condor/common_createddl.sql",
           ensure => $dbserver ? {
                     true => file,
@@ -479,8 +477,8 @@ class condor::postgresql {
    }
    file { "/var/lib/pgsql/pgsql_createddl.sql":
           mode => 444,
-          owner => root,
-          group => root,
+          owner => postgres,
+          group => postgres,
           source => "puppet:///condor/pgsql_createddl.sql",
           ensure => $dbserver ? {
                     true => file,
@@ -488,69 +486,69 @@ class condor::postgresql {
           },
           require => Package["postgresql-server"]
    }
-   package { postgresql-server:
-             ensure => installed
-   }
-   package { perl-Expect:
-             ensure => installed
-   }
-   service { postgresql:
-             enable => $dbserver ? {
-                       true => true,
-                       default => false
-             },
-             ensure => $dbserver ? {
-                       true => running,
-                       default => stopped
-             },
-             require => Exec["dbinit"],
-             subscribe => [ File["/var/lib/pgsql/data/postgresql.conf"],
-                            File["/var/lib/pgsql/data/pg_hba.conf"],
-                            Package["postgresql-server"] ];
-   }
-   exec { dbinit:
-          command => "/etc/init.d/postgresql initdb",
-          onlyif => "/usr/bin/test ! -f /var/lib/pgsql/data/PG_VERSION",
-          require => [ File["/var/lib/pgsql/data/pg_hba.conf"], 
-                       File["/var/lib/pgsql/data/postgresql.conf"] ];
-   }
-   exec { create_quillreader:
-          command => "condor_add_db_user.pl quillreader '$qrpw'",
-          path => "/usr/bin",
-          user => "postgres",
-          require => [ Package["perl-Expect"], Service["postgresql"],
-                       File["/usr/bin/condor_add_db_user.pl"] ]
-   }
-   exec { create_quillwriter:
-          command => "condor_add_db_user.pl quillwriter '$qwpw'",
-          path => "/usr/bin",
-          user => "postgres",
-          require => [ Package["perl-Expect"], Service["postgresql"],
-                       File["/usr/bin/condor_add_db_user.pl"] ]
-   }
-   exec { create_db:
-          command => "createdb -O quillwriter quill",
-          path => "/usr/bin",
-          user => "postgres",
-          require => [ Service["postgresql"], Exec["create_quillwriter"] ];
-   }
-   exec { condor_prog_lang:
-          command => "createlang plpgsql quill",
-          path => "/usr/bin",
-          user => "postgres",
-          require => [ Service["postgresql"], Exec["create_db"] ];
-   }
-   exec { condor_quill_schema1:
-          command => "psql quill quillwriter < /var/lib/pgsql/common_createddl.sql",
-          path => "/usr/bin",
-          user => "postgres",
-          require => [ Service["postgresql"], Exec["condor_prog_lang"] ];
-   }
-   exec { condor_quill_schema2:
-          command => "psql quill quillwriter < /var/lib/pgsql/pgsql_createddl.sql",
-          path => "/usr/bin",
-          user => "postgres",
-          require => [ Service["postgresql"], Exec["condor_quill_schema1"] ];
+   if $dbserver {
+      package { postgresql-server:
+                ensure => installed
+      }
+      package { perl-Expect:
+                ensure => installed
+      }
+      service { postgresql:
+                enable => $dbserver ? {
+                          true => true,
+                          default => false
+                },
+                ensure => $dbserver ? {
+                          true => running,
+                          default => stopped
+                },
+                require => Exec["dbinit"],
+                subscribe => [ File["/var/lib/pgsql/data/postgresql.conf"],
+                               File["/var/lib/pgsql/data/pg_hba.conf"],
+                               Package["postgresql-server"] ];
+      }
+      exec { dbinit:
+             command => "/etc/init.d/postgresql initdb",
+             onlyif => "/usr/bin/test ! -f /var/lib/pgsql/data/PG_VERSION"
+      }
+      exec { create_quillreader:
+             command => "condor_add_db_user.pl quillreader '$qrpw'",
+             path => "/usr/bin",
+             user => "postgres",
+             require => [ Package["perl-Expect"], Service["postgresql"],
+                          File["/usr/bin/condor_add_db_user.pl"] ]
+      }
+      exec { create_quillwriter:
+             command => "condor_add_db_user.pl quillwriter '$qwpw'",
+             path => "/usr/bin",
+             user => "postgres",
+             require => [ Package["perl-Expect"], Service["postgresql"],
+                          File["/usr/bin/condor_add_db_user.pl"] ]
+      }
+      exec { create_db:
+             command => "createdb -O quillwriter quill",
+             path => "/usr/bin",
+             user => "postgres",
+             require => [ Service["postgresql"], Exec["create_quillwriter"] ];
+      }
+      exec { condor_prog_lang:
+             command => "createlang plpgsql quill",
+             path => "/usr/bin",
+             user => "postgres",
+             require => [ Service["postgresql"], Exec["create_db"] ];
+      }
+      exec { condor_quill_schema1:
+             command => "psql quill quillwriter < /var/lib/pgsql/common_createddl.sql",
+             path => "/usr/bin",
+             user => "postgres",
+             require => [ Service["postgresql"], Exec["condor_prog_lang"] ];
+      }
+      exec { condor_quill_schema2:
+             command => "psql quill quillwriter < /var/lib/pgsql/pgsql_createddl.sql",
+             path => "/usr/bin",
+             user => "postgres",
+             require => [ Service["postgresql"], Exec["condor_quill_schema1"] ];
+      }
    }
 }
 
@@ -578,6 +576,23 @@ class condor::condor_viewserver {
                 group => root,
                 mode => 644,
                 ensure => $viewserver ? {
+                          true => file,
+                          default => absent
+                }
+   }
+}
+
+class condor::condor_dynamic_provisioning {
+   include condor_feature_dir
+   include condor_pkg
+   include condor_svc
+   include condor_config
+   condorfile { "$feature_config_dir/condor_dynamic_provisioning":
+                source => "condor_dynamic_provisioning",
+                owner => root,
+                group => root,
+                mode => 644,
+                ensure => $dynamic_provisioning ? {
                           true => file,
                           default => absent
                 }

@@ -5,6 +5,7 @@ use File::Basename;
 my $node_name = $ARGV[0];
 my $config_dir = "/etc/puppet/modules/condor/node_configs";
 
+# Exit if the node's config file doesn't exist
 if (! -f "$config_dir/$node_name" )
 {
    exit 0;
@@ -14,6 +15,7 @@ else
    @config = `cat $config_dir/$node_name`;
 }
 
+# Print out the node's configuration
 print "---\n";
 print "classes:\n";
 print "  - condor::condor\n";
@@ -24,29 +26,35 @@ foreach (@config)
 {
    if (/^([\S]+)\s*=\s*([\S]+)$/)
    {
+      # Config value have a value
       print "  $1: $2\n";
    }
    elsif (/^([\S]+)\s*=\s*$/)
    {
+      # Config value is blank
       print "  $1:\n";
    }
    elsif (/^([\S]+)$/)
    {
+      # No config value setting, so this is an enable flag
       print "  $1: True\n";
+
+      # If the enable flag is for configuring an HA Central Manager
+      # then form the list of Central Managers by looking at the other
+      # config files for the ha_central_manager option
       if ($1 eq "ha_central_manager")
       {
-         my $list = "$node_name";
          # Generate the list of other Central Managers
-         @files = `grep -H ha_central_manager $config_dir/*`;
+         my $list = "";
+         my $filename;
+         my @files = `grep -H ha_central_manager $config_dir/*`;
          foreach (@files)
          {
             /^(.+):.+$/;
-            my $filename = fileparse($1);
-            if ($filename ne $node_name)
-            {
-               $list = $list . ",$filename";
-            }
+            $filename = fileparse($1);
+            $list = $list . "$filename,";
          }
+         chop $list;
          print "  cm_list: $list\n";
       }
    }

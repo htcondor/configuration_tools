@@ -32,3 +32,6 @@
     # extension indicating the cache format is added automatically.
     # The default value is '$confdir/localconfig'.
     localconfig = $vardir/localconfig
+
+    # Listen on a port for server initiated refresh
+    listen = true

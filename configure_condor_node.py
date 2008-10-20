@@ -7,6 +7,7 @@ import sys
 import re
 import signal
 import getpass
+from subprocess import *
 
 def exit_signal_handler(signum, frame):
    sys.exit(0)
@@ -360,8 +361,25 @@ def main(argv=None):
          file.writelines(config)
          file.close()
          print 'Configuration saved'
+         null = open('/dev/null', 'w')
+         if 'ha_central_manager' in features:
+            # Need to tell other HA Central Managers to refresh their
+            # configuration
+            os.chdir(config_dir)
+            cmd = Popen('grep'+' -H'+ ' ha_central_manager'+' *', stdout=PIPE, shell=True)
+            ha_cm_list = cmd.communicate()[0]
+            for cm in ha_cm_list.split('\n'):
+               match = re.match('^(.+):.+$', cm)
+               if match != None and match.groups() != None:
+                  refresh = Popen('/usr/bin/puppetrun'+' --host'+' %s' % match.groups()[0], shell=True, stdout=null, stderr=null)
+                  status = os.waitpid(refresh.pid, 0)
+         else:
+            # Only tell the node configured to refresh its configuration
+            refresh = Popen('/usr/bin/puppetrun'+' --host'+' %s' % node, shell=True, stdout=null, stderr=null)
+            status = os.waitpid(refresh.pid, 0)
+         null.close()
       else:
-         print 'Confgiuration not saved'
+         print 'Configuration not saved'
 
 if __name__ == '__main__':
     sys.exit(main())

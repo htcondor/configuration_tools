@@ -19,7 +19,10 @@ else
 print "---\n";
 print "classes:\n";
 print "  - condor::condor\n";
-#print "  - condor::postgresql\n";
+if (grep /dbserver/, @config)
+{
+   print "  - condor::postgresql\n";
+}
 print "parameters:\n";
 print "  node_name: $node_name\n";
 foreach (@config)

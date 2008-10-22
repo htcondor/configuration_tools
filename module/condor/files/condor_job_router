@@ -1,0 +1,29 @@
+##--------------------------------------------------------------------
+##  Settings that control the daemon's debugging output:
+##--------------------------------------------------------------------
+MAX_JOB_ROUTER_LOG      = 1000000
+JOB_ROUTER_DEBUG        =
+
+######################################################################
+##  Daemon-wide settings:
+######################################################################
+##  Log file
+JOB_ROUTER_LOG  = $(LOG)/JobRouterLog
+
+######################################################################
+##  Daemon-specific settings:
+######################################################################
+##  Daemons you want the master to keep running for you:
+DAEMON_LIST = $(DAEMON_LIST), JOB_ROUTER
+
+##  Where is the binary
+JOB_ROUTER                      = $(LIBEXEC)/condor_job_router
+
+# For testing, set this to a small value to speed things up.
+# Once you are running at large scale, set it to a higher value
+# to prevent the JobRouter from using too much cpu.
+JOB_ROUTER_POLLING_PERIOD = 10
+
+# It is good to save lots of schedd queue history
+# for use with the router_history command.
+MAX_HISTORY_ROTATIONS = 20

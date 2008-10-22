@@ -20,7 +20,9 @@ def print_help(name, list, desc):
    print '  -a|--add    - Add the feature(s) to the condor node'
    print '  -d|--delete - Remove the feature(s) from the condor node'
    print '\navailable features:'
-   for feature in list.keys():
+   keys = list.keys()
+   keys.sort()
+   for feature in keys:
       print '  %-21s- %s' % (feature, desc[feature])
    print
 
@@ -222,15 +224,39 @@ def configure_db_users(conf, action):
          pass2 = getpass.getpass('Re-Enter the password for verification: ')
       conf.append('qwpw = %s\n' % pass1)
 
+def process_feature_deps(feat, deps):
+   feature_list = ''
+   try:
+      for dep in deps[feat].split(','):
+         # Handle recursive deps
+         feature_list += ',' + dep
+         if dep in deps.keys():
+            feature_list += process_feature_deps(dep, deps)
+   except:
+      pass
+
+   return feature_list
+
+def process_remove_deps(feat, deps):
+   list = ''
+   for key in deps.keys():
+      for dep in deps[key].split(','):
+         if feat == dep:
+            list += ',' + key
+            if key in deps.values():
+               list += process_remove_deps(key, deps)
+   return list
+
 def main(argv=None):
    if argv is None:
       argv = sys.argv
 
+   node_was_hacm = False
    config_dir = '/etc/puppet/modules/condor/node_configs'
    desc = { 'dedicated_resource': 'Make the condor node a Dedicated Resource',
-            'dedicated_scheduler': 'Make the condor node a Dedicated Scheduler\n\t\t\t (Node must already be a Scheduler)',
-            'ha_scheduler': 'Make the condor node a Highly Available Scheduler\n\t\t\t (Node must already be a Scheduler)',
-            'ha_central_manager': 'Make the condor node a Highly Available Central Manager\n\t\t\t (Node must already be a Central Manager)',
+            'dedicated_scheduler': 'Make the condor node a Dedicated Scheduler',
+            'ha_scheduler': 'Make the condor node a Highly Available Scheduler',
+            'ha_central_manager': 'Make the condor node a Highly Available Central Manager',
             'ec2': 'Enable the EC2 feature',
             'ec2e': 'Enable the EC2 Enhanced feature',
             'low_latency': 'Enable the Low-Latency feature',
@@ -239,11 +265,26 @@ def main(argv=None):
             'dbmsd': 'Enable dbmsd',
             'dynamic_provisioning': 'Enable the Dynamic Provisioing feature',
             'dedicated_preemption': 'Enable Dedicated Preemption',
-            'viewserver': 'Make the condor node a CondorView Server'
+            'viewserver': 'Make the condor node a CondorView Server',
+            'job_router': 'Enable the Job Router',
+            'scheduler': 'Enable the Condor Scheduler daemon',
+            'negotiator': 'Enable the Condor Negotiator daemon',
+            'collector': 'Enable the Condor Collector daemon',
+            'central_manager': 'Make the node a Central Manager (Negotiator and Collector)',
+            'credd': 'Enable the Condor Credential daemon',
+            'startd': 'Enable the Condor Start daemon (execution node)',
+            'procd': 'Enable the Condor Process Monitor daemon'
           }
-   feature_deps = { 'ec2e': 'ec2',
+   feature_deps = { 'ec2e': 'ec2,job_router',
                     'dedicated_preemption': 'dedicated_scheduler',
-                    'dbmsd': 'quill'
+                    'dbmsd': 'quill',
+                    'ha_scheduler': 'scheduler',
+                    'dedicated_scheduler': 'scheduler',
+                    'dedicated_resource': 'startd',
+                    'ha_central_manager': 'central_manager',
+                    'central_manager': 'negotiator,collector',
+                    'viewserver': 'collector',
+                    'low_latency': 'startd'
                   }
    feature_list = { 'dedicated_resource': False,
                     'dedicated_scheduler': False,
@@ -257,7 +298,15 @@ def main(argv=None):
                     'dbmsd': False,
                     'dynamic_provisioning': False,
                     'dedicated_preemption': False,
-                    'viewserver': False
+                    'viewserver': False,
+                    'job_router': False,
+                    'scheduler': False,
+                    'negotiator': False,
+                    'collector': False,
+                    'central_manager': False,
+                    'credd': False,
+                    'startd': False,
+                    'procd': False
                   }
 
    # Set signal handlers
@@ -309,20 +358,19 @@ def main(argv=None):
             if line != '':
                config.append(line + '\n')
          file.close()
+      if 'ha_central_manager\n' in config:
+         node_was_hacm = True
 
       # Process any dependencies
       for feature in features.split(','):
          if action == 'add':
-            try:
-               for dep in feature_deps[feature].split(','):
-                  features += ',' + dep
-            except:
-               pass
+            dep_list = process_feature_deps(feature, feature_deps)
+            if dep_list != '':
+               features += dep_list
          elif action == 'delete':
-            for key in feature_deps.keys():
-              for dep in feature_deps[key].split(','):
-                 if feature == dep:
-                     features += ',' + key
+            remove_list = process_remove_deps(feature, feature_deps)
+            if remove_list != '':
+               features += remove_list
 
       for feature in features.split(','):
          # Check if we have already configured this item (ie protect against
@@ -362,20 +410,29 @@ def main(argv=None):
          file.close()
          print 'Configuration saved'
          null = open('/dev/null', 'w')
-         if 'ha_central_manager' in features:
+         if ('ha_central_manager' in features) and \
+            ((action == 'add' and node_was_hacm == False) or \
+             (action == 'delete' and node_was_hacm == True)):
             # Need to tell other HA Central Managers to refresh their
-            # configuration
+            # configuration if this node is being added as a new HA CM
+            # or if the node was an HA CM and is being removed from the
+            # list
             os.chdir(config_dir)
-            cmd = Popen('grep'+' -H'+ ' ha_central_manager'+' *', stdout=PIPE, shell=True)
+            cmd = Popen('grep'+' -H' + ' ha_central_manager' + ' *', stdout=PIPE, shell=True)
             ha_cm_list = cmd.communicate()[0]
             for cm in ha_cm_list.split('\n'):
                match = re.match('^(.+):.+$', cm)
                if match != None and match.groups() != None:
-                  refresh = Popen('/usr/bin/puppetrun'+' --host'+' %s' % match.groups()[0], shell=True, stdout=null, stderr=null)
+                  refresh = Popen('/usr/bin/puppetrun' + ' --host' + ' %s' % match.groups()[0], shell=True, stdout=null, stderr=null)
                   status = os.waitpid(refresh.pid, 0)
+            if action == 'delete':
+               # Refesh the node being configured, since it won't be detected
+               # as a node to refresh
+               refresh = Popen('/usr/bin/puppetrun' + ' --host' + ' %s' % node, shell=True, stdout=null, stderr=null)
+               status = os.waitpid(refresh.pid, 0)
          else:
             # Only tell the node configured to refresh its configuration
-            refresh = Popen('/usr/bin/puppetrun'+' --host'+' %s' % node, shell=True, stdout=null, stderr=null)
+            refresh = Popen('/usr/bin/puppetrun' + ' --host' + ' %s' % node, shell=True, stdout=null, stderr=null)
             status = os.waitpid(refresh.pid, 0)
          null.close()
       else:

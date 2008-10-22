@@ -104,6 +104,7 @@ class condor::condor {
    include condor_dedicated_scheduler
    include condor_dedicated_preemption
    include condor_ha_scheduler
+   include condor_central_manager
    include condor_ha_central_manager
    include condor_low_latency
    include condor_EC2
@@ -113,6 +114,20 @@ class condor::condor {
    include condor_dbmsd
    include condor_viewserver
    include condor_dynamic_provisioning
+   include condor_collector
+   include condor_credd
+   include condor_job_router
+   include condor_negotiator
+   include condor_procd
+   include condor_scheduler
+   include condor_startd
+   condortemplate { "$feature_config_dir/condor_common":
+                    content => template("condor/condor_common"),
+                    owner => root,
+                    group => root,
+                    mode => 644,
+                    ensure => file
+   }
 }
 
 class condor::condor_dedicated_resource {
@@ -120,10 +135,6 @@ class condor::condor_dedicated_resource {
    include condor_pkg
    include condor_svc
    include condor_config
-   case $condor_startd_check {
-      1: { $dedicated_resource = $dedicated_resource }
-      default: { $dedicated_resource = false }
-   }
    condortemplate { "$feature_config_dir/condor_dedicated_resource":
                     content => $dedicated_resource ? {
                                true => template("condor/condor_dedicated_resource"),
@@ -144,10 +155,6 @@ class condor::condor_dedicated_scheduler {
    include condor_pkg
    include condor_svc
    include condor_config
-   case $condor_scheduler_check {
-      1: { $dedicated_scheduler = $dedicated_scheduler }
-      default: { $dedicated_scheduler = false }
-   }
    condorfile { "$feature_config_dir/condor_dedicated_scheduler":
                 source => "condor_dedicated_scheduler",
                 owner => root,
@@ -165,10 +172,6 @@ class condor::condor_dedicated_preemption {
    include condor_pkg
    include condor_svc
    include condor_config
-   case $condor_scheduler_check {
-      1: { $dedicated_preemption = $dedicated_preemption }
-      default: { $dedicated_preemption = false }
-   }
    condorfile { "$feature_config_dir/condor_dedicated_preemption":
                 source => "condor_dedicated_preemption",
                 owner => root,
@@ -186,10 +189,6 @@ class condor::condor_ha_scheduler {
    include condor_pkg
    include condor_svc
    include condor_config
-   case $condor_scheduler_check {
-      1: { $ha_scheduler = $ha_scheduler }
-      default: { $ha_scheduler = false }
-   }
    condortemplate { "$feature_config_dir/condor_ha_scheduler":
                     content => $ha_scheduler ? {
                                true => template("condor/condor_ha_scheduler"),
@@ -205,17 +204,31 @@ class condor::condor_ha_scheduler {
    }
 }
 
+class condor::condor_central_manager {
+   include condor_feature_dir
+   include condor_pkg
+   include condor_svc
+   include condor_config
+   condortemplate { "$feature_config_dir/condor_central_manager":
+                    content => $central_manager ? {
+                               true => template("condor/condor_central_manager"),
+                               default => " "
+                    },
+                    owner => root,
+                    group => root,
+                    mode => 644,
+                    ensure => $central_manager ? {
+                              true => file,
+                              default => absent
+                    }
+   }
+}
+
 class condor::condor_ha_central_manager {
    include condor_feature_dir
    include condor_pkg
    include condor_svc
    include condor_config
-   case $condor_negotiator_check {
-      1: { $ha_central_manager = $condor_collector_check ? {
-                                    1 => $ha_central_manager,
-                                    default => false } }
-      default: { $ha_central_manager = false }
-   }
    condortemplate { "$feature_config_dir/condor_ha_central_manager":
                     content => $ha_central_manager ? {
                                true => template("condor/condor_ha_central_manager"),
@@ -236,10 +249,6 @@ class condor::condor_low_latency {
    include condor_pkg
    include condor_svc
    include condor_config
-   case $condor_startd_check {
-      1: { $low_latency = $low_latency }
-      default: { $low_latency = false }
-   }
    condorfile { "$feature_config_dir/condor_low_latency":
                 source => "condor_low_latency",
                 owner => root,
@@ -354,12 +363,8 @@ class condor::condor_EC2_enhanced {
                 ensure => installed
       }
       package { ec2-enhanced-hooks:
-                ensure => installed
-      }
-      package { ec2-enhanced:
                 ensure => installed,
-                require => [ Package["condor"], Package["python-boto"],
-                             Package["ec2-enhanced-hooks"] ];
+                require => [ Package["condor"], Package["python-boto"] ];
       }
    }
 }
@@ -589,10 +594,6 @@ class condor::condor_viewserver {
    include condor_pkg
    include condor_svc
    include condor_config
-   case $condor_collector_check {
-      1: { $viewserver = $viewserver }
-      default: { $viewserver = false }
-   }
    file { "/var/lib/condor/pool_history":
           owner => condor,
           group => condor,
@@ -600,7 +601,8 @@ class condor::condor_viewserver {
           ensure => $viewserver ? {
                     true => directory,
                     default => absent
-          }
+          },
+          force => true
    }
    condorfile { "$feature_config_dir/condor_viewserver":
                 source => "condor_viewserver",
@@ -625,6 +627,135 @@ class condor::condor_dynamic_provisioning {
                 group => root,
                 mode => 644,
                 ensure => $dynamic_provisioning ? {
+                          true => file,
+                          default => absent
+                }
+   }
+}
+
+class condor::condor_credd {
+   include condor_feature_dir
+   include condor_pkg
+   include condor_svc
+   include condor_config
+   file { "/var/lib/condor/cred_dir":
+          owner => condor,
+          group => condor,
+          mode => 700,
+          ensure => $credd ? {
+                    true => directory,
+                    default => absent
+          },
+          force => true
+   }
+   condorfile { "$feature_config_dir/condor_credd":
+                source => "condor_viewserver",
+                owner => root,
+                group => root,
+                mode => 644,
+                ensure => $credd ? {
+                          true => file,
+                          default => absent
+                }
+   }
+}
+
+class condor::condor_collector {
+   include condor_feature_dir
+   include condor_pkg
+   include condor_svc
+   include condor_config
+   condorfile { "$feature_config_dir/condor_collector":
+                source => "condor_collector",
+                owner => root,
+                group => root,
+                mode => 644,
+                ensure => $collector ? {
+                          true => file,
+                          default => absent
+                }
+   }
+}
+
+class condor::condor_job_router {
+   include condor_feature_dir
+   include condor_pkg
+   include condor_svc
+   include condor_config
+   condorfile { "$feature_config_dir/condor_job_router":
+                source => "condor_job_router",
+                owner => root,
+                group => root,
+                mode => 644,
+                ensure => $job_router ? {
+                          true => file,
+                          default => absent
+                }
+   }
+}
+
+class condor::condor_negotiator {
+   include condor_feature_dir
+   include condor_pkg
+   include condor_svc
+   include condor_config
+   condorfile { "$feature_config_dir/condor_negotiator":
+                source => "condor_negotiator",
+                owner => root,
+                group => root,
+                mode => 644,
+                ensure => $negotiator ? {
+                          true => file,
+                          default => absent
+                }
+   }
+}
+
+class condor::condor_procd {
+   include condor_feature_dir
+   include condor_pkg
+   include condor_svc
+   include condor_config
+   condorfile { "$feature_config_dir/condor_procd":
+                source => "condor_procd",
+                owner => root,
+                group => root,
+                mode => 644,
+                ensure => $procd ? {
+                          true => file,
+                          default => absent
+                }
+   }
+}
+
+class condor::condor_scheduler {
+   include condor_feature_dir
+   include condor_pkg
+   include condor_svc
+   include condor_config
+   condorfile { "$feature_config_dir/condor_scheduler":
+                source => "condor_scheduler",
+                owner => root,
+                group => root,
+                mode => 644,
+                ensure => $scheduler ? {
+                          true => file,
+                          default => absent
+                }
+   }
+}
+
+class condor::condor_startd {
+   include condor_feature_dir
+   include condor_pkg
+   include condor_svc
+   include condor_config
+   condorfile { "$feature_config_dir/condor_startd":
+                source => "condor_startd",
+                owner => root,
+                group => root,
+                mode => 644,
+                ensure => $startd ? {
                           true => file,
                           default => absent
                 }

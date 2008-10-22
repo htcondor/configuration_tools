@@ -150,18 +150,6 @@ JOB_ROUTER_ENTRIES = $(JOB_ROUTER_ENTRIES) \
   ]
 <% end -%>
 
-# Reminder: you must restart Condor for changes to DAEMON_LIST to take effect.
-DAEMON_LIST = $(DAEMON_LIST) JOB_ROUTER
-
-# For testing, set this to a small value to speed things up.
-# Once you are running at large scale, set it to a higher value
-# to prevent the JobRouter from using too much cpu.
-JOB_ROUTER_POLLING_PERIOD = 10
-
-# It is good to save lots of schedd queue history
-# for use with the router_history command.
-MAX_HISTORY_ROTATIONS = 20
-
 # Job Router Hooks for EC2 translation
 JOB_ROUTER_HOOK_TRANSLATE_JOB = $(LIBEXEC)/hooks/hook_translate.py
 JOB_ROUTER_HOOK_UPDATE_JOB_INFO = $(LIBEXEC)/hooks/hook_retrieve_status.py

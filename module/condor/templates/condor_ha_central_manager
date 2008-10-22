@@ -2,7 +2,7 @@ NEGOTIATOR_HOST =
 CONDOR_HOST =
 
 ## A list of all potential central managers in the pool.
-COLLECTOR_HOST = <%= cm_list %>
+COLLECTOR_HOST = <%= ha_cm_list %>
 
 ## Define the port number on which the condor_had daemon will
 ## listen.  The port must match the port number used
@@ -24,14 +24,14 @@ REPLICATION_ARGS = -p $(REPLICATION_PORT)
 ## as HAD_LIST. In addition, for each hostname, it should specify 
 ## the port number of condor_replication daemon running on that host.
 ## This parameter is mandatory and has no default value
-REPLICATION_LIST = <%= cm_list.split(",").collect { |cm| "#{cm}:$(REPLICATION_PORT)" }.join(",") %>
+REPLICATION_LIST = <%= ha_cm_list.split(",").collect { |cm| "#{cm}:$(REPLICATION_PORT)" }.join(",") %>
 
 ## The following list must contain the same addresses in the same order 
 ## as COLLECTOR_HOST. In addition, for each hostname, it should specify 
 ## the port number of condor_had daemon running on that host.
 ## The first machine in the list will be the PRIMARY central manager
 ## machine, in case HAD_USE_PRIMARY is set to true.
-HAD_LIST = <%= cm_list.split(",").collect { |cm| "#{cm}:$(HAD_PORT)" }.join(",") %>
+HAD_LIST = <%= ha_cm_list.split(",").collect { |cm| "#{cm}:$(HAD_PORT)" }.join(",") %>
 
 ## HAD connection time.
 ## Recommended value is 2 if the central managers are on the same subnet.
@@ -57,6 +57,15 @@ HOSTALLOW_ADMINISTRATOR = $(HOSTALLOW_ADMINISTRATOR), $(COLLECTOR_HOST)
 ##  Negotiator access.  Machines listed here are trusted central
 ##  managers.  You should normally not have to change this.
 HOSTALLOW_NEGOTIATOR = $(HOSTALLOW_NEGOTIATOR), $(COLLECTOR_HOST)
+
+##  Now, with flocking we need to let the SCHEDD trust the other
+##  negotiators we are flocking with as well.  You should normally
+##  not have to change this either.
+HOSTALLOW_NEGOTIATOR_SCHEDD = $(FLOCK_NEGOTIATOR_HOSTS), $(COLLECTOR_HOST)
+
+##  Daemon access.  Machines listed here are trusted central
+##  managers
+#HOSTALLOW_DAEMON = $(HOSTALLOW_DAEMON), $(COLLECTOR_HOST)
 
 ## The location of executable files
 HAD = $(SBIN)/condor_had

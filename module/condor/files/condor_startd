@@ -1,0 +1,311 @@
+##  Flocking Configs.
+HOSTALLOW_WRITE_STARTD    = $(HOSTALLOW_WRITE), $(FLOCK_FROM)
+HOSTALLOW_READ_STARTD     = $(HOSTALLOW_READ), $(FLOCK_FROM)
+
+##--------------------------------------------------------------------
+##  Settings that control the daemon's debugging output:
+##--------------------------------------------------------------------
+MAX_STARTD_LOG          = 1000000
+STARTD_DEBUG            =
+
+MAX_STARTER_LOG         = 1000000
+STARTER_DEBUG           = D_NODATE
+
+##  Log files
+STARTD_LOG      = $(LOG)/StartLog
+STARTER_LOG     = $(LOG)/StarterLog
+
+##  Daemons you want the master to keep running for you:
+DAEMON_LIST = $(DAEMON_LIST), STARTD
+
+##  Where is the binary located?
+STARTD                          = $(SBIN)/condor_startd
+
+##--------------------------------------------------------------------
+##  condor_startd
+##--------------------------------------------------------------------
+##  Where are the various condor_starter binaries installed?
+STARTER_LIST = STARTER, STARTER_STANDARD
+STARTER                 = $(SBIN)/condor_starter
+STARTER_STANDARD        = $(SBIN)/condor_starter.std
+STARTER_LOCAL           = $(SBIN)/condor_starter
+
+##  When the startd starts up, it can place it's address (IP and port)
+##  into a file.  This way, tools running on the local machine don't
+##  need to query the central manager to find the startd.  This
+##  feature can be turned off by commenting out this setting.
+STARTD_ADDRESS_FILE     = $(LOG)/.startd_address
+
+##  When a machine is claimed, how often should we poll the state of
+##  the machine to see if we need to evict/suspend the job, etc?
+#POLLING_INTERVAL        = 5
+
+##  How often should the startd send updates to the central manager?
+#UPDATE_INTERVAL         = 300
+
+##  How long is the startd willing to stay in the "matched" state?
+#MATCH_TIMEOUT          = 300
+
+##  How long is the startd willing to stay in the preempting/killing
+##  state before it just kills the starter directly?
+#KILLING_TIMEOUT        = 30
+
+##  When a machine unclaimed, when should it run benchmarks?
+##  LastBenchmark is initialized to 0, so this expression says as soon
+##  as we're unclaimed, run the benchmarks.  Thereafter, if we're
+##  unclaimed and it's been at least 4 hours since we ran the last
+##  benchmarks, run them again.  The startd keeps a weighted average
+##  of the benchmark results to provide more accurate values.
+##  Note, if you don't want any benchmarks run at all, either comment
+##  RunBenchmarks out, or set it to "False".
+BenchmarkTimer = (CurrentTime - LastBenchmark)
+RunBenchmarks : (LastBenchmark == 0 ) || ($(BenchmarkTimer) >= (4 * $(HOUR)))
+#RunBenchmarks : False
+
+##  Normally, when the startd is computing the idle time of all the
+##  users of the machine (both local and remote), it checks the utmp
+##  file to find all the currently active ttys, and only checks access
+##  time of the devices associated with active logins.  Unfortunately,
+##  on some systems, utmp is unreliable, and the startd might miss
+##  keyboard activity by doing this.  So, if your utmp is unreliable,
+##  set this setting to True and the startd will check the access time
+##  on all tty and pty devices.
+#STARTD_HAS_BAD_UTMP = False
+
+##  This entry allows the startd to monitor console (keyboard and 
+##  mouse) activity by checking the access times on special files in
+##  /dev.  Activity on these files shows up as "ConsoleIdle" time in
+##  the startd's ClassAd.  Just give a comma-separated list of the
+##  names of devices you want considered the console, without the
+##  "/dev/" portion of the pathname.
+CONSOLE_DEVICES = mouse, console 
+
+##  The recommended default value for this setting, is to
+##  publish the COLLECTOR_HOST setting as a string.  This can be
+##  useful using the "$$(COLLECTOR_HOST)" syntax in the submit file
+##  for jobs to know (for example, via their environment) what pool
+##  they're running in.
+STARTD_ATTRS = "$(COLLECTOR_HOST)"
+
+##  When the startd is claimed by a remote user, it can also advertise
+##  arbitrary attributes from the ClassAd of the job its working on.
+##  Just list the attribute names you want advertised.
+##  Note: since this is already a ClassAd, you don't have to do
+##  anything funny with strings, etc.  This feature can be turned off
+##  by commenting out this setting (there is no default).
+STARTD_JOB_EXPRS = ImageSize, ExecutableSize, JobUniverse, NiceUser
+
+##  If you want to "lie" to Condor about how many CPUs your machine
+##  has, you can use this setting to override Condor's automatic
+##  computation.  If you modify this, you must restart the startd for
+##  the change to take effect (a simple condor_reconfig will not do).
+##  Please read the section on "condor_startd Configuration File
+##  Macros" in the Condor Administrators Manual for a further
+##  discussion of this setting.  Its use is not recommended.  This
+##  must be an integer ("N" isn't a valid setting, that's just used to
+##  represent the default).
+#NUM_CPUS = N
+
+##  If you never want Condor to detect more the "N" CPUs, uncomment this
+##  line out. You must restart the startd for this setting to take
+##  effect. If set to 0 or a negative number, it is ignored.
+##  By default, it is ignored. Otherwise, it must be a positive
+##  integer ("N" isn't a valid setting, that's just used to
+##  represent the default).
+#MAX_NUM_CPUS = N
+
+##  Normally, Condor will automatically detect the amount of physical
+##  memory available on your machine.  Define MEMORY to tell Condor
+##  how much physical memory (in MB) your machine has, overriding the
+##  value Condor computes automatically.  For example:
+#MEMORY = 128
+
+##  How much memory would you like reserved from Condor?  By default,
+##  Condor considers all the physical memory of your machine as
+##  available to be used by Condor jobs.  If RESERVED_MEMORY is
+##  defined, Condor subtracts it from the amount of memory it
+##  advertises as available.
+#RESERVED_MEMORY = 0
+
+######
+##  SMP startd settings
+##
+##  By default, Condor will evenly divide the resources in an SMP
+##  machine (such as RAM, swap space and disk space) among all the
+##  CPUs, and advertise each CPU as its own slot with an even share of
+##  the system resources.  If you want something other than this,
+##  there are a few options available to you.  Please read the section
+##  on "Configuring The Startd for SMP Machines" in the Condor
+##  Administrator's Manual for full details.  The various settings are
+##  only briefly listed and described here.
+######
+
+##  The maximum number of different slot types.
+#MAX_SLOT_TYPES = 10
+
+##  Use this setting to define your own slot types.  This
+##  allows you to divide system resources unevenly among your CPUs.
+##  You must use a different setting for each different type you
+##  define.  The "<N>" in the name of the macro listed below must be
+##  an integer from 1 to MAX_SLOT_TYPES (defined above),
+##  and you use this number to refer to your type.  There are many
+##  different formats these settings can take, so be sure to refer to
+##  the section on "Configuring The Startd for SMP Machines" in the
+##  Condor Administrator's Manual for full details.  In particular,
+##  read the section titled "Defining Slot Types" to help
+##  understand this setting.  If you modify any of these settings, you
+##  must restart the condor_start for the change to take effect.
+#SLOT_TYPE_<N> = 1/4
+#SLOT_TYPE_<N> = cpus=1, ram=25%, swap=1/4, disk=1/4
+#  For example:
+#SLOT_TYPE_1 = 1/8
+#SLOT_TYPE_2 = 1/4
+
+##  If you define your own slot types, you must specify how
+##  many slots of each type you wish to advertise.  You do
+##  this with the setting below, replacing the "<N>" with the
+##  corresponding integer you used to define the type above.  You can
+##  change the number of a given type being advertised at run-time,
+##  with a simple condor_reconfig.   
+#NUM_SLOTS_TYPE_<N> = M
+#  For example:
+#NUM_SLOTS_TYPE_1 = 6
+#NUM_SLOTS_TYPE_2 = 1
+
+##  The number of evenly-divided slots you want Condor to
+##  report to your pool (if less than the total number of CPUs).  This
+##  setting is only considered if the "type" settings described above
+##  are not in use.  By default, all CPUs are reported.  This setting
+##  must be an integer ("N" isn't a valid setting, that's just used to
+##  represent the default).
+#NUM_SLOTS = N
+
+##  How many of the slots the startd is representing should
+##  be "connected" to the console (in other words, notice when there's
+##  console activity)?  This defaults to all slots (N in a
+##  machine with N CPUs).  This must be an integer ("N" isn't a valid
+##  setting, that's just used to represent the default).
+#SLOTS_CONNECTED_TO_CONSOLE = N
+
+##  How many of the slots the startd is representing should
+##  be "connected" to the keyboard (for remote tty activity, as well
+##  as console activity).  Defaults to 1.
+#SLOTS_CONNECTED_TO_KEYBOARD = 1
+
+##  If there are slots that aren't connected to the
+##  keyboard or the console (see the above two settings), the
+##  corresponding idle time reported will be the time since the startd
+##  was spawned, plus the value of this parameter.  It defaults to 20
+##  minutes.  We do this because, if the slot is configured
+##  not to care about keyboard activity, we want it to be available to
+##  Condor jobs as soon as the startd starts up, instead of having to
+##  wait for 15 minutes or more (which is the default time a machine
+##  must be idle before Condor will start a job).  If you don't want
+##  this boost, just set the value to 0.  If you change your START
+##  expression to require more than 15 minutes before a job starts,
+##  but you still want jobs to start right away on some of your SMP
+##  nodes, just increase this parameter.
+#DISCONNECTED_KEYBOARD_IDLE_BOOST = 1200
+
+##--------------------------------------------------------------------
+##  condor_starter
+##--------------------------------------------------------------------
+##  The condor_starter can renice the processes from remote Condor
+##  jobs on your execute machines.  If you want this, uncomment the
+##  following entry and set it to how "nice" you want the user
+##  jobs. (1-19)  The larger the number, the lower priority the
+##  process gets on your machines.
+##  Note on Win32 platforms, this number needs to be greater than
+##  zero (i.e. the job must be reniced) or the mechanism that 
+##  monitors CPU load on Win32 systems will give erratic results. 
+#JOB_RENICE_INCREMENT   = 10 
+
+##  Should the starter do local logging to its own log file, or send
+##  debug information back to the condor_shadow where it will end up
+##  in the ShadowLog?
+#STARTER_LOCAL_LOGGING  = TRUE
+
+##  If the UID_DOMAIN settings match on both the execute and submit
+##  machines, but the UID of the user who submitted the job isn't in
+##  the passwd file of the execute machine, the starter will normally
+##  exit with an error.  Do you want the starter to just start up the
+##  job with the specified UID, even if it's not in the passwd file?
+#SOFT_UID_DOMAIN        = FALSE
+
+#####################################################################
+##  This where you choose the configuration that you would like to
+##  use.  It has no defaults so it must be defined.
+######################################################################
+# When should we only consider SUSPEND instead of PREEMPT?
+WANT_SUSPEND   = ( $(SmallJob) || $(KeyboardNotBusy) || $(IsVanilla) ) && \
+                 ( $(SUSPEND) )
+
+# When should we preempt gracefully instead of hard-killing?
+WANT_VACATE    = ( $(ActivationTimer) > 10 * $(MINUTE) || $(IsVanilla) )
+
+# Only start jobs if:
+# 1) the keyboard has been idle long enough, AND
+# 2) the load average is low enough OR the machine is currently
+#    running a Condor job
+# (NOTE: Condor will only run 1 job at a time on a given resource.
+# The reasons Condor might consider running a different job while
+# already running one are machine Rank, and user priorities.)
+##  When is this machine willing to start a job?
+START          = ( (KeyboardIdle > $(StartIdleTime)) \
+                    && ( $(CPUIdle) || \
+                         (State != "Unclaimed" && State != "Owner")) )
+
+# Suspend jobs if:
+# 1) the keyboard has been touched, OR
+# 2a) The cpu has been busy for more than 2 minutes, AND
+# 2b) the job has been running for more than 90 seconds
+##  When to suspend a job?
+SUSPEND        = ( $(KeyboardBusy) || \
+                 ( (CpuBusyTime > 2 * $(MINUTE)) \
+                   && $(ActivationTimer) > 90 ) )
+
+# Continue jobs if:
+# 1) the cpu is idle, AND
+# 2) we've been suspended more than 10 seconds, AND
+# 3) the keyboard hasn't been touched in a while
+##  When to resume a suspended job?
+CONTINUE       = ( $(CPUIdle) && ($(ActivityTimer) > 10) \
+                   && (KeyboardIdle > $(ContinueIdleTime)) )
+
+# Preempt jobs if:
+# 1) The job is suspended and has been suspended longer than we want
+# 2) OR, we don't want to suspend this job, but the conditions to
+#    suspend jobs have been met (someone is using the machine)
+##  When to nicely stop a job?
+##  (as opposed to killing it instantaneously)
+PREEMPT        = ( ((Activity == "Suspended") && \
+                    ($(ActivityTimer) > $(MaxSuspendTime))) \
+                   || (SUSPEND && (WANT_SUSPEND == False)) )
+
+##  When to instantaneously kill a preempting job
+##  (e.g. if a job is in the pre-empting stage for too long)
+KILL           = $(ActivityTimer) > $(MaxVacateTime)
+
+##  Checkpoint every 3 hours on average, with a +-30 minute random
+##  factor to avoid having many jobs hit the checkpoint server at
+##  the same time.
+PERIODIC_CHECKPOINT     = $(LastCkpt) > (3 * $(HOUR) + \
+                          $RANDOM_INTEGER(-30,30,1) * $(MINUTE) )
+
+# Maximum time (in seconds) to wait for a job to finish before kicking
+# it off (due to PREEMPT, a higher priority claim, or the startd
+# gracefully shutting down).  This is computed from the time the job
+# was started, minus any suspension time.  Once the retirement time runs
+# out, the usual preemption process will take place.  The job may
+# self-limit the retirement time to _less_ than what is given here.
+# By default, nice user jobs and standard universe jobs set their
+# MaxJobRetirementTime to 0, so they will not wait in retirement.
+MAXJOBRETIREMENTTIME    = 0
+
+##  If you completely disable preemption of claims to machines, you
+##  should consider limiting the timespan over which new jobs will be
+##  accepted on the same claim.  See the manual section on disabling
+##  preemption for a comprehensive discussion.  Since this example
+##  configuration does not disable preemption of claims, we leave
+##  CLAIM_WORKLIFE undefined (infinite).
+#CLAIM_WORKLIFE          = 1200

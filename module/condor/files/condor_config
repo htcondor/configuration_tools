@@ -217,12 +217,11 @@ HOSTALLOW_READ = *
 ##  but note that this will allow anyone to submit jobs or add
 ##  machines to your pool and is serious security risk.
 HOSTALLOW_WRITE = $(FULL_HOSTNAME)
-#HOSTALLOW_WRITE = *.your.domain, your-friend's-machine.other.domain
-#HOSTDENY_WRITE = bad-machine.your.domain
 
 ##  Negotiator access.  Machines listed here are trusted central
 ##  managers.  You should normally not have to change this.
 HOSTALLOW_NEGOTIATOR = $(CONDOR_HOST)
+
 ##  Now, with flocking we need to let the SCHEDD trust the other 
 ##  negotiators we are flocking with as well.  You should normally 
 ##  not have to change this either.
@@ -2188,3 +2187,7 @@ MAX_VM_GAHP_LOG	= 1000000
 ## If Condor runs as root and "ALWAYS_VM_UNIV_USE_NOBODY" is set to TRUE, 
 ## all VM universe jobs will run as a user defined in "VM_UNIV_NOBODY_USER".
 #ALWAYS_VM_UNIV_USE_NOBODY = FALSE
+
+## Disable reporting usage information
+CONDOR_DEVELOPERS = NONE
+CONDOR_DEVELOPERS_COLLECTOR = NONE

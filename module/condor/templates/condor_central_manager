@@ -1,0 +1,5 @@
+##  Write access.  Machines listed here can join your pool, submit
+##  jobs, etc.  Note: Any machine which has WRITE access must
+##  also be granted READ access.  Granting WRITE access below does
+##  not also automatically grant READ access
+HOSTALLOW_WRITE = $(HOSTALLOW_WRITE), <%= full_node_list %>

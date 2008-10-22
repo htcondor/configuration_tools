@@ -47,7 +47,7 @@ foreach (@config)
       # config files for the ha_central_manager option
       if ($1 eq "ha_central_manager")
       {
-         # Generate the list of other Central Managers
+         # Generate the list of other HA Central Managers
          my $list = "";
          my $filename;
          my @files = `grep -H ha_central_manager $config_dir/*`;
@@ -58,10 +58,42 @@ foreach (@config)
             $list = $list . "$filename,";
          }
          chop $list;
-         print "  cm_list: $list\n";
+         print "  ha_cm_list: $list\n";
       }
    }
 }
+
+# Generate the list of Central Managers
+my $list = "";
+my $filename;
+my @files = `egrep -H "^central_manager" $config_dir/*`;
+foreach (@files)
+{
+   /^(.+):.+$/;
+   $filename = fileparse($1);
+   $list = $list . "$filename,";
+}
+chop $list;
+print "  cm_list: $list\n";
+
+# If the node is a Central Manager, then print the list of nodes configured
+if ((grep /central_manager/, @config) >= 1)
+{
+   my $list = "";
+   opendir(DIR, $config_dir) || die("Unable to open $config_dir for reading\n");
+   @files = readdir(DIR);
+   closedir(DIR);
+   foreach $node (@files)
+   {
+      if(!(($node eq ".") || ($node eq "..")))
+      {
+         $list = $list . "$node,";
+      }
+   }
+   chop $list;
+   print "  full_node_list: $list\n";
+}
+
 #print "  dedicated_resource: true\n";
 #print "  dedicated_scheduler: true\n";
 #print "  dedicated_preemption: true\n";

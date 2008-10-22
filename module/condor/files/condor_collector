@@ -1,0 +1,43 @@
+##  This macro is used to specify a short description of your pool.
+##  It should be about 20 characters long.
+COLLECTOR_NAME          = My Pool
+
+##  FLOCK_COLLECTOR_HOSTS should almost always be the same as
+##  FLOCK_NEGOTIATOR_HOSTS (as shown below).  The only reason it would be
+##  different is if the collector and negotiator in the pool that you are
+##  flocking too are running on different machines (not recommended).
+##  The collectors must be specified in the same corresponding order as
+##  the FLOCK_NEGOTIATOR_HOSTS list.
+FLOCK_COLLECTOR_HOSTS = $(FLOCK_TO)
+
+##  Flocking Configs.  These are the real things that Condor looks at,
+##  but we set them from the FLOCK_FROM/TO macros above.
+HOSTALLOW_WRITE_COLLECTOR = $(HOSTALLOW_WRITE), $(FLOCK_FROM)
+HOSTALLOW_READ_COLLECTOR  = $(HOSTALLOW_READ), $(FLOCK_FROM)
+
+##--------------------------------------------------------------------
+##  Settings that control the daemon's debugging output:
+##--------------------------------------------------------------------
+MAX_COLLECTOR_LOG       = 1000000
+COLLECTOR_DEBUG         =
+
+######################################################################
+##  Daemon-wide settings:
+######################################################################
+##  Log file
+COLLECTOR_LOG   = $(LOG)/CollectorLog
+
+##  This setting primarily allows you to change the port that the
+##  collector is listening on.  By default, the collector uses port
+##  9618, but you can set the port with a ":port", such as:
+##  COLLECTOR_HOST = $(CONDOR_HOST):1234
+COLLECTOR_HOST  = $(CONDOR_HOST)
+
+######################################################################
+##  Daemon-specific settings:
+######################################################################
+##  Where is the binary?
+COLLECTOR                       = $(SBIN)/condor_collector
+
+##  Daemons you want the master to keep running for you:
+DAEMON_LIST = $(DAEMON_LIST), COLLECTOR

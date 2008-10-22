@@ -15,11 +15,6 @@
     # The default value is '$confdir/ssl'.
     ssldir = $vardir/ssl
 
-    pluginsync=true
-    pluginsource = puppet://mrg1.lab.bos.redhat.com/plugins
-    plugindest = $vardir/lib
-    factpath = $vardir/lib/facter
-
 [puppetd]
     # The file in which puppetd stores a list of the classes
     # associated with the retrieved configuratiion.  Can be loaded in

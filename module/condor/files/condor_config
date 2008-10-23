@@ -2187,7 +2187,3 @@ MAX_VM_GAHP_LOG	= 1000000
 ## If Condor runs as root and "ALWAYS_VM_UNIV_USE_NOBODY" is set to TRUE, 
 ## all VM universe jobs will run as a user defined in "VM_UNIV_NOBODY_USER".
 #ALWAYS_VM_UNIV_USE_NOBODY = FALSE
-
-## Disable reporting usage information
-CONDOR_DEVELOPERS = NONE
-CONDOR_DEVELOPERS_COLLECTOR = NONE

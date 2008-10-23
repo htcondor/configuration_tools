@@ -1,1 +1,5 @@
 CONDOR_HOST = <%= cm_list %>
+
+## Disable reporting usage information
+CONDOR_DEVELOPERS = NONE
+CONDOR_DEVELOPERS_COLLECTOR = NONE

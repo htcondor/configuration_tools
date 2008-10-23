@@ -118,7 +118,6 @@ class condor::condor {
    include condor_credd
    include condor_job_router
    include condor_negotiator
-   include condor_procd
    include condor_scheduler
    include condor_startd
    condortemplate { "$feature_config_dir/condor_common":
@@ -705,23 +704,6 @@ class condor::condor_negotiator {
                 group => root,
                 mode => 644,
                 ensure => $negotiator ? {
-                          true => file,
-                          default => absent
-                }
-   }
-}
-
-class condor::condor_procd {
-   include condor_feature_dir
-   include condor_pkg
-   include condor_svc
-   include condor_config
-   condorfile { "$feature_config_dir/condor_procd":
-                source => "condor_procd",
-                owner => root,
-                group => root,
-                mode => 644,
-                ensure => $procd ? {
                           true => file,
                           default => absent
                 }

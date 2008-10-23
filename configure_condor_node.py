@@ -272,8 +272,7 @@ def main(argv=None):
             'collector': 'Enable the Condor Collector daemon',
             'central_manager': 'Make the node a Central Manager (Negotiator and Collector)',
             'credd': 'Enable the Condor Credential daemon',
-            'startd': 'Enable the Condor Start daemon (execution node)',
-            'procd': 'Enable the Condor Process Monitor daemon'
+            'startd': 'Enable the Condor Start daemon (execution node)'
           }
    feature_deps = { 'ec2e': 'ec2,job_router',
                     'dedicated_preemption': 'dedicated_scheduler',
@@ -284,7 +283,8 @@ def main(argv=None):
                     'ha_central_manager': 'central_manager',
                     'central_manager': 'negotiator,collector',
                     'viewserver': 'collector',
-                    'low_latency': 'startd'
+                    'low_latency': 'startd',
+                    'job_router': 'scheduler'
                   }
    feature_list = { 'dedicated_resource': False,
                     'dedicated_scheduler': False,
@@ -306,7 +306,6 @@ def main(argv=None):
                     'central_manager': False,
                     'credd': False,
                     'startd': False,
-                    'procd': False
                   }
 
    # Set signal handlers

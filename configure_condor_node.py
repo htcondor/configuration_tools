@@ -224,6 +224,42 @@ def configure_db_users(conf, action):
          pass2 = getpass.getpass('Re-Enter the password for verification: ')
       conf.append('qwpw = %s\n' % pass1)
 
+def configure_node_schedulers(feats, conf, action):
+   response = 'y'
+   fields = ['scheduler_name', 'additional_scheds']
+
+   if (not ('scheduler' in feats) and action == 'add') or \
+      (('scheduler' in feats) and action == 'delete'):
+      for line in conf:
+         match = re.match('^scheduler_name\s*=.*$', line)
+         if match != None:
+            # Only ask to change the scheduler information if it is not set
+            response = raw_input('Modify which schedulers this node can submit to [y/n] ? ')
+            break
+      if response.lower() == 'y':
+         # Remove previous configuration it if exists
+         remove_fields(fields, conf)
+         conf.append('scheduler_name = %s\n' % raw_input('Enter the name of the default scheduler for this node: '))
+         conf.append('additional_scheds = %s\n' % raw_input('Enter a comma separated list of additional schedulers this node can submit to: '))
+   else:
+      conf.append('scheduler_name =\n')
+      conf.append('additional_scheds =\n')
+
+def configure_collector_name(feats, conf, action):
+   response = 'y'
+   fields = ['collector_name']
+
+   for line in conf:
+      match = re.match('^collector_name\s*=.*$', line)
+      if match != None:
+         # Only ask to change the collector name if it is not set
+         response = raw_input('Modify the collector name for this node [y/n] ? ')
+         break
+   if response.lower() == 'y':
+      # Remove previous configuration it if exists
+      remove_fields(fields, conf)
+      conf.append('collector_name = %s\n' % raw_input('Enter the collector name for this node: '))
+
 def process_feature_deps(feat, deps):
    feature_list = ''
    try:
@@ -403,37 +439,54 @@ def main(argv=None):
             elif feature == 'quill':
                configure_quill(config, action)
 
+      # Configure which schedulers the node can submit to
+      configure_node_schedulers(features, config, action)
+
+      # Configure the collector name
+      configure_collector_name(features, config, action)
+
       if raw_input('\nSave this configuration [y/n] ? ').lower() == 'y':
          file = open('%s/%s' % (config_dir, node), 'w')
          file.writelines(config)
          file.close()
          print 'Configuration saved'
+
+         # Tell all nodes to check in to see if there are configuration updates
+         print 'Refreshing node configurations'
+         os.chdir(config_dir)
+         nodes = os.listdir(".")
          null = open('/dev/null', 'w')
-         if ('ha_central_manager' in features) and \
-            ((action == 'add' and node_was_hacm == False) or \
-             (action == 'delete' and node_was_hacm == True)):
-            # Need to tell other HA Central Managers to refresh their
-            # configuration if this node is being added as a new HA CM
-            # or if the node was an HA CM and is being removed from the
-            # list
-            os.chdir(config_dir)
-            cmd = Popen('grep'+' -H' + ' ha_central_manager' + ' *', stdout=PIPE, shell=True)
-            ha_cm_list = cmd.communicate()[0]
-            for cm in ha_cm_list.split('\n'):
-               match = re.match('^(.+):.+$', cm)
-               if match != None and match.groups() != None:
-                  refresh = Popen('/usr/bin/puppetrun' + ' --host' + ' %s' % match.groups()[0], shell=True, stdout=null, stderr=null)
-                  status = os.waitpid(refresh.pid, 0)
-            if action == 'delete':
-               # Refesh the node being configured, since it won't be detected
-               # as a node to refresh
-               refresh = Popen('/usr/bin/puppetrun' + ' --host' + ' %s' % node, shell=True, stdout=null, stderr=null)
-               status = os.waitpid(refresh.pid, 0)
-         else:
-            # Only tell the node configured to refresh its configuration
-            refresh = Popen('/usr/bin/puppetrun' + ' --host' + ' %s' % node, shell=True, stdout=null, stderr=null)
+         for condor_node in nodes:
+            refresh = Popen('/usr/bin/puppetrun' + ' --host' + ' %s' % condor_node, shell=True, stdout=null, stderr=null)
             status = os.waitpid(refresh.pid, 0)
          null.close()
+         
+#         null = open('/dev/null', 'w')
+#         if ('ha_central_manager' in features) and \
+#            ((action == 'add' and node_was_hacm == False) or \
+#             (action == 'delete' and node_was_hacm == True)):
+#            # Need to tell other HA Central Managers to refresh their
+#           # configuration if this node is being added as a new HA CM
+#            # or if the node was an HA CM and is being removed from the
+#            # list
+#            os.chdir(config_dir)
+#            cmd = Popen('grep'+' -H' + ' ha_central_manager' + ' *', stdout=PIPE, shell=True)
+#            ha_cm_list = cmd.communicate()[0]
+#            for cm in ha_cm_list.split('\n'):
+#               match = re.match('^(.+):.+$', cm)
+#               if match != None and match.groups() != None:
+#                  refresh = Popen('/usr/bin/puppetrun' + ' --host' + ' %s' % match.groups()[0], shell=True, stdout=null, stderr=null)
+#                  status = os.waitpid(refresh.pid, 0)
+#            if action == 'delete':
+#               # Refesh the node being configured, since it won't be detected
+#               # as a node to refresh
+#               refresh = Popen('/usr/bin/puppetrun' + ' --host' + ' %s' % node, shell=True, stdout=null, stderr=null)
+#               status = os.waitpid(refresh.pid, 0)
+#         else:
+#            # Only tell the node configured to refresh its configuration
+#            refresh = Popen('/usr/bin/puppetrun' + ' --host' + ' %s' % node, shell=True, stdout=null, stderr=null)
+#            status = os.waitpid(refresh.pid, 0)
+#         null.close()
       else:
          print 'Configuration not saved'
 

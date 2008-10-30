@@ -2,6 +2,7 @@
 ##  negotiators we are flocking with as well.  You should normally
 ##  not have to change this either.
 HOSTALLOW_NEGOTIATOR_SCHEDD = $(HOSTALLOW_NEGOTIATOR_SCHEDD), $(CONDOR_HOST), $(FLOCK_NEGOTIATOR_HOSTS)
+HOSTALLOW_WRITE = $(HOSTALLOW_WRITE), <%= sched_writes %>
 
 ##--------------------------------------------------------------------
 ##  Settings that control the daemon's debugging output:

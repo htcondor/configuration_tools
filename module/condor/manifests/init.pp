@@ -715,15 +715,18 @@ class condor::condor_scheduler {
    include condor_pkg
    include condor_svc
    include condor_config
-   condorfile { "$feature_config_dir/condor_scheduler":
-                source => "condor_scheduler",
-                owner => root,
-                group => root,
-                mode => 644,
-                ensure => $scheduler ? {
-                          true => file,
-                          default => absent
-                }
+   condortemplate { "$feature_config_dir/condor_scheduler":
+                    content => $scheduler ? {
+                               true => template("condor/condor_scheduler"),
+                               default => " "
+                    },
+                    owner => root,
+                    group => root,
+                    mode => 644,
+                    ensure => $scheduler ? {
+                              true => file,
+                              default => absent
+                    }
    }
 }
 
@@ -732,14 +735,17 @@ class condor::condor_startd {
    include condor_pkg
    include condor_svc
    include condor_config
-   condorfile { "$feature_config_dir/condor_startd":
-                source => "condor_startd",
-                owner => root,
-                group => root,
-                mode => 644,
-                ensure => $startd ? {
-                          true => file,
-                          default => absent
-                }
+   condortemplate { "$feature_config_dir/condor_startd":
+                    content => $startd ? {
+                               true => template("condor/condor_startd"),
+                               default => " "
+                    },
+                    owner => root,
+                    group => root,
+                    mode => 644,
+                    ensure => $startd ? {
+                              true => file,
+                              default => absent
+                    }
    }
 }

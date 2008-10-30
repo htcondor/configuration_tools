@@ -1,5 +1,22 @@
 CONDOR_HOST = <%= cm_list %>
+COLLECTOR_NAME = <%= collector_name %>
+<% unless scheduler_name.nil? or scheduler_name == "" -%>
+SCHEDD_NAME = <%= scheduler_name %>
+<% end -%>
 
 ## Disable reporting usage information
 CONDOR_DEVELOPERS = NONE
 CONDOR_DEVELOPERS_COLLECTOR = NONE
+
+PLUGIN_DIR = $(LIBEXEC)
+
+# Security configuration
+SEC_DEFAULT_NEGOTIATION = OPTIONAL
+SEC_DEFAULT_AUTHENTICATION = OPTIONAL
+SEC_DEFAULT_ENCRYPTION = REQUIRED
+SEC_DEFAULT_INTEGRITY = REQUIRED
+
+# Encryption configuration
+SEC_DEFAULT_CRYPTO_METHODS = 3DES
+
+SEC_DEFAULT_AUTHENTICATION_METHODS = CLAIMTOBE

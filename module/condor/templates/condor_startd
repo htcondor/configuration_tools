@@ -1,6 +1,7 @@
-##  Flocking Configs.
-HOSTALLOW_WRITE_STARTD    = $(HOSTALLOW_WRITE), $(FLOCK_FROM)
-HOSTALLOW_READ_STARTD     = $(HOSTALLOW_READ), $(FLOCK_FROM)
+HOSTALLOW_WRITE_STARTD    = <%= schedd_list %>, $(HOSTALLOW_WRITE), $(FLOCK_FROM)
+HOSTALLOW_READ_STARTD     = <%= schedd_list %>, $(HOSTALLOW_READ), $(FLOCK_FROM)
+HOSTALLOW_WRITE_DAEMON    = <%= schedd_list %>
+HOSTALLOW_READ_DAEMON     = <%= schedd_list %>
 
 ##--------------------------------------------------------------------
 ##  Settings that control the daemon's debugging output:
@@ -85,7 +86,7 @@ CONSOLE_DEVICES = mouse, console
 ##  useful using the "$$(COLLECTOR_HOST)" syntax in the submit file
 ##  for jobs to know (for example, via their environment) what pool
 ##  they're running in.
-STARTD_ATTRS = "$(COLLECTOR_HOST)"
+STARTD_ATTRS = "$(COLLECTOR_HOST)", SmallJob, KeyboardNotBusy, IsVanilla, ActivationTimer, MINUTE, StartIdleTime, CPUIdle, KeyboardBusy, ContinueIdleTime, MaxSuspendTime, MaxVacateTime, HOUR, LastCkpt
 
 ##  When the startd is claimed by a remote user, it can also advertise
 ##  arbitrary attributes from the ClassAd of the job its working on.

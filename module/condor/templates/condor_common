@@ -4,11 +4,16 @@ COLLECTOR_NAME = <%= collector_name %>
 SCHEDD_NAME = <%= scheduler_name %>
 <% end -%>
 
-## Disable reporting usage information
+DAEMON_LIST = $(DAEMON_LIST), MASTER
+
+# Disable reporting usage information
 CONDOR_DEVELOPERS = NONE
 CONDOR_DEVELOPERS_COLLECTOR = NONE
 
+# Plugin configuration
 PLUGIN_DIR = $(LIBEXEC)
+QMF_BROKER_HOST = <%= qmf_broker %>
+QMF_BROKER_PORT = <%= qmf_port %>
 
 # Security configuration
 SEC_DEFAULT_NEGOTIATION = OPTIONAL

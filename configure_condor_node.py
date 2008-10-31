@@ -242,10 +242,12 @@ def configure_node_schedulers(feats, conf, action):
          conf.append('scheduler_name = %s\n' % raw_input('Enter the name of the default scheduler for this node: '))
          conf.append('additional_scheds = %s\n' % raw_input('Enter a comma separated list of additional schedulers this node can submit to: '))
    else:
+      # Remove previous configuration it if exists
+      remove_fields(fields, conf)
       conf.append('scheduler_name =\n')
       conf.append('additional_scheds =\n')
 
-def configure_collector_name(feats, conf, action):
+def configure_collector_name(conf):
    response = 'y'
    fields = ['collector_name']
 
@@ -259,6 +261,22 @@ def configure_collector_name(feats, conf, action):
       # Remove previous configuration it if exists
       remove_fields(fields, conf)
       conf.append('collector_name = %s\n' % raw_input('Enter the collector name for this node: '))
+
+def configure_qmf_broker(conf):
+   response = 'y'
+   fields = ['qmf_broker', 'qmf_port']
+
+   for line in conf:
+      match = re.match('^qmf_broker\s*=.*$', line)
+      if match != None:
+         # Only ask to change the Broker configuration if it is not set
+         response = raw_input('Change the broker information this node uses to communicate with the Management Console [y/n] ? ')
+         break
+   if response.lower() == 'y':
+      # Remove previous configuration it if exists
+      remove_fields(fields, conf)
+      conf.append('qmf_broker = %s\n' % raw_input('Enter the hostname of the AMQP broker this node will use to communicate with the Management Console: '))
+      conf.append('qmf_port = %s\n' % raw_input('Enter the port the AMQP broker listens on : '))
 
 def process_feature_deps(feat, deps):
    feature_list = ''
@@ -443,7 +461,11 @@ def main(argv=None):
       configure_node_schedulers(features, config, action)
 
       # Configure the collector name
-      configure_collector_name(features, config, action)
+      configure_collector_name(config)
+
+      # Configure the AMQP broker used to communicate with the Management
+      # Console
+      configure_qmf_broker(config)
 
       if raw_input('\nSave this configuration [y/n] ? ').lower() == 'y':
          file = open('%s/%s' % (config_dir, node), 'w')

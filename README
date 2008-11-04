@@ -1,0 +1,84 @@
+Configuration:
+/etc/sysconfig/puppet:
+   PUPPET_SERVER=north-16.lab.bos.redhat.com
+
+/etc/puppet/puppet.conf:
+   Client:
+      [puppetd]
+         # Listen on a port for server initiated refresh
+         listen = true
+
+   Server:
+      [main]
+         external_nodes = /usr/sbin/condor_node
+         node_terminus = exec
+      [puppetmasterd]
+         autosign = true
+
+
+/etc/puppet/namespaceauth.conf:
+   Client:
+      [puppetrunner]
+         allow north-16.lab.bos.redhat.com
+ 
+
+Usage:
+To configure a condor node, the Fully Qualified Domain Name (FQDN) of the
+node to be configured must be known as this is how the node will identify
+itself to the configuration system.  Configuring a Condor node is as simple
+as running the configure_condor_node tool as root with the appropriate action
+and features:
+
+configure_condor_node.py [-h|--help] -n <FQDN> action feature[,feature,...]
+
+The currently supported actions are either add or delete.  The add action is
+used to add features to the provided node, and if any additional information
+is required then the tool will prompt the user.  Blank lines are valid for
+almost any entry.
+
+In addition, there are a few configuration items that will be prompted for
+regardless of which options are being enabled:
+Schedulers
+Collector Name
+QMF Broker Information
+
+If the node being configured is not a scheduler, then the configuration tool
+will prompt for the list of schedulers the node should be allowed to submit to.
+First it will prompt for the default scheduler, then for a comma separated
+list of additional schedulers that the node should be allowed to submit to.
+The valid values for these entries is either 'ha-schedd@' for a High Available
+Scheduler or the FQDN of the schedulers.
+
+The Collector Name is a human readable text field that will identify the pool.
+This value will be set as condor's COLLECTOR_NAME for the node.
+
+The QMF Broker is the AMQP broker that is used to communicate with the
+Management console.  The configuration tool will prompt for the IP/hostname
+where the broker is running, as well as the port the broker is listening on.
+If no port is provided, the default port will be used.
+
+The delete action works similarly to the add action, and will prompt to change
+the Schedulers, Collector Name, or QMF Broker information.  Entering 'n' or
+not answering the questions will leave that configuration unchanged.
+
+Finally, the configuration tool will prompt to save the configuration.  If the
+configuration is saved, the tool will automatically trigger all known nodes
+to report in to check their configuration.
+
+The list of supported features and usage information can be obtained by
+executing:
+
+configure_condor_node --help
+
+
+Examples:
+To enable a machine named condor_ca.domain.com to be a High Available Central
+Manager:
+configure_condor_node -n condor_ca.domain.com -a ha_central_manager
+
+To enable a machine name twofer.domain.com to be a Scheduler and an Execute
+node:
+configure_condor_node -n twofer.domain.com -a scheduler,startd
+
+To remove the Execution functionality from twofer.domain.com:
+configure_condor_node -n twofer.domain.com -d startd

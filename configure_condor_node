@@ -276,7 +276,7 @@ def configure_qmf_broker(conf):
       # Remove previous configuration it if exists
       remove_fields(fields, conf)
       conf.append('qmf_broker = %s\n' % raw_input('Enter the hostname of the AMQP broker this node will use to communicate with the Management Console: '))
-      conf.append('qmf_port = %s\n' % raw_input('Enter the port the AMQP broker listens on : '))
+      conf.append('qmf_port = %s\n' % raw_input('Enter the port the AMQP broker listens on (Default: 5672): '))
 
 def process_feature_deps(feat, deps):
    feature_list = ''

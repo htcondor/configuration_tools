@@ -986,14 +986,14 @@ RESERVED_DISK		= 5
 ##  condor_master
 ##--------------------------------------------------------------------
 ##  Daemons you want the master to keep running for you:
-DAEMON_LIST			= MASTER, STARTD, SCHEDD
+#DAEMON_LIST			= MASTER, STARTD, SCHEDD
 
 ##  Which daemons use the Condor DaemonCore library (i.e., not the
 ##  checkpoint server or custom user daemons)?
-DC_DAEMON_LIST = \
-MASTER, STARTD, SCHEDD, KBDD, COLLECTOR, NEGOTIATOR, EVENTD, \
-VIEW_SERVER, CONDOR_VIEW, VIEW_COLLECTOR, HAWKEYE, CREDD, HAD, \
-DBMSD, QUILL, JOB_ROUTER
+#DC_DAEMON_LIST = \
+#MASTER, STARTD, SCHEDD, KBDD, COLLECTOR, NEGOTIATOR, EVENTD, \
+#VIEW_SERVER, CONDOR_VIEW, VIEW_COLLECTOR, HAWKEYE, CREDD, HAD, \
+#DBMSD, QUILL, JOB_ROUTER
 
 
 ##  Where are the binaries for these daemons?

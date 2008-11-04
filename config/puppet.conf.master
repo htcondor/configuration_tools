@@ -15,6 +15,7 @@
     # The default value is '$confdir/ssl'.
     ssldir = $vardir/ssl
 
+    # Node configuration not listed in any manifests
     external_nodes = /usr/sbin/condor_node
     node_terminus = exec
 
@@ -30,3 +31,11 @@
     # extension indicating the cache format is added automatically.
     # The default value is '$confdir/localconfig'.
     localconfig = $vardir/localconfig
+
+[puppetmasterd]
+    # Whether to enable autosign.  Valid values are true (which
+    # autosigns any key request, and is a very bad idea), false (which
+    # never autosigns any key request), and the path to a file, which
+    # uses that configuration file to determine which keys to sign.
+    # The default value is '$confdir/autosign.conf'.
+    autosign = true

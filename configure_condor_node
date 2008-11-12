@@ -13,6 +13,7 @@
 #   See the License for the specific language governing permissions and
 #   limitations under the License.
 
+#import psycopg2
 import getopt
 import os
 import sys
@@ -46,6 +47,46 @@ def remove_fields(field_list, conf):
          if match != None and match.groups() != None:
             conf.remove(match.groups()[0] + '\n')
             break
+
+def process_feature_deps(feat, deps):
+   feature_list = ''
+   try:
+      for dep in deps[feat].split(','):
+         # Handle recursive deps
+         feature_list += ',' + dep
+         if dep in deps.keys():
+            feature_list += process_feature_deps(dep, deps)
+   except:
+      pass
+
+   return feature_list
+
+def process_remove_deps(feat, deps):
+   list = ''
+   for key in deps.keys():
+      for dep in deps[key].split(','):
+         if feat == dep:
+            list += ',' + key
+            if key in deps.values():
+               list += process_remove_deps(key, deps)
+   return list
+
+def find_config(node_name, config_dir):
+   search_dirs = []
+   path = None
+
+   # Create a list of dirs to search through
+   for item in os.listdir(config_dir):
+      if os.path.isdir(item):
+         search_dirs.append(item)
+
+   # Search the directories for the node's configuration
+   for dir in search_dirs:
+      if os.path.exists(os.path.join(dir, node_name)) == True:
+         path = dir
+         break
+
+   return(path)
 
 def configure_low_lat(conf, action):
    fields = [ 'exchange', 'broker_ip', 'broker_port', 'amqp_queue',
@@ -264,15 +305,22 @@ def configure_collector_name(conf):
    fields = ['collector_name']
 
    for line in conf:
-      match = re.match('^collector_name\s*=.*$', line)
+      match = re.match('^collector_name\s*=(.*)$', line)
       if match != None:
          # Only ask to change the collector name if it is not set
          response = raw_input('Modify the collector name for this node [y/n] ? ')
          break
+
    if response.lower() == 'y':
       # Remove previous configuration it if exists
       remove_fields(fields, conf)
-      conf.append('collector_name = %s\n' % raw_input('Enter the collector name for this node: '))
+      collector_name = raw_input('Enter the collector name for this node: ')
+      conf.append('collector_name = %s\n' % collector_name)
+      dir_name = collector_name
+   else:
+      dir_name = match.groups()[0].lstrip().rstrip()
+
+   return dir_name
 
 def configure_qmf_broker(conf):
    response = 'y'
@@ -290,35 +338,12 @@ def configure_qmf_broker(conf):
       conf.append('qmf_broker = %s\n' % raw_input('Enter the hostname of the AMQP broker this node will use to communicate with the Management Console: '))
       conf.append('qmf_port = %s\n' % raw_input('Enter the port the AMQP broker listens on (Default: 5672): '))
 
-def process_feature_deps(feat, deps):
-   feature_list = ''
-   try:
-      for dep in deps[feat].split(','):
-         # Handle recursive deps
-         feature_list += ',' + dep
-         if dep in deps.keys():
-            feature_list += process_feature_deps(dep, deps)
-   except:
-      pass
-
-   return feature_list
-
-def process_remove_deps(feat, deps):
-   list = ''
-   for key in deps.keys():
-      for dep in deps[key].split(','):
-         if feat == dep:
-            list += ',' + key
-            if key in deps.values():
-               list += process_remove_deps(key, deps)
-   return list
-
 def main(argv=None):
    if argv is None:
       argv = sys.argv
 
    node_was_hacm = False
-   config_dir = '/etc/puppet/modules/condor/node_configs'
+   base_config_dir = '/etc/puppet/modules/condor/node_configs'
    desc = { 'dedicated_resource': 'Make the condor node a Dedicated Resource',
             'dedicated_scheduler': 'Make the condor node a Dedicated Scheduler',
             'ha_scheduler': 'Make the condor node a Highly Available Scheduler',
@@ -378,8 +403,8 @@ def main(argv=None):
    signal.signal(signal.SIGINT, exit_signal_handler)
    signal.signal(signal.SIGTERM, exit_signal_handler)
 
-   if os.path.exists(config_dir) == False:
-      os.makedirs(config_dir)
+   if os.path.exists(base_config_dir) == False:
+      os.makedirs(base_config_dir)
 
    long_opts = ['add', 'delete', 'help', 'node_name']
    try:
@@ -416,8 +441,10 @@ def main(argv=None):
       print 'No action specified.  Exiting'
       print_help(argv[0], feature_list, desc)
    else:
+      # Find the config file for this node
+      config_dir = find_config(node, base_config_dir)
       config = []
-      if os.path.exists('%s/%s' % (config_dir, node)) == True:
+      if config_dir != None:
          file = open('%s/%s' % (config_dir, node), 'r')
          for line in file.read().split('\n'):
             if line != '':
@@ -473,22 +500,29 @@ def main(argv=None):
       configure_node_schedulers(features, config, action)
 
       # Configure the collector name
-      configure_collector_name(config)
+      new_config_dir = configure_collector_name(config)
 
       # Configure the AMQP broker used to communicate with the Management
       # Console
       configure_qmf_broker(config)
 
       if raw_input('\nSave this configuration [y/n] ? ').lower() == 'y':
-         file = open('%s/%s' % (config_dir, node), 'w')
+         if config_dir != None:
+            os.remove(os.path.join(config_dir, node))
+         if os.path.exists(new_config_dir) == False:
+            os.makedirs(new_config_dir)
+         file = open(os.path.join(new_config_dir, node), 'w')
          file.writelines(config)
          file.close()
          print 'Configuration saved'
 
          # Tell all nodes to check in to see if there are configuration updates
          print 'Refreshing node configurations'
-         os.chdir(config_dir)
-         nodes = os.listdir(".")
+         os.chdir(base_config_dir)
+         dirs = os.listdir(".")
+         nodes = []
+         for dir in dirs:
+            nodes += os.listdir(dir)
          null = open('/dev/null', 'w')
          for condor_node in nodes:
             refresh = Popen('/usr/bin/puppetrun' + ' --host' + ' %s' % condor_node, shell=True, stdout=null, stderr=null)
@@ -503,7 +537,7 @@ def main(argv=None):
 #           # configuration if this node is being added as a new HA CM
 #            # or if the node was an HA CM and is being removed from the
 #            # list
-#            os.chdir(config_dir)
+#            os.chdir(new_config_dir)
 #            cmd = Popen('grep'+' -H' + ' ha_central_manager' + ' *', stdout=PIPE, shell=True)
 #            ha_cm_list = cmd.communicate()[0]
 #            for cm in ha_cm_list.split('\n'):

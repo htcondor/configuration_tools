@@ -16,19 +16,30 @@
 use File::Basename;
 
 my $node_name = $ARGV[0];
-my $config_dir = "/etc/puppet/modules/condor/node_configs";
+my $base_config_dir = "/etc/puppet/modules/condor/node_configs";
 my $list = "";
 my $filename;
 my @files;
+my $config_file;
+my $config_dir;
+
+# Find the pool the configuration file is in
+$config_file = `find $base_config_dir -name $node_name`;
+chomp $config_file;
+$config_file =~ /^(.*)\/$node_name$/;
+$config_dir = $1;
+print $config_file;
 
 # Exit if the node's config file doesn't exist
-if (! -f "$config_dir/$node_name" )
+if (! -f "$config_file" )
 {
+   # We don't know about the node, so print an empty config
+   print "--- {}\n\n";
    exit 0;
 }
 else
 {
-   @config = `cat $config_dir/$node_name`;
+   @config = `cat "$config_file"`;
 }
 
 # Print out the node's configuration
@@ -65,7 +76,7 @@ foreach (@config)
       {
          # Generate the list of other HA Central Managers
          $list = "";
-         @files = `grep -H ha_central_manager $config_dir/*`;
+         @files = `grep -H ha_central_manager "$config_dir"/*`;
          foreach (@files)
          {
             /^(.+):.+$/;
@@ -80,15 +91,15 @@ foreach (@config)
          # Generate the list of nodes that should be able to submit to this
          # scheduler node
          $list = "";
-         @files = `egrep -H "^scheduler_name = $node_name\$" $config_dir/*`;
-         push(@files, `egrep -H "^additional_scheds = (.*)$node_name(.*)\$" $config_dir/*`);
+         @files = `egrep -H "^scheduler_name = $node_name\$" "$config_dir"/*`;
+         push(@files, `egrep -H "^additional_scheds = (.*)$node_name(.*)\$" "$config_dir"/*`);
 
          # If this is an HA Scheduler, look for the nodes that can write to
          # the common schedd name
          if ((grep /ha_scheduler/, @config) >= 1)
          {
-            push(@files, `egrep -H "^scheduler_name = (.*)ha-schedd@(.*)\$" $config_dir/*`);
-            push(@files, `egrep -H "^additional_scheds = (.*)ha-schedd@(.*)\$" $config_dir/*`);
+            push(@files, `egrep -H "^scheduler_name = (.*)ha-schedd@(.*)\$" "$config_dir"/*`);
+            push(@files, `egrep -H "^additional_scheds = (.*)ha-schedd@(.*)\$" "$config_dir"/*`);
          }
          foreach (@files)
          {
@@ -103,8 +114,8 @@ foreach (@config)
       {
          # Generate the list of schedulers that can write to this startd
          $list = "";
-         @files = `egrep "^scheduler_name = .*\$" $config_dir/$node_name | cut -d ' ' -f 3`;
-         my $cmd_out = `egrep "^additional_scheds = " $config_dir/$node_name`;
+         @files = `egrep "^scheduler_name = .*\$" "$config_dir"/$node_name | cut -d ' ' -f 3`;
+         my $cmd_out = `egrep "^additional_scheds = " "$config_dir"/$node_name`;
          chomp $cmd_out;
          $cmd_out =~ /^additional_scheds\s*=\s*(\S*)$/;
          push(@files, split(/,/, $1));
@@ -114,7 +125,7 @@ foreach (@config)
             if ("$_" eq "ha-schedd@")
             {
                # Need to add all HA Scheduler hosts to the list
-               my @ha_scheds = `egrep -H "ha_scheduler" $config_dir/*`;
+               my @ha_scheds = `egrep -H "ha_scheduler" "$config_dir"/*`;
                foreach (@ha_scheds)
                {
                   /^(.+):.+$/;
@@ -135,7 +146,7 @@ foreach (@config)
 
 # Generate the list of Central Managers
 $list = "";
-@files = `egrep -H "^central_manager" $config_dir/*`;
+@files = `egrep -H "^central_manager" "$config_dir"/*`;
 foreach (@files)
 {
    /^(.+):.+$/;

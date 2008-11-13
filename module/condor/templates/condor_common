@@ -1,7 +1,11 @@
 CONDOR_HOST = <%= cm_list %>
 COLLECTOR_NAME = <%= collector_name %>
 <% unless scheduler_name.nil? or scheduler_name == "" -%>
+<% if default_schedd_isha.nil? or default_schedd_isha == "" -%>
+SCHEDD_HOST = <%= scheduler_name %>
+<% else -%>
 SCHEDD_NAME = <%= scheduler_name %>
+<% end -%>
 <% end -%>
 
 DAEMON_LIST = $(DAEMON_LIST), MASTER
@@ -9,7 +13,6 @@ DC_DAEMON_LIST = $(DC_DAEMON_LIST), \
 MASTER, STARTD, SCHEDD, KBDD, COLLECTOR, NEGOTIATOR, EVENTD, \
 VIEW_SERVER, CONDOR_VIEW, VIEW_COLLECTOR, HAWKEYE, CREDD, HAD, \
 DBMSD, QUILL, JOB_ROUTER
-
 
 # Disable reporting usage information
 CONDOR_DEVELOPERS = NONE

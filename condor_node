@@ -28,7 +28,6 @@ $config_file = `find $base_config_dir -name $node_name`;
 chomp $config_file;
 $config_file =~ /^(.*)\/$node_name$/;
 $config_dir = $1;
-print $config_file;
 
 # Exit if the node's config file doesn't exist
 if (! -f "$config_file" )

@@ -77,8 +77,8 @@ def find_config(node_name, config_dir):
 
    # Create a list of dirs to search through
    for item in os.listdir(config_dir):
-      if os.path.isdir(item):
-         search_dirs.append(item)
+      if os.path.isdir(os.path.join(config_dir, item)) == True:
+         search_dirs.append(os.path.join(config_dir, item.rstrip().lstrip()))
 
    # Search the directories for the node's configuration
    for dir in search_dirs:
@@ -279,7 +279,7 @@ def configure_db_users(conf, action):
 
 def configure_node_schedulers(feats, conf, action):
    response = 'y'
-   fields = ['scheduler_name', 'additional_scheds']
+   fields = ['scheduler_name', 'additional_scheds', 'is_haschedd']
 
    if (not ('scheduler' in feats) and action == 'add') or \
       (('scheduler' in feats) and action == 'delete'):
@@ -293,14 +293,19 @@ def configure_node_schedulers(feats, conf, action):
          # Remove previous configuration it if exists
          remove_fields(fields, conf)
          conf.append('scheduler_name = %s\n' % raw_input('Enter the name of the default scheduler for this node: '))
+         if raw_input('Is this a High Available Scheduler [y/n] ? ').lower() == 'y':
+            conf.append('default_schedd_isha = True\n')
+         else:
+            conf.append('default_schedd_isha =\n')
          conf.append('additional_scheds = %s\n' % raw_input('Enter a comma separated list of additional schedulers this node can submit to: '))
    else:
       # Remove previous configuration it if exists
       remove_fields(fields, conf)
       conf.append('scheduler_name =\n')
       conf.append('additional_scheds =\n')
+      conf.append('default_schedd_isha =\n')
 
-def configure_collector_name(conf):
+def configure_collector_name(conf, base_dir):
    response = 'y'
    fields = ['collector_name']
 
@@ -316,9 +321,9 @@ def configure_collector_name(conf):
       remove_fields(fields, conf)
       collector_name = raw_input('Enter the collector name for this node: ')
       conf.append('collector_name = %s\n' % collector_name)
-      dir_name = collector_name
+      dir_name = os.path.join(base_dir, collector_name.lstrip().rstrip())
    else:
-      dir_name = match.groups()[0].lstrip().rstrip()
+      dir_name = os.path.join(base_dir, match.groups()[0].lstrip().rstrip())
 
    return dir_name
 
@@ -500,7 +505,7 @@ def main(argv=None):
       configure_node_schedulers(features, config, action)
 
       # Configure the collector name
-      new_config_dir = configure_collector_name(config)
+      new_config_dir = configure_collector_name(config, base_config_dir)
 
       # Configure the AMQP broker used to communicate with the Management
       # Console

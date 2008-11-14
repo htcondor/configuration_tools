@@ -10,7 +10,8 @@ BuildRoot: %(mktemp -ud %{_tmppath}/%{name}-%{version}-%{release}-XXXXXX)
 BuildArch: noarch
 Requires: python >= 2.4
 Requires: perl
-Requires: puppet >= 24.6
+Requires: puppet >= 0.24.6
+Requires: facter >= 1.5.2-2
 
 %description
 The Condor Remote Configuration package provides a means to quickly and easily
@@ -24,7 +25,8 @@ be tailored depending on where the server package is installed.
 %package server
 Summary: Condor Remote Configuration Server Tools
 Group: Applications/System
-Requires: puppet-server >= 24.6
+Requires: puppet-server >= 0.24.6
+Requires: facter >= 1.5.2-2
 
 %description server
 The Condor Remote Configuration package provides a means to quickly and easily
@@ -99,6 +101,8 @@ cp -f config/* %{buildroot}/%_sysconfdir/opt/grid/examples
 * Fri Nov  4 2008  <rrati@redhat> - 1.0-2
 - Add changelog
 - Fixed rpmlint issues
+- Fixed puppet version dependency
+- Added facter dependency
 
 * Fri Nov  4 2008  <rrati@redhat> - 1.0-1
 - Initial packaging

@@ -13,7 +13,7 @@ define condortemplate($owner = root, $group = root, $mode = 644, $content,
           content => $content,
           notify => Service["condor"],
           require => [ Package["condor"], File["$feature_config_dir"],
-                       File["/etc/condor/condor_config"] ]
+                       File["/var/lib/condor/condor_config.local"] ]
    }
 }
 
@@ -30,7 +30,7 @@ define condorfile($owner = root, $group = root, $mode = 644, $source,
           notify => Service["condor"],
           source => "puppet:///condor/$source",
           require => [ Package["condor"], File["$feature_config_dir"],
-                       File["/etc/condor/condor_config"] ]
+                       File["/var/lib/condor/condor_config.local"] ]
    }
 }
 
@@ -45,12 +45,13 @@ class condor::condor_feature_dir {
 }
 
 class condor::condor_generate_config {
-   file { "/usr/libexec/condor/condor_generate_config.sh":
+   file { "/usr/sbin/condor_generate_config.sh":
           source => "puppet:///condor/condor_generate_config.sh",
           owner => root,
           group => root,
           mode => 755,
           ensure => file,
+          notify => Service["condor"],
           require => Package["condor"]
    }
 }
@@ -77,21 +78,21 @@ class condor::condor_svc {
    service { condor:
              enable => true,
              ensure => running,
-             subscribe => [ File["/etc/condor/condor_config"],
+             subscribe => [ File["/var/lib/condor/condor_config.local"],
                             File["$feature_config_dir"], Package["condor"] ];
    }
 }
 
-class condor::condor_config {
+class condor::condor_config_local {
    include condor_generate_config
-   file { "/etc/condor/condor_config":
-          source => "puppet:///condor/condor_config",
+   file { "/var/lib/condor/condor_config.local":
+          source => "puppet:///condor/condor_config.local",
           owner => root,
           group => root,
           mode => 644,
           ensure => file,
           require => [ Package["condor"], File["$feature_config_dir"],
-                       File["/usr/libexec/condor/condor_generate_config.sh"] ]
+                       File["/usr/sbin/condor_generate_config.sh"] ]
    }
 }
 
@@ -99,7 +100,7 @@ class condor::condor {
    include condor_pkg
    include condor_feature_dir
    include condor_svc
-   include condor_config
+   include condor_config_local
    include condor_dedicated_resource
    include condor_dedicated_scheduler
    include condor_dedicated_preemption
@@ -133,7 +134,7 @@ class condor::condor_dedicated_resource {
    include condor_feature_dir
    include condor_pkg
    include condor_svc
-   include condor_config
+   include condor_config_local
    condortemplate { "$feature_config_dir/condor_dedicated_resource":
                     content => $dedicated_resource ? {
                                true => template("condor/condor_dedicated_resource"),
@@ -153,7 +154,7 @@ class condor::condor_dedicated_scheduler {
    include condor_feature_dir
    include condor_pkg
    include condor_svc
-   include condor_config
+   include condor_config_local
    condorfile { "$feature_config_dir/condor_dedicated_scheduler":
                 source => "condor_dedicated_scheduler",
                 owner => root,
@@ -170,7 +171,7 @@ class condor::condor_dedicated_preemption {
    include condor_feature_dir
    include condor_pkg
    include condor_svc
-   include condor_config
+   include condor_config_local
    condorfile { "$feature_config_dir/condor_dedicated_preemption":
                 source => "condor_dedicated_preemption",
                 owner => root,
@@ -187,7 +188,7 @@ class condor::condor_ha_scheduler {
    include condor_feature_dir
    include condor_pkg
    include condor_svc
-   include condor_config
+   include condor_config_local
    condortemplate { "$feature_config_dir/condor_ha_scheduler":
                     content => $ha_scheduler ? {
                                true => template("condor/condor_ha_scheduler"),
@@ -207,7 +208,7 @@ class condor::condor_central_manager {
    include condor_feature_dir
    include condor_pkg
    include condor_svc
-   include condor_config
+   include condor_config_local
    condortemplate { "$feature_config_dir/condor_central_manager":
                     content => $central_manager ? {
                                true => template("condor/condor_central_manager"),
@@ -227,7 +228,7 @@ class condor::condor_ha_central_manager {
    include condor_feature_dir
    include condor_pkg
    include condor_svc
-   include condor_config
+   include condor_config_local
    condortemplate { "$feature_config_dir/condor_ha_central_manager":
                     content => $ha_central_manager ? {
                                true => template("condor/condor_ha_central_manager"),
@@ -247,7 +248,7 @@ class condor::condor_low_latency {
    include condor_feature_dir
    include condor_pkg
    include condor_svc
-   include condor_config
+   include condor_config_local
    condorfile { "$feature_config_dir/condor_low_latency":
                 source => "condor_low_latency",
                 owner => root,
@@ -326,7 +327,7 @@ class condor::condor_EC2 {
    include condor_feature_dir
    include condor_pkg
    include condor_svc
-   include condor_config
+   include condor_config_local
    condorfile { "$feature_config_dir/condor_EC2":
                 source => "condor_EC2",
                 owner => root,
@@ -343,7 +344,7 @@ class condor::condor_EC2_enhanced {
    include condor_feature_dir
    include condor_pkg
    include condor_svc
-   include condor_config
+   include condor_config_local
    condortemplate { "$feature_config_dir/condor_EC2_enhanced":
                     content => $ec2e ? {
                                true => template("condor/condor_EC2_enhanced"),
@@ -372,7 +373,7 @@ class condor::condor_concurrency_limits {
    include condor_feature_dir
    include condor_pkg
    include condor_svc
-   include condor_config
+   include condor_config_local
    condortemplate { "$feature_config_dir/condor_concurrency_limits":
                     content => $concurrency_limits ? {
                                true => template("condor/condor_concurrency_limits"),
@@ -392,7 +393,7 @@ class condor::condor_quill {
    include condor_feature_dir
    include condor_pkg
    include condor_svc
-   include condor_config
+   include condor_config_local
    if $quill {
       include condor_quillwriter_pw
    }
@@ -415,7 +416,7 @@ class condor::condor_dbmsd {
    include condor_feature_dir
    include condor_pkg
    include condor_svc
-   include condor_config
+   include condor_config_local
    if $dbmsd {
       include condor_quillwriter_pw
    }
@@ -592,7 +593,7 @@ class condor::condor_viewserver {
    include condor_feature_dir
    include condor_pkg
    include condor_svc
-   include condor_config
+   include condor_config_local
    file { "/var/lib/condor/pool_history":
           owner => condor,
           group => condor,
@@ -619,7 +620,7 @@ class condor::condor_dynamic_provisioning {
    include condor_feature_dir
    include condor_pkg
    include condor_svc
-   include condor_config
+   include condor_config_local
    condorfile { "$feature_config_dir/condor_dynamic_provisioning":
                 source => "condor_dynamic_provisioning",
                 owner => root,
@@ -636,7 +637,7 @@ class condor::condor_credd {
    include condor_feature_dir
    include condor_pkg
    include condor_svc
-   include condor_config
+   include condor_config_local
    file { "/var/lib/condor/cred_dir":
           owner => condor,
           group => condor,
@@ -663,7 +664,7 @@ class condor::condor_collector {
    include condor_feature_dir
    include condor_pkg
    include condor_svc
-   include condor_config
+   include condor_config_local
    condorfile { "$feature_config_dir/condor_collector":
                 source => "condor_collector",
                 owner => root,
@@ -680,7 +681,7 @@ class condor::condor_job_router {
    include condor_feature_dir
    include condor_pkg
    include condor_svc
-   include condor_config
+   include condor_config_local
    condorfile { "$feature_config_dir/condor_job_router":
                 source => "condor_job_router",
                 owner => root,
@@ -697,7 +698,7 @@ class condor::condor_negotiator {
    include condor_feature_dir
    include condor_pkg
    include condor_svc
-   include condor_config
+   include condor_config_local
    condorfile { "$feature_config_dir/condor_negotiator":
                 source => "condor_negotiator",
                 owner => root,
@@ -714,7 +715,7 @@ class condor::condor_scheduler {
    include condor_feature_dir
    include condor_pkg
    include condor_svc
-   include condor_config
+   include condor_config_local
    condortemplate { "$feature_config_dir/condor_scheduler":
                     content => $scheduler ? {
                                true => template("condor/condor_scheduler"),
@@ -734,7 +735,7 @@ class condor::condor_startd {
    include condor_feature_dir
    include condor_pkg
    include condor_svc
-   include condor_config
+   include condor_config_local
    condortemplate { "$feature_config_dir/condor_startd":
                     content => $startd ? {
                                true => template("condor/condor_startd"),

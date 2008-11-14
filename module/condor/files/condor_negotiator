@@ -13,6 +13,9 @@ HOSTALLOW_NEGOTIATOR = $(HOSTALLOW_NEGOTIATOR), $(CONDOR_HOST)
 ## just disable it).
 #NEGOTIATOR_IGNORE_USER_PRIORITIES = False
 
+## Plugins configuration
+NEGOTIATOR.PLUGINS = /usr/lib64/condor/plugins/MgmtNegotiatorPlugin-plugin.so
+
 ##--------------------------------------------------------------------
 ##  Settings that control the daemon's debugging output:
 ##--------------------------------------------------------------------

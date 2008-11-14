@@ -4,6 +4,9 @@
 HOSTALLOW_NEGOTIATOR_SCHEDD = $(HOSTALLOW_NEGOTIATOR_SCHEDD), $(CONDOR_HOST), $(FLOCK_NEGOTIATOR_HOSTS)
 HOSTALLOW_WRITE = $(HOSTALLOW_WRITE), <%= sched_writes %>
 
+## Plugin configuration
+SCHEDD.PLUGINS = /usr/lib64/condor/plugins/MgmtScheddPlugin-plugin.so
+
 ##--------------------------------------------------------------------
 ##  Settings that control the daemon's debugging output:
 ##--------------------------------------------------------------------

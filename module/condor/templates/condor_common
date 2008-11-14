@@ -19,7 +19,7 @@ CONDOR_DEVELOPERS = NONE
 CONDOR_DEVELOPERS_COLLECTOR = NONE
 
 # Plugin configuration
-PLUGIN_DIR = $(LIBEXEC)
+MASTER.PLUGINS = /usr/lib64/condor/plugins/MgmtMasterPlugin-plugin.so
 QMF_BROKER_HOST = <%= qmf_broker %>
 QMF_BROKER_PORT = <%= qmf_port %>
 

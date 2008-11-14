@@ -1,7 +1,3 @@
-##  This macro is used to specify a short description of your pool.
-##  It should be about 20 characters long.
-COLLECTOR_NAME          = My Pool
-
 ##  FLOCK_COLLECTOR_HOSTS should almost always be the same as
 ##  FLOCK_NEGOTIATOR_HOSTS (as shown below).  The only reason it would be
 ##  different is if the collector and negotiator in the pool that you are
@@ -14,6 +10,9 @@ FLOCK_COLLECTOR_HOSTS = $(FLOCK_TO)
 ##  but we set them from the FLOCK_FROM/TO macros above.
 HOSTALLOW_WRITE_COLLECTOR = $(HOSTALLOW_WRITE), $(FLOCK_FROM)
 HOSTALLOW_READ_COLLECTOR  = $(HOSTALLOW_READ), $(FLOCK_FROM)
+
+## Plugins configuration
+COLLECTOR.PLUGINS = /usr/lib64/condor/plugins/MgmtCollectorPlugin-plugin.so
 
 ##--------------------------------------------------------------------
 ##  Settings that control the daemon's debugging output:

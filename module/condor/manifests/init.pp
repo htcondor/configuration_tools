@@ -272,7 +272,7 @@ class condor::condor_low_latency {
                     default => absent
           },
           require => $low_latency? {
-                     true => Package["low-latency"],
+                     true => Package["condor-low-latency"],
                      default => Package["condor"]
           }
    }
@@ -300,13 +300,13 @@ class condor::condor_low_latency {
       package { condor-job-hooks:
                 ensure => installed
       }
-      package { low-latency:
+      package { condor-low-latency:
                 ensure => installed,
                 require => [ Package["condor"], Package["python-qpid"],
                              Package["condor-job-hooks"] ];
       }
    }
-   service { caro:
+   service { condor-low-latency:
              enable => $low_latency ? {
                        true => true,
                        default => false
@@ -317,7 +317,7 @@ class condor::condor_low_latency {
              },
              subscribe => $low_latency ? {
                           true => [ File["/etc/opt/grid/carod.conf"],
-                                    Package["low-latency"] ],
+                                    Package["condor-low-latency"] ],
                           default => File["/etc/opt/grid/carod.conf"]
              }
    }
@@ -362,7 +362,7 @@ class condor::condor_EC2_enhanced {
       package { python-boto:
                 ensure => installed
       }
-      package { ec2-enhanced-hooks:
+      package { condor-ec2-enhanced-hooks:
                 ensure => installed,
                 require => [ Package["condor"], Package["python-boto"] ];
       }

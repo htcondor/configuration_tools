@@ -23,7 +23,7 @@ SOURCES/${SOURCE}:
 	rm -rf ${DIR}
 	mkdir ${DIR}
 	mkdir ${DIR}/config
-	cp -f configure_condor_node ${DIR}
+	cp -f condor_configure_node ${DIR}
 	cp -f condor_node ${DIR}
 	cp -f LICENSE-2.0.txt ${DIR}
 	cp -rf module ${DIR}

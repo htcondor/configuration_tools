@@ -1,26 +1,37 @@
-Configuration:
-/etc/sysconfig/puppet:
-   PUPPET_SERVER=north-16.lab.bos.redhat.com
+Client Configuration:
+To configure the remote configuration feature on a condor node, install the
+condor-remote-configuration package.  Next, copy the puppet.conf.client to
+/etc/puppet by executing:
 
-/etc/puppet/puppet.conf:
-   Client:
-      [puppetd]
-         # Listen on a port for server initiated refresh
-         listen = true
+cp -f /etc/opt/grid/examples/puppet.conf.client /etc/puppet/puppet.conf
 
-   Server:
-      [main]
-         external_nodes = /usr/sbin/condor_node
-         node_terminus = exec
-      [puppetmasterd]
-         autosign = true
+Then copy the namespaceauth.conf to /etc/puppet by executing:
 
+cp -f /etc/opt/grid/examples/namespaceauth.conf /etc/puppet
 
-/etc/puppet/namespaceauth.conf:
-   Client:
-      [puppetrunner]
-         allow north-16.lab.bos.redhat.com
- 
+Change the "allow <puppetmaster.fqdn>" entry and the replace
+"<puppetmaster.fqdn>" with the Fully Qualified Doman Name of the machine
+that has the condor-remote-configuration-server package installed.  There
+should only be one system with this package installed in a cluster.
+
+Edit /etc/sysconfig/puppet and uncomment out the PUPPET_SERVER line,
+changing its value to the Fully Qualified Doman Name of the machine that has
+the condor-remote-configuration-server package installed
+
+Finally, start the service by executing:
+
+service puppet start
+
+Server Configuration:
+To configure the remote configuration feature on the configuration server,
+install the condor-remote-configuration-server package.  Next, copy the
+puppet.conf.master to /etc/puppet by executing:
+
+cp -f /etc/opt/grid/examples/puppet.conf.master /etc/puppet/puppet.conf
+
+Then start the service by executing:
+
+service puppetmaster start
 
 Usage:
 To configure a condor node, the Fully Qualified Domain Name (FQDN) of the

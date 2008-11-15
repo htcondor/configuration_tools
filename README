@@ -40,7 +40,7 @@ itself to the configuration system.  Configuring a Condor node is as simple
 as running the configure_condor_node tool as root with the appropriate action
 and features:
 
-configure_condor_node.py [-h|--help] -n <FQDN> action feature[,feature,...]
+condor_configure_node [-h|--help] -n <FQDN> action feature[,feature,...]
 
 The currently supported actions are either add or delete.  The add action is
 used to add features to the provided node, and if any additional information

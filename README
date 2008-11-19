@@ -1,3 +1,7 @@
+In order for the Condor Remote Configuration feature to work a CNAME record
+must be added to DNS with the name puppet.  It must be pointing to the
+machine that has the condor-remote-configuration-server installed.
+
 Client Configuration:
 To configure the remote configuration feature on a condor node, install the
 condor-remote-configuration package.  Next, copy the puppet.conf.client to
@@ -9,14 +13,10 @@ Then copy the namespaceauth.conf to /etc/puppet by executing:
 
 cp -f /etc/opt/grid/examples/namespaceauth.conf /etc/puppet
 
-Change the "allow <puppetmaster.fqdn>" entry and the replace
-"<puppetmaster.fqdn>" with the Fully Qualified Doman Name of the machine
-that has the condor-remote-configuration-server package installed.  There
-should only be one system with this package installed in a cluster.
-
-Edit /etc/sysconfig/puppet and uncomment out the PUPPET_SERVER line,
-changing its value to the Fully Qualified Doman Name of the machine that has
-the condor-remote-configuration-server package installed
+Change the "allow <puppetmaster.fqdn>" entry in the namespaceauth.conf file
+and the replace "<puppetmaster.fqdn>" with the Fully Qualified Doman Name of
+the machine that has the condor-remote-configuration-server package installed.
+There should only be one system with this package installed in a cluster.
 
 Finally, start the service by executing:
 
@@ -28,6 +28,10 @@ install the condor-remote-configuration-server package.  Next, copy the
 puppet.conf.master to /etc/puppet by executing:
 
 cp -f /etc/opt/grid/examples/puppet.conf.master /etc/puppet/puppet.conf
+
+And then create the site.pp file by executing:
+
+echo 'import "condor"' >> /etc/puppet/manifests/site.pp
 
 Then start the service by executing:
 

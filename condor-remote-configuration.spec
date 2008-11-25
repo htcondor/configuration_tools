@@ -98,6 +98,18 @@ cp -f config/* %{buildroot}/%_sysconfdir/opt/grid/examples
 %_sbindir/condor_node
 
 %changelog
+* Tue Nov 25 2008  <rrati@redhat> - 1.0-3
+- Corrected missed tool name changes in the README
+- Corrected missed dependencies for concurrency_limits and dynamic_provision
+- Fixed bug where concurrency_limits were not prompted for
+- Changed plugin locations to be relative to $(LIB)
+- Fixed configuration problem with dynamic provisioning.  SLOT_TYPE must use
+  lowercase letters
+- Set default Negotiator Interval to 20 seconds
+- Condor reload is used to tell condor to re-read config files
+- Added TRANSFERER_LOG to ha_central_manager to avoid core dump
+- QMF_BROKER_PORT won't be listed in a config if it is not provided
+
 * Fri Nov  4 2008  <rrati@redhat> - 1.0-2
 - Add changelog
 - Fixed rpmlint issues

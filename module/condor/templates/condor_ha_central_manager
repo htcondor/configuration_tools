@@ -113,3 +113,6 @@ MAX_REPLICATION_LOG = 640000
 REPLICATION_DEBUG = D_COMMAND
 ## Replication log file
 REPLICATION_LOG = $(LOG)/ReplicationLog
+
+##Transferer log file
+TRANSFERER_LOG = $(LOG)/TransfererLog

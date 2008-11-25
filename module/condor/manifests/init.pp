@@ -78,6 +78,8 @@ class condor::condor_svc {
    service { condor:
              enable => true,
              ensure => running,
+             hasrestart => false,
+             restart => "/etc/init.d/condor reload",
              subscribe => [ File["/var/lib/condor/condor_config.local"],
                             File["$feature_config_dir"], Package["condor"] ];
    }

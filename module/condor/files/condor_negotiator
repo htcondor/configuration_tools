@@ -1,5 +1,8 @@
 FLOCK_NEGOTIATOR_HOSTS = $(FLOCK_TO)
 
+##  How often the Negotiator starts a negotiation cycle.
+NEGOTIATOR_INTERVAL = 20
+
 ##  Negotiator access.  Machines listed here are trusted central
 ##  managers.
 HOSTALLOW_NEGOTIATOR = $(HOSTALLOW_NEGOTIATOR), $(CONDOR_HOST)
@@ -14,7 +17,7 @@ HOSTALLOW_NEGOTIATOR = $(HOSTALLOW_NEGOTIATOR), $(CONDOR_HOST)
 #NEGOTIATOR_IGNORE_USER_PRIORITIES = False
 
 ## Plugins configuration
-NEGOTIATOR.PLUGINS = /usr/lib64/condor/plugins/MgmtNegotiatorPlugin-plugin.so
+NEGOTIATOR.PLUGINS = $(LIB)/plugins/MgmtNegotiatorPlugin-plugin.so
 
 ##--------------------------------------------------------------------
 ##  Settings that control the daemon's debugging output:

@@ -41,7 +41,7 @@ Usage:
 To configure a condor node, the Fully Qualified Domain Name (FQDN) of the
 node to be configured must be known as this is how the node will identify
 itself to the configuration system.  Configuring a Condor node is as simple
-as running the configure_condor_node tool as root with the appropriate action
+as running the condor_configure_node tool as root with the appropriate action
 and features:
 
 condor_configure_node [-h|--help] -n <FQDN> action feature[,feature,...]
@@ -83,17 +83,20 @@ to report in to check their configuration.
 The list of supported features and usage information can be obtained by
 executing:
 
-configure_condor_node --help
+condor_configure_node --help
+
+When configuring concurrency limits on HA Central Managers, the same
+limits should be configured on all HA Central Managers.
 
 
 Examples:
 To enable a machine named condor_ca.domain.com to be a High Available Central
 Manager:
-configure_condor_node -n condor_ca.domain.com -a ha_central_manager
+condor_configure_node -n condor_ca.domain.com -a ha_central_manager
 
 To enable a machine name twofer.domain.com to be a Scheduler and an Execute
 node:
-configure_condor_node -n twofer.domain.com -a scheduler,startd
+condor_configure_node -n twofer.domain.com -a scheduler,startd
 
 To remove the Execution functionality from twofer.domain.com:
-configure_condor_node -n twofer.domain.com -d startd
+condor_configure_node -n twofer.domain.com -d startd

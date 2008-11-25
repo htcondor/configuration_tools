@@ -19,9 +19,11 @@ CONDOR_DEVELOPERS = NONE
 CONDOR_DEVELOPERS_COLLECTOR = NONE
 
 # Plugin configuration
-MASTER.PLUGINS = /usr/lib64/condor/plugins/MgmtMasterPlugin-plugin.so
+MASTER.PLUGINS = $(LIB)/plugins/MgmtMasterPlugin-plugin.so
 QMF_BROKER_HOST = <%= qmf_broker %>
+<% unless qmf_port.nil? or qmf_port == "" -%>
 QMF_BROKER_PORT = <%= qmf_port %>
+<% end -%>
 
 # Security configuration
 SEC_DEFAULT_NEGOTIATION = OPTIONAL

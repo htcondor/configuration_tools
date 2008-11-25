@@ -371,11 +371,13 @@ def main(argv=None):
             'startd': 'Enable the Condor Start daemon (execution node)'
           }
    feature_deps = { 'ec2e': 'ec2,job_router',
+                    'concurrency_limits': 'negotiator',
                     'dedicated_preemption': 'dedicated_scheduler',
                     'dbmsd': 'quill',
                     'ha_scheduler': 'scheduler',
                     'dedicated_scheduler': 'scheduler',
                     'dedicated_resource': 'startd',
+                    'dynamic_provisioning': 'startd',
                     'ha_central_manager': 'central_manager',
                     'central_manager': 'negotiator,collector',
                     'viewserver': 'collector',
@@ -490,7 +492,7 @@ def main(argv=None):
             # Add or remove feature specific configs if needed
             if feature == 'low_latency':
                configure_low_lat(config, action)
-            elif feature == 'limits':
+            elif feature == 'concurrency_limits':
                configure_limits(config, action)
             elif feature == 'dedicated_resource':
                configure_dedicated_resource(config, action)

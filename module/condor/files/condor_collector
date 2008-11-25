@@ -12,7 +12,7 @@ HOSTALLOW_WRITE_COLLECTOR = $(HOSTALLOW_WRITE), $(FLOCK_FROM)
 HOSTALLOW_READ_COLLECTOR  = $(HOSTALLOW_READ), $(FLOCK_FROM)
 
 ## Plugins configuration
-COLLECTOR.PLUGINS = /usr/lib64/condor/plugins/MgmtCollectorPlugin-plugin.so
+COLLECTOR.PLUGINS = $(LIB)/plugins/MgmtCollectorPlugin-plugin.so
 
 ##--------------------------------------------------------------------
 ##  Settings that control the daemon's debugging output:

@@ -1,7 +1,7 @@
 Summary: Condor Remote Configuration Client Tools
 Name: condor-remote-configuration
 Version: 1.0
-Release: 3%{?dist}
+Release: 4%{?dist}
 License: ASL 2.0
 Group: Applications/System
 URL: http://www.redhat.com/mrg
@@ -90,6 +90,7 @@ cp -f config/* %{buildroot}/%_sysconfdir/opt/grid/examples
 %config(noreplace) %_sysconfdir/puppet/modules/condor/templates/pgpass
 %config(noreplace) %_sysconfdir/puppet/modules/condor/templates/condor_dedicated_resource
 %config(noreplace) %_sysconfdir/puppet/modules/condor/templates/condor_scheduler
+%config(noreplace) %_sysconfdir/puppet/modules/condor/templates/sesame.conf
 %defattr(0755,root,root,-)
 %_sysconfdir/puppet/modules/condor/files/condor_add_db_user.pl
 %_sysconfdir/puppet/modules/condor/files/condor_generate_config.sh
@@ -98,6 +99,10 @@ cp -f config/* %{buildroot}/%_sysconfdir/opt/grid/examples
 %_sbindir/condor_node
 
 %changelog
+* Mon Dec 1  2008  <rrati@redhat> - 1.0-4
+- Added configuration of sesame
+- Added condor-qmf-plugins to packages to be installed
+
 * Tue Nov 25 2008  <rrati@redhat> - 1.0-3
 - Corrected missed tool name changes in the README
 - Corrected missed dependencies for concurrency_limits and dynamic_provision

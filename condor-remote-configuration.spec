@@ -1,15 +1,13 @@
 Summary: Condor Remote Configuration Client Tools
 Name: condor-remote-configuration
 Version: 1.0
-Release: 5%{?dist}
+Release: 6%{?dist}
 License: ASL 2.0
 Group: Applications/System
 URL: http://www.redhat.com/mrg
 Source0: %{name}-%{version}.tar.gz
 BuildRoot: %(mktemp -ud %{_tmppath}/%{name}-%{version}-%{release}-XXXXXX)
 BuildArch: noarch
-Requires: python >= 2.4
-Requires: perl
 Requires: puppet >= 0.24.6
 Requires: facter >= 1.5.2-2
 
@@ -22,11 +20,14 @@ package to work.
 This package provides configuration files for clients that will need to
 be tailored depending on where the server package is installed.
 
+%if 0%{?rhel} != 4
 %package server
 Summary: Condor Remote Configuration Server Tools
 Group: Applications/System
 Requires: puppet-server >= 0.24.6
 Requires: facter >= 1.5.2-2
+Requires: python >= 2.4
+Requires: perl
 
 %description server
 The Condor Remote Configuration package provides a means to quickly and easily
@@ -36,6 +37,7 @@ package to work.
 
 This package provides tools and configuration files for the configuration
 server.
+%endif
 
 %prep
 %setup -q
@@ -44,10 +46,15 @@ server.
 mkdir -p %{buildroot}/%_sbindir
 mkdir -p %{buildroot}/%_sysconfdir/puppet/modules
 mkdir -p %{buildroot}/%_sysconfdir/opt/grid/examples
+%if 0%{?rhel} != 4
 cp -rf module/* %{buildroot}/%_sysconfdir/puppet/modules
 cp -f condor_configure_node %{buildroot}/%_sbindir
 cp -f condor_node %{buildroot}/%_sbindir
+%endif
 cp -f config/* %{buildroot}/%_sysconfdir/opt/grid/examples
+%if 0%{?rhel} == 4
+rm -f %{buildroot}/%_sysconfdir/opt/grid/examples/puppet.conf.master
+%endif
 
 %files
 %defattr(-,root,root,-)
@@ -55,6 +62,7 @@ cp -f config/* %{buildroot}/%_sysconfdir/opt/grid/examples
 %config(noreplace) %_sysconfdir/opt/grid/examples/puppet.conf.client
 %config(noreplace) %_sysconfdir/opt/grid/examples/namespaceauth.conf
 
+%if 0%{?rhel} != 4
 %files server
 %defattr(-,root,root,-)
 %doc LICENSE-2.0.txt
@@ -97,8 +105,13 @@ cp -f config/* %{buildroot}/%_sysconfdir/opt/grid/examples
 %_sysconfdir/puppet/modules/condor/files/condor_insert_schema.pl
 %_sbindir/condor_configure_node
 %_sbindir/condor_node
+%endif
 
 %changelog
+* Thu Dec  4 2008  <rrati@redhat> - 1.0-6
+- Only build the server package if not on EL4
+- Moved python and perl deps to server package
+
 * Thu Dec  4 2008  <rrati@redhat> - 1.0-5
 - Fixed Low-Latency configuration so only Low-Latency jobs will be acted upon
 

@@ -1,7 +1,7 @@
 Summary: Condor Remote Configuration Client Tools
 Name: condor-remote-configuration
 Version: 1.0
-Release: 4%{?dist}
+Release: 5%{?dist}
 License: ASL 2.0
 Group: Applications/System
 URL: http://www.redhat.com/mrg
@@ -99,7 +99,10 @@ cp -f config/* %{buildroot}/%_sysconfdir/opt/grid/examples
 %_sbindir/condor_node
 
 %changelog
-* Mon Dec 1  2008  <rrati@redhat> - 1.0-4
+* Thu Dec  4 2008  <rrati@redhat> - 1.0-5
+- Fixed Low-Latency configuration so only Low-Latency jobs will be acted upon
+
+* Mon Dec  1 2008  <rrati@redhat> - 1.0-4
 - Added configuration of sesame
 - Added condor-qmf-plugins to packages to be installed
 

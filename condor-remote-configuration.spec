@@ -110,6 +110,7 @@ rm -f %{buildroot}/%_sysconfdir/opt/grid/examples/puppet.conf.master
 %changelog
 * Thu Dec  4 2008  <rrati@redhat> - 1.0-7
 - Force FS authentication for the job router
+- Change amazon-gahp to amazon_gahp in configs
 
 * Thu Dec  4 2008  <rrati@redhat> - 1.0-6
 - Only build the server package if not on EL4

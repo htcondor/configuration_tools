@@ -1,5 +1,5 @@
 ## The location of the amazon-gahp programs, required
-AMAZON_GAHP = $(SBIN)/amazon-gahp
+AMAZON_GAHP = $(SBIN)/amazon_gahp
 
 ## Location of log files, useful for debugging, must be in
 ## a directory writable by any user, such as /tmp

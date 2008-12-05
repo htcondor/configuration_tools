@@ -27,3 +27,10 @@ JOB_ROUTER_POLLING_PERIOD = 10
 # It is good to save lots of schedd queue history
 # for use with the router_history command.
 MAX_HISTORY_ROTATIONS = 20
+
+# Force FS authentication.  This is necessary because the CLAIMTOBE
+# method won't authenticate as the actual user running the job, but
+# instead authenticates as user condor.
+MASTER.SEC_DEFAULT_AUTHENTICATION_METHODS = $(SEC_DEFAULT_AUTHENTICATION_METHODS), FS
+SCHEDD.SEC_DEFAULT_AUTHENTICATION_METHODS = $(SEC_DEFAULT_AUTHENTICATION_METHODS), FS
+JOB_ROUTER.SEC_DEFAULT_AUTHENTICATION_METHODS = FS

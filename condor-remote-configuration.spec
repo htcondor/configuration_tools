@@ -1,7 +1,7 @@
 Summary: Condor Remote Configuration Client Tools
 Name: condor-remote-configuration
 Version: 1.0
-Release: 6%{?dist}
+Release: 7%{?dist}
 License: ASL 2.0
 Group: Applications/System
 URL: http://www.redhat.com/mrg
@@ -108,6 +108,9 @@ rm -f %{buildroot}/%_sysconfdir/opt/grid/examples/puppet.conf.master
 %endif
 
 %changelog
+* Thu Dec  4 2008  <rrati@redhat> - 1.0-7
+- Force FS authentication for the job router
+
 * Thu Dec  4 2008  <rrati@redhat> - 1.0-6
 - Only build the server package if not on EL4
 - Moved python and perl deps to server package

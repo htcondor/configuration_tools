@@ -39,6 +39,7 @@ JOB_ROUTER_ENTRIES = $(JOB_ROUTER_ENTRIES) \
     set_amazons3bucketname = "<%= ec2es_bucket %>"; \
     set_amazonsqsqueuename = "<%= ec2es_queue %>"; \
     set_amazonamiid = "<%= ec2es_amiid %>"; \
+    set_amazonamishutdowndelay = 15; \
     set_remote_jobuniverse = 5; \
   ] \
 <% end -%>
@@ -66,6 +67,7 @@ JOB_ROUTER_ENTRIES = $(JOB_ROUTER_ENTRIES) \
     set_amazons3bucketname = "<%= ec2ehcm_bucket %>"; \
     set_amazonsqsqueuename = "<%= ec2ehcm_queue %>"; \
     set_amazonamiid = "<%= ec2ehcm_amiid %>"; \
+    set_amazonamishutdowndelay = 15; \
     set_remote_jobuniverse = 5; \
   ] \
 <% end -%>
@@ -93,6 +95,7 @@ JOB_ROUTER_ENTRIES = $(JOB_ROUTER_ENTRIES) \
     set_amazons3bucketname = "<%= ec2ehcel_bucket %>"; \
     set_amazonsqsqueuename = "<%= ec2ehcel_queue %>"; \
     set_amazonamiid = "<%= ec2ehcel_amiid %>"; \
+    set_amazonamishutdowndelay = 15; \
     set_remote_jobuniverse = 5; \
   ] \
 <% end -%>
@@ -120,6 +123,7 @@ JOB_ROUTER_ENTRIES = $(JOB_ROUTER_ENTRIES) \
     set_amazons3bucketname = "<%= ec2exlarge_bucket %>"; \
     set_amazonsqsqueuename = "<%= ec2exlarge_queue %>"; \
     set_amazonamiid = "<%= ec2exlarge_amiid %>"; \
+    set_amazonamishutdowndelay = 15; \
     set_remote_jobuniverse = 5; \
   ] \
 <% end -%>
@@ -147,6 +151,7 @@ JOB_ROUTER_ENTRIES = $(JOB_ROUTER_ENTRIES) \
     set_amazons3bucketname = "<%= ec2elarge_bucket %>"; \
     set_amazonsqsqueuename = "<%= ec2elarge_queue %>"; \
     set_amazonamiid = "<%= ec2elarge_amiid %>"; \
+    set_amazonamishutdowndelay = 15; \
     set_remote_jobuniverse = 5; \
   ]
 <% end -%>

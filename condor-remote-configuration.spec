@@ -1,7 +1,7 @@
 Summary: Condor Remote Configuration Client Tools
 Name: condor-remote-configuration
 Version: 1.0
-Release: 8%{?dist}
+Release: 9%{?dist}
 License: ASL 2.0
 Group: Applications/System
 URL: http://www.redhat.com/mrg
@@ -108,6 +108,10 @@ rm -f %{buildroot}/%_sysconfdir/opt/grid/examples/puppet.conf.master
 %endif
 
 %changelog
+* Thu Dec 11 2008  <rrati@redhat> - 1.0-9
+- Allow all nodes administrative rights for themselves
+- Add shutdown delay for Amazon AMIs in EC2E routes
+
 * Wed Dec 10 2008  <rrati@redhat> - 1.0-8
 - Fixed race condition with EC2E (BZ475865)
 

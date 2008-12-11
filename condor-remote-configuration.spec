@@ -108,7 +108,7 @@ rm -f %{buildroot}/%_sysconfdir/opt/grid/examples/puppet.conf.master
 %endif
 
 %changelog
-* Wed Dev 10 2008  <rrati@redhat> - 1.0-8
+* Wed Dec 10 2008  <rrati@redhat> - 1.0-8
 - Fixed race condition with EC2E (BZ475865)
 
 * Thu Dec  4 2008  <rrati@redhat> - 1.0-7

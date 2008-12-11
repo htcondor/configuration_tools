@@ -1,7 +1,7 @@
 Summary: Condor Remote Configuration Client Tools
 Name: condor-remote-configuration
 Version: 1.0
-Release: 7%{?dist}
+Release: 8%{?dist}
 License: ASL 2.0
 Group: Applications/System
 URL: http://www.redhat.com/mrg
@@ -108,6 +108,9 @@ rm -f %{buildroot}/%_sysconfdir/opt/grid/examples/puppet.conf.master
 %endif
 
 %changelog
+* Wed Dev 10 2008  <rrati@redhat> - 1.0-8
+- Fixed race condition with EC2E (BZ475865)
+
 * Thu Dec  4 2008  <rrati@redhat> - 1.0-7
 - Force FS authentication for the job router
 - Change amazon-gahp to amazon_gahp in configs

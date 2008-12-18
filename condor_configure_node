@@ -472,6 +472,11 @@ def main(argv=None):
                features += remove_list
 
       for feature in features.split(','):
+         # Exit if a feature was given that isn't known about
+         if feature not in feature_list.keys():
+            print 'Error: Unknown feature: %s' % feature
+            return(1)
+         
          # Check if we have already configured this item (ie protect against
          # duplicate features provided)
          item_present = True

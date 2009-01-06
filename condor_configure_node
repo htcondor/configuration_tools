@@ -67,8 +67,10 @@ def process_remove_deps(feat, deps):
       for dep in deps[key].split(','):
          if feat == dep:
             list += ',' + key
-            if key in deps.values():
-               list += process_remove_deps(key, deps)
+            for value in deps.values():
+               if key in value.split(','):
+                  list += process_remove_deps(key, deps)
+                  break
    return list
 
 def find_config(node_name, config_dir):

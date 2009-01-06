@@ -1,7 +1,7 @@
 Summary: Condor Remote Configuration Client Tools
 Name: condor-remote-configuration
 Version: 1.0
-Release: 10%{?dist}
+Release: 11%{?dist}
 License: ASL 2.0
 Group: Applications/System
 URL: http://www.redhat.com/mrg
@@ -108,6 +108,10 @@ rm -f %{buildroot}/%_sysconfdir/opt/grid/examples/puppet.conf.master
 %endif
 
 %changelog
+* Tue Jan  6 2008  <rrati@redhat> - 1.0-11
+- Fix dependency parsing issue when removing features (BZ478894)
+- Removed HAD and Replication log levels for HA Central Managers
+
 * Wed Dec 17 2008  <rrati@redhat> - 1.0-10
 - Remove shutdown delay for Amazon AMIs in EC2E routes
 - Handle unrecognized features

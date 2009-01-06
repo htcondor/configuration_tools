@@ -108,7 +108,7 @@ rm -f %{buildroot}/%_sysconfdir/opt/grid/examples/puppet.conf.master
 %endif
 
 %changelog
-* Tue Jan  6 2008  <rrati@redhat> - 1.0-11
+* Tue Jan  6 2009  <rrati@redhat> - 1.0-11
 - Fix dependency parsing issue when removing features (BZ478894)
 - Removed HAD and Replication log levels for HA Central Managers
 

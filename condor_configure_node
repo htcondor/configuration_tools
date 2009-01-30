@@ -26,18 +26,41 @@ def exit_signal_handler(signum, frame):
    sys.exit(0)
 
 def print_help(name, list, desc):
-   print 'usage: %s [-h|--help] -n <FQDN> action feature[,feature,...]' % os.path.basename(name)
+   print 'usage: %s [-h|--help] -n <FQDN> action [-f|--features] feature[,feature,...]' % os.path.basename(name)
    print '  -n - Fully Qualified Domain Name for the condor node to configure'
    print '  -h - Print help'
    print '\naction:'
    print '  -a|--add    - Add the feature(s) to the condor node'
    print '  -d|--delete - Remove the feature(s) from the condor node'
+   print '  -l|--list   - List configurations.  If provided without a specific'
+   print '                node, prints the list of nodes being managed.  If'
+   print '                a node is provided, print the list of features'
+   print '                for the privided node.  If provided with one or'
+   print '                more features in addition to a node, then print'
+   print '                the specific configurations for those features'
    print '\navailable features:'
    keys = list.keys()
    keys.sort()
    for feature in keys:
       print '  %-21s- %s' % (feature, desc[feature])
    print
+
+def print_node_features(conf):
+   attr_white_list = ['scheduler_name', 'default_schedd_isha',
+                      'additional_scheds', 'collector_name', 'qmf_broker',
+                      'qmf_port']
+   for line in conf:
+      match = re.match('^([^=]+)\s*=\s*(.*)$', line)
+      if match == None or (match.groups()[0].rstrip() in attr_white_list and \
+         match.groups()[1].rstrip() != ''):
+         print line.rstrip()
+
+def print_feature_config(conf, fields):
+   for line in conf:
+      match = re.match('^([^=]+)\s*=\s*(.*)$', line)
+      if match != None and (match.groups()[0].rstrip() in fields and \
+         match.groups()[1].rstrip() != ''):
+         print line.rstrip()
 
 def remove_fields(field_list, conf):
    # Remove provided fields
@@ -90,16 +113,12 @@ def find_config(node_name, config_dir):
 
    return(path)
 
-def configure_low_lat(conf, action):
-   fields = [ 'exchange', 'broker_ip', 'broker_port', 'amqp_queue',
-              'll_daemon_port', 'll_connections', 'll_lease_time',
-              'll_check_interval' ]
-
+def configure_low_lat(conf, action, fields):
    # Remove previous configuration it if exists
    remove_fields(fields, conf)
 
    if action == 'add':
-      print "\nConfiguration for Low-Latency\n"
+      print '\nConfiguration for Low-Latency\n'
       conf.append('exchange = %s\n' % raw_input('Enter the AMQP Exchange name for Low-Latency: '))
       conf.append('broker_ip = %s\n' % raw_input('Enter the Broker\'s IP for Low-Latency: '))
       conf.append('broker_port = %s\n' % raw_input('Enter the port of the Broker for Low-Latency: '))
@@ -109,56 +128,30 @@ def configure_low_lat(conf, action):
       conf.append('ll_lease_time = %s\n' % raw_input('Enter the lease time for the Low-Latency daemon: '))
       conf.append('ll_check_interval = %s\n' % raw_input('Enter the Low-Latency check interval: '))
 
-def configure_limits(conf, action):
-   fields = ['limits']
-
+def configure_limits(conf, action, fields):
    # Remove previous configuration it if exists
    remove_fields(fields, conf)
 
    if action == 'add':
-      print "\nConfiguration for Concurrency Limits\n"
+      print '\nConfiguration for Concurrency Limits\n'
       conf.append('limits = %s\n' % raw_input('Enter the limits separated by commas (ie x_limit=10,y_limit=2): '))
 
-def configure_dedicated_resource(conf, action):
+def configure_dedicated_resource(conf, action, fields):
    fields = ['dedicatedscheduler']
 
    # Remove previous configuration it if exists
    remove_fields(fields, conf)
    if action == 'add':
-      print "\nConfiguration for Dedicated Resource\n"
+      print '\nConfiguration for Dedicated Resource\n'
       conf.append('dedicatedscheduler = %s\n' % raw_input('Enter FQDN of the Dedicated Scheduler: '))
 
-def configure_ec2e(conf, action):
-   fields = [ 'ec2e_route_small',
-              'ec2es_pub_key', 'ec2es_priv_key', 'ec2es_access_key',
-              'ec2es_secret_key', 'ec2es_rsapub_key', 'ec2es_bucket',
-              'ec2es_queue', 'ec2es_amiid',
-              'ec2e_route_large',
-              'ec2elarge_pub_key', 'ec2elarge_priv_key',
-              'ec2elarge_access_key', 'ec2elarge_secret_key',
-              'ec2elarge_rsapub_key', 'ec2elarge_bucket', 'ec2elarge_queue',
-              'ec2elarge_amiid',
-              'ec2e_route_xlarge',
-              'ec2exlarge_pub_key', 'ec2exlarge_priv_key',
-              'ec2exlarge_access_key', 'ec2exlarge_secret_key',
-              'ec2exlarge_rsapub_key', 'ec2exlarge_bucket', 'ec2exlarge_queue',
-              'ec2exlarge_amiid',
-              'ec2e_route_hcmedium',
-              'ec2ehcm_pub_key', 'ec2ehcm_priv_key', 'ec2ehcm_access_key',
-              'ec2ehcm_secret_key', 'ec2ehcm_rsapub_key', 'ec2ehcm_bucket',
-              'ec2ehcm_queue', 'ec2ehcm_amiid',
-              'ec2e_route_hcelarge',
-              'ec2ehcel_pub_key', 'ec2ehcel_priv_key', 'ec2ehcel_access_key',
-              'ec2ehcel_secret_key', 'ec2ehcel_rsapub_key', 'ec2ehcel_bucket',
-              'ec2ehcel_queue', 'ec2ehcel_amiid',
-            ]
-
+def configure_ec2e(conf, action, fields):
    # Remove previous configuration it if exists
    remove_fields(fields, conf)
 
    if action == 'add':
-      print "\nConfiguration for EC2-Enhanced\n"
-      answer = raw_input('Enable EC2 routing to the Small AMI type [y/n] ? ')
+      print '\nConfiguration for EC2-Enhanced\n'
+      answer = raw_input('Enable EC2 routing to the Small AMI type [y/N] ? ')
       if answer.lower() == 'y':
          conf.append('ec2e_route_small = True\n')
          conf.append('ec2es_pub_key = %s\n' % raw_input('Enter a filename containing an AWS Public Key for this route: '))
@@ -172,7 +165,7 @@ def configure_ec2e(conf, action):
       else:
          conf.append('ec2e_route_small =\n')
 
-      answer = raw_input('Enable EC2 routing to the Large AMI type [y/n] ? ')
+      answer = raw_input('Enable EC2 routing to the Large AMI type [y/N] ? ')
       if answer.lower() == 'y':
          conf.append('ec2e_route_large = True\n')
          conf.append('ec2elarge_pub_key = %s\n' % raw_input('Enter a filename containing an AWS Public Key for this route: '))
@@ -186,7 +179,7 @@ def configure_ec2e(conf, action):
       else:
          conf.append('ec2e_route_large =\n')
 
-      answer = raw_input('Enable EC2 routing to the X-Large AMI type [y/n] ? ')
+      answer = raw_input('Enable EC2 routing to the X-Large AMI type [y/N] ? ')
       if answer.lower() == 'y':
          conf.append('ec2e_route_xlarge = True\n')
          conf.append('ec2exlarge_pub_key = %s\n' % raw_input('Enter a filename containing an AWS Public Key for this route: '))
@@ -200,7 +193,7 @@ def configure_ec2e(conf, action):
       else:
          conf.append('ec2e_route_xlarge =\n')
 
-      answer = raw_input('Enable EC2 routing to the High-Compute Medium AMI type [y/n] ? ')
+      answer = raw_input('Enable EC2 routing to the High-Compute Medium AMI type [y/N] ? ')
       if answer.lower() == 'y':
          conf.append('ec2e_route_hcmedium = True\n')
          conf.append('ec2ehcm_pub_key = %s\n' % raw_input('Enter a filename containing an AWS Public Key for this route: '))
@@ -214,7 +207,7 @@ def configure_ec2e(conf, action):
       else:
          conf.append('ec2e_route_hcmedium =\n')
 
-      answer = raw_input('Enable EC2 routing to the High-Compute Large AMI type [y/n] ? ')
+      answer = raw_input('Enable EC2 routing to the High-Compute Large AMI type [y/N] ? ')
       if answer.lower() == 'y':
          conf.append('ec2e_route_hcelarge = True\n')
          conf.append('ec2ehcel_pub_key = %s\n' % raw_input('Enter a filename containing an AWS Public Key for this route: '))
@@ -228,24 +221,20 @@ def configure_ec2e(conf, action):
       else:
          conf.append('ec2e_route_hcelarge =\n')
 
-def configure_ha_scheduler(conf, action):
-   fields = ['sharedfs']
-
+def configure_ha_scheduler(conf, action, fields):
    # Remove previous configuration it if exists
    remove_fields(fields, conf)
 
    if action == 'add':
-      print "\nConfiguration for HA Scheduler\n"
+      print '\nConfiguration for HA Scheduler\n'
       conf.append('sharedfs = %s\n' % raw_input('Enter the mount point for the shared filesystem: '))
 
-def configure_quill(conf, action):
-   fields = ['db_node_name']
-
+def configure_quill(conf, action, fields):
    # Remove previous configuration it if exists
    remove_fields(fields, conf)
 
    if action == 'add':
-      print "\nConfiguration for Quill\n"
+      print '\nConfiguration for Quill\n'
       conf.append('db_node_name = %s\n' % raw_input('Enter the Database Server FQDN: '))
    configure_db_users(conf, action)
 
@@ -262,11 +251,11 @@ def configure_db_users(conf, action):
             # ask for it again
             return
 
-      print "\nConfiguration for Database Access\n"
+      print '\nConfiguration for Database Access\n'
       pass1 = getpass.getpass('Enter the quillreader password: ')
       pass2 = getpass.getpass('Re-Enter the password for verification: ')
       while pass1 != pass2:
-         print "Passwords do not match.  Try again."
+         print 'Passwords do not match.  Try again.'
          pass1 = getpass.getpass('Enter the quillreader password: ')
          pass2 = getpass.getpass('Re-Enter the password for verification: ')
       conf.append('qrpw = %s\n' % pass1)
@@ -274,7 +263,7 @@ def configure_db_users(conf, action):
       pass1 = getpass.getpass('Enter the quillwriter password: ')
       pass2 = getpass.getpass('Re-Enter the password for verification: ')
       while pass1 != pass2:
-         print "Passwords do not match.  Try again."
+         print 'Passwords do not match.  Try again.'
          pass1 = getpass.getpass('Enter the quillwriter password: ')
          pass2 = getpass.getpass('Re-Enter the password for verification: ')
       conf.append('qwpw = %s\n' % pass1)
@@ -289,13 +278,13 @@ def configure_node_schedulers(feats, conf, action):
          match = re.match('^scheduler_name\s*=.*$', line)
          if match != None:
             # Only ask to change the scheduler information if it is not set
-            response = raw_input('Modify which schedulers this node can submit to [y/n] ? ')
+            response = raw_input('Modify which schedulers this node can submit to [y/N] ? ')
             break
       if response.lower() == 'y':
          # Remove previous configuration it if exists
          remove_fields(fields, conf)
          conf.append('scheduler_name = %s\n' % raw_input('Enter the name of the default scheduler for this node: '))
-         if raw_input('Is this a High Available Scheduler [y/n] ? ').lower() == 'y':
+         if raw_input('Is this a High Available Scheduler [y/N] ? ').lower() == 'y':
             conf.append('default_schedd_isha = True\n')
          else:
             conf.append('default_schedd_isha =\n')
@@ -315,13 +304,16 @@ def configure_collector_name(conf, base_dir):
       match = re.match('^collector_name\s*=(.*)$', line)
       if match != None:
          # Only ask to change the collector name if it is not set
-         response = raw_input('Modify the collector name for this node [y/n] ? ')
+         response = raw_input('Modify the pool description for this node [y/N] ? ')
          break
 
    if response.lower() == 'y':
       # Remove previous configuration it if exists
       remove_fields(fields, conf)
-      collector_name = raw_input('Enter the collector name for this node: ')
+      collector_name = raw_input('Enter a short pool description for this node: ')
+      while collector_name.rstrip().lstrip() == '':
+         print 'The pool description can not be blank.\n'
+         collector_name = raw_input('Enter a short pool description for this node: ')
       conf.append('collector_name = %s\n' % collector_name)
       dir_name = os.path.join(base_dir, collector_name.lstrip().rstrip())
    else:
@@ -337,7 +329,7 @@ def configure_qmf_broker(conf):
       match = re.match('^qmf_broker\s*=.*$', line)
       if match != None:
          # Only ask to change the Broker configuration if it is not set
-         response = raw_input('Change the broker information this node uses to communicate with the Management Console [y/n] ? ')
+         response = raw_input('Change the broker information this node uses to communicate with the Management Console [y/N] ? ')
          break
    if response.lower() == 'y':
       # Remove previous configuration it if exists
@@ -407,6 +399,37 @@ def main(argv=None):
                     'credd': False,
                     'startd': False,
                   }
+   feature_fields = { 'dedicated_resource': ['dedicatedscheduler'],
+                      'ha_scheduler': ['sharedfs'],
+                      'ec2e': ['ec2e_route_small', 'ec2es_pub_key',
+                               'ec2es_priv_key', 'ec2es_access_key',
+                               'ec2es_secret_key', 'ec2es_rsapub_key',
+                               'ec2es_bucket', 'ec2es_queue', 'ec2es_amiid',
+                               'ec2e_route_large', 'ec2elarge_pub_key',
+                               'ec2elarge_priv_key', 'ec2elarge_access_key',
+                               'ec2elarge_secret_key', 'ec2elarge_rsapub_key',
+                               'ec2elarge_bucket', 'ec2elarge_queue',
+                               'ec2elarge_amiid', 'ec2e_route_xlarge',
+                               'ec2exlarge_pub_key', 'ec2exlarge_priv_key',
+                               'ec2exlarge_access_key', 'ec2exlarge_secret_key',
+                               'ec2exlarge_rsapub_key', 'ec2exlarge_bucket',
+                               'ec2exlarge_queue', 'ec2exlarge_amiid',
+                               'ec2e_route_hcmedium', 'ec2ehcm_pub_key',
+                               'ec2ehcm_priv_key', 'ec2ehcm_access_key',
+                               'ec2ehcm_secret_key', 'ec2ehcm_rsapub_key',
+                               'ec2ehcm_bucket', 'ec2ehcm_queue',
+                               'ec2ehcm_amiid', 'ec2e_route_hcelarge',
+                               'ec2ehcel_pub_key', 'ec2ehcel_priv_key',
+                               'ec2ehcel_access_key', 'ec2ehcel_secret_key',
+                               'ec2ehcel_rsapub_key', 'ec2ehcel_bucket',
+                               'ec2ehcel_queue', 'ec2ehcel_amiid'],
+                      'low_latency': ['exchange', 'broker_ip', 'broker_port',
+                                      'amqp_queue', 'll_daemon_port', 
+                                      'll_connections', 'll_lease_time',
+                                      'll_check_interval'],
+                      'concurrency_limits': ['limits'],
+                      'quill': ['db_node_name'],
+                    }
 
    # Set signal handlers
    signal.signal(signal.SIGINT, exit_signal_handler)
@@ -415,15 +438,16 @@ def main(argv=None):
    if os.path.exists(base_config_dir) == False:
       os.makedirs(base_config_dir)
 
-   long_opts = ['add', 'delete', 'help', 'node_name']
+   long_opts = ['add', 'delete', 'features=', 'help', 'list', 'node_name=']
    try:
-      opts, args = getopt.getopt(argv[1:], 'a:d:hn:', long_opts)
+      opts, args = getopt.getopt(argv[1:], 'adf:hln:', long_opts)
    except getopt.GetoptError, error:
       print str(error)
       return(1)
 
    node = ''
    action = ''
+   features = ''
    for option, arg in opts:
       if option in ('-h', '--help'):
          print_help(argv[0], feature_list, desc)
@@ -431,23 +455,70 @@ def main(argv=None):
       if option in ('-n', '--node_name'):
          node = arg
       if option in ('-a', '--add'):
-         if action == 'delete':
+         if action != '':
             print 'Only 1 action may be specified'
             return(1)
          action = 'add'
-         features = arg
       if option in ('-d', '--delete'):
-         if action == 'add':
+         if action != '':
             print 'Only 1 action may be specified'
             return(1)
          action = 'delete'
+      if option in ('-f', '--features'):
          features = arg
+      if option in ('-l', '--list'):
+         if action != '':
+            print 'Only 1 action may be specified'
+            return(1)
+         action = 'list'
        
+   # Perform list opertions
+   if action == 'list':
+      if node == '':
+         print 'Nodes being managed:'
+         os.chdir(base_config_dir)
+         dirs = os.listdir('.')
+         for dir in dirs:
+            if os.path.isdir(dir) == True:
+               for node in os.listdir(dir):
+                  print node
+      else:
+         # Find the config file for this node
+         config_dir = find_config(node, base_config_dir)
+         config = []
+         if config_dir != None:
+            file = open('%s/%s' % (config_dir, node), 'r')
+            for line in file.read().split('\n'):
+               if line != '':
+                  config.append(line + '\n')
+            file.close()
+
+         if features == '':
+            print 'Configuration for %s:' % node
+            print_node_features(config)
+         else:
+            for feat in features.split(','):
+               try:
+                  config.index(feat + '\n')
+               except:
+                  print 'Feature "%s" not configured for %s' % (feat, node)
+                  continue
+
+               if feat in feature_fields.keys():
+                  print 'Feature "%s" configuration for %s:' % (feat, node)
+                  print_feature_config(config, feature_fields[feat])
+               else:
+                  print 'No detailed configuration for feature "%s"' % feat
+      return(0)
+
    if node == '':
       print 'No node name supplied.  Exiting'
       print_help(argv[0], feature_list, desc)
    elif action == '':
       print 'No action specified.  Exiting'
+      print_help(argv[0], feature_list, desc)
+   elif features == '':
+      print 'No features specified.  Exiting'
       print_help(argv[0], feature_list, desc)
    else:
       # Find the config file for this node
@@ -498,17 +569,17 @@ def main(argv=None):
 
             # Add or remove feature specific configs if needed
             if feature == 'low_latency':
-               configure_low_lat(config, action)
+               configure_low_lat(config, action, feature_fields[feature])
             elif feature == 'concurrency_limits':
-               configure_limits(config, action)
+               configure_limits(config, action, feature_fields[feature])
             elif feature == 'dedicated_resource':
-               configure_dedicated_resource(config, action)
+               configure_dedicated_resource(config, action, feature_fields[feature])
             elif feature == 'ec2e':
-               configure_ec2e(config, action)
+               configure_ec2e(config, action, feature_fields[feature])
             elif feature == 'ha_scheduler':
-               configure_ha_scheduler(config, action)
+               configure_ha_scheduler(config, action, feature_fields[feature])
             elif feature == 'quill':
-               configure_quill(config, action)
+               configure_quill(config, action, feature_fields[feature])
 
       # Configure which schedulers the node can submit to
       configure_node_schedulers(features, config, action)
@@ -520,7 +591,7 @@ def main(argv=None):
       # Console
       configure_qmf_broker(config)
 
-      if raw_input('\nSave this configuration [y/n] ? ').lower() == 'y':
+      if raw_input('\nSave this configuration [y/N] ? ').lower() == 'y':
          if config_dir != None:
             os.remove(os.path.join(config_dir, node))
          if os.path.exists(new_config_dir) == False:
@@ -533,10 +604,11 @@ def main(argv=None):
          # Tell all nodes to check in to see if there are configuration updates
          print 'Refreshing node configurations'
          os.chdir(base_config_dir)
-         dirs = os.listdir(".")
+         dirs = os.listdir('.')
          nodes = []
          for dir in dirs:
-            nodes += os.listdir(dir)
+            if os.path.isdir(dir) == True:
+               nodes += os.listdir(dir)
          null = open('/dev/null', 'w')
          for condor_node in nodes:
             refresh = Popen('/usr/bin/puppetrun' + ' --host' + ' %s' % condor_node, shell=True, stdout=null, stderr=null)

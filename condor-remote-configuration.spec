@@ -1,7 +1,7 @@
 Summary: Condor Remote Configuration Client Tools
 Name: condor-remote-configuration
 Version: 1.0
-Release: 11%{?dist}
+Release: 12%{?dist}
 License: ASL 2.0
 Group: Applications/System
 URL: http://www.redhat.com/mrg
@@ -108,6 +108,11 @@ rm -f %{buildroot}/%_sysconfdir/opt/grid/examples/puppet.conf.master
 %endif
 
 %changelog
+* Fri Jan 30 2009  <rrati@redhat> - 1.0-12
+- Default y/n answers clearly indicated (BZ481584)
+- Changed 'collector name' to 'pool description' (BZ481583)
+- Provide method to list nodes being managed and node/feature configs (BZ481582)
+
 * Tue Jan  6 2009  <rrati@redhat> - 1.0-11
 - Fix dependency parsing issue when removing features (BZ478894)
 - Removed HAD and Replication log levels for HA Central Managers

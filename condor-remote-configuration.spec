@@ -112,6 +112,7 @@ rm -f %{buildroot}/%_sysconfdir/opt/grid/examples/puppet.conf.master
 - Default y/n answers clearly indicated (BZ481584)
 - Changed 'collector name' to 'pool description' (BZ481583)
 - Provide method to list nodes being managed and node/feature configs (BZ481582)
+- Update EC2 Enhanced configuration for BZ480841
 
 * Tue Jan  6 2009  <rrati@redhat> - 1.0-11
 - Fix dependency parsing issue when removing features (BZ478894)

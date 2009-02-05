@@ -35,7 +35,7 @@ def print_help(name, list, desc):
    print '  -l|--list   - List configurations.  If provided without a specific'
    print '                node, prints the list of nodes being managed.  If'
    print '                a node is provided, print the list of features'
-   print '                for the privided node.  If provided with one or'
+   print '                for the provided node.  If provided with one or'
    print '                more features in addition to a node, then print'
    print '                the specific configurations for those features'
    print '\navailable features:'

@@ -1,4 +1,4 @@
-%define rel 13
+%define rel 14
 
 Summary: Condor Remote Configuration Client Tools
 Name: condor-remote-configuration
@@ -110,6 +110,9 @@ rm -f %{buildroot}/%_sysconfdir/opt/grid/examples/puppet.conf.master
 %endif
 
 %changelog
+* Fri Feb 13 2009  <rrati@redhat> - 1.0-14
+- Rebuild bump
+
 * Fri Feb 13 2009  <rrati@redhat> - 1.0-13
 - Change source tarball name
 

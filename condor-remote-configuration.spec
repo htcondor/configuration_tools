@@ -110,6 +110,9 @@ rm -f %{buildroot}/%_sysconfdir/opt/grid/examples/puppet.conf.master
 %endif
 
 %changelog
+* Fri Feb 13 2009  <rrati@redhat> - 1.0-13
+- Change source tarball name
+
 * Fri Jan 30 2009  <rrati@redhat> - 1.0-12
 - Default y/n answers clearly indicated (BZ481584)
 - Changed 'collector name' to 'pool description' (BZ481583)

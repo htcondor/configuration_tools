@@ -1,11 +1,12 @@
 .PHONY: build condor-remote-configuration
 
-RPMBUILD_DIRS := BUILD RPMS SOURCES SPECS SRPMS
+RPMBUILD_DIRS := BUILD BUILDROOT RPMS SOURCES SPECS SRPMS
 
 NAME := condor-remote-configuration
 SPEC := ${NAME}.spec
 VERSION := $(shell grep -i version: "${SPEC}" | awk '{print $$2}')
-SOURCE := ${NAME}-${VERSION}.tar.gz
+RELEASE := $(shell grep -i 'define rel' "${SPEC}" | awk '{print $$3}')
+SOURCE := ${NAME}-${VERSION}-${RELEASE}.tar.gz
 DIR := ${NAME}-${VERSION}
 
 build: condor-remote-configuration

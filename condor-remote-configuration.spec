@@ -1,4 +1,4 @@
-%define rel 14
+%define rel 15
 
 Summary: Condor Remote Configuration Client Tools
 Name: condor-remote-configuration
@@ -110,6 +110,9 @@ rm -f %{buildroot}/%_sysconfdir/opt/grid/examples/puppet.conf.master
 %endif
 
 %changelog
+* Mon Mar  2 2009  <rrati@redhat> - 1.0-15
+- Fixed reporting of duplicate HA Schedulers (BZ486484)
+
 * Fri Feb 13 2009  <rrati@redhat> - 1.0-14
 - Rebuild bump
 

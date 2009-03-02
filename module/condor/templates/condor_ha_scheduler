@@ -3,3 +3,4 @@ SPOOL = <%= sharedfs %>
 HA_LOCK_URL = file:<%= sharedfs %>
 VALID_SPOOL_FILES = $(VALID_SPOOL_FILES), SCHEDD.lock
 SCHEDD_NAME = ha-schedd@
+SCHEDD.QMF_STOREFILE = $(SPOOL)/.schedd_storefile

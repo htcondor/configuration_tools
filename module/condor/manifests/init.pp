@@ -151,6 +151,7 @@ class condor::condor {
    include condor_negotiator
    include condor_scheduler
    include condor_startd
+   include condor_triggerd
    include sesame
    condortemplate { "$feature_config_dir/condor_common":
                     content => template("condor/condor_common"),
@@ -779,5 +780,22 @@ class condor::condor_startd {
                               true => file,
                               default => absent
                     }
+   }
+}
+
+class condor::condor_triggerd {
+   include condor_feature_dir
+   include condor_pkg
+   include condor_svc
+   include condor_config_local
+   condorfile { "$feature_config_dir/condor_triggerd":
+                source => "condor_triggerd",
+                owner => root,
+                group => root,
+                mode => 644,
+                ensure => $triggerd ? {
+                          true => file,
+                          default => absent
+                }
    }
 }

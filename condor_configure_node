@@ -362,7 +362,8 @@ def main(argv=None):
             'collector': 'Enable the Condor Collector daemon',
             'central_manager': 'Make the node a Central Manager (Negotiator and Collector)',
             'credd': 'Enable the Condor Credential daemon',
-            'startd': 'Enable the Condor Start daemon (execution node)'
+            'startd': 'Enable the Condor Start daemon (execution node)',
+            'triggerd': 'Enable the Trigger Service'
           }
    feature_deps = { 'ec2e': 'ec2,job_router',
                     'concurrency_limits': 'negotiator',
@@ -398,6 +399,7 @@ def main(argv=None):
                     'central_manager': False,
                     'credd': False,
                     'startd': False,
+                    'triggerd': False
                   }
    feature_fields = { 'dedicated_resource': ['dedicatedscheduler'],
                       'ha_scheduler': ['sharedfs'],

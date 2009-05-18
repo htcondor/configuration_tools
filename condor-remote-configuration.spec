@@ -82,6 +82,7 @@ rm -f %{buildroot}/%_sysconfdir/opt/grid/examples/puppet.conf.master
 %config(noreplace) %_sysconfdir/puppet/modules/condor/files/condor_EC2
 %config(noreplace) %_sysconfdir/puppet/modules/condor/files/condor_viewserver
 %config(noreplace) %_sysconfdir/puppet/modules/condor/files/condor_credd
+%config(noreplace) %_sysconfdir/puppet/modules/condor/files/condor_triggerd
 %config(noreplace) %_sysconfdir/puppet/modules/condor/files/pgsql_createddl.sql
 %config(noreplace) %_sysconfdir/puppet/modules/condor/files/condor_dbmsd
 %config(noreplace) %_sysconfdir/puppet/modules/condor/files/postgresql.conf
@@ -112,6 +113,7 @@ rm -f %{buildroot}/%_sysconfdir/opt/grid/examples/puppet.conf.master
 %changelog
 * Mon Mar  2 2009  <rrati@redhat> - 1.0-15
 - Fixed reporting of duplicate HA Schedulers (BZ486484)
+- Added configuration of condor trigger service
 
 * Fri Feb 13 2009  <rrati@redhat> - 1.0-14
 - Rebuild bump

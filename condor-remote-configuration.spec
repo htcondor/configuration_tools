@@ -1,4 +1,4 @@
-%define rel 15
+%define rel 16
 
 Summary: Condor Remote Configuration Client Tools
 Name: condor-remote-configuration
@@ -111,6 +111,9 @@ rm -f %{buildroot}/%_sysconfdir/opt/grid/examples/puppet.conf.master
 %endif
 
 %changelog
+* Thu May 28 2009  <rrati@redhat> - 1.0-16
+- Triggerd will start correctly (BZ503051)
+
 * Mon Mar  2 2009  <rrati@redhat> - 1.0-15
 - Fixed reporting of duplicate HA Schedulers (BZ486484)
 - Added configuration of condor trigger service

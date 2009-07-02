@@ -1,4 +1,4 @@
-#!/usr/bin/perl
+#!/usr/bin/python
 #   Copyright 2008 Red Hat, Inc.
 #
 #   Licensed under the Apache License, Version 2.0 (the "License");
@@ -13,191 +13,72 @@
 #   See the License for the specific language governing permissions and
 #   limitations under the License.
 
-use File::Basename;
+import sys
+import os
+import ConfigParser
+from qmf.console import Session
 
-my $node_name = $ARGV[0];
-my $base_config_dir = "/etc/puppet/modules/condor/node_configs";
-my $list = "";
-my $filename;
-my @files;
-my $config_file;
-my $config_dir;
+def main(argv=None):
+   if argv is None:
+      argv = sys.argv
 
-# Find the pool the configuration file is in
-$config_file = `find $base_config_dir -name $node_name`;
-chomp $config_file;
-$config_file =~ /^(.*)\/$node_name$/;
-$config_dir = $1;
+   dir = '/etc/puppet/modules/condor/files/config'
+   config = '/etc/remote-configuration.conf'
+   parser = ConfigParser.ConfigParser()
+   node_name = argv[1]
+   
+   if os.path.exists(config) == False:
+      broker_ip = 'localhost'
+   else:
+      parser.readfp(open(config))
+      broker_ip - parser.get('External Nodes', 'qmf_broker')
 
-# Exit if the node's config file doesn't exist
-if (! -f "$config_file" )
-{
-   # We don't know about the node, so print an empty config
-   print "--- {}\n\n";
-   exit 0;
-}
-else
-{
-   @config = `cat "$config_file"`;
-}
+   session = Session()
+   try:
+      broker = session.addBroker("amqp://%s" % broker_ip)
+   except:
+      return(1)
 
-# Print out the node's configuration
-print "---\n";
-print "classes:\n";
-print "  - condor::condor\n";
-if (grep /dbserver/, @config)
-{
-   print "  - condor::postgresql\n";
-}
-print "parameters:\n";
-print "  node_name: $node_name\n";
-foreach (@config)
-{
-   if (/^([\S]+)\s*=\s*(.+)$/)
-   {
-      # Config value has a value
-      print "  $1: $2\n";
-   }
-   elsif (/^([\S]+)\s*=\s*$/)
-   {
-      # Config value is blank
-      print "  $1:\n";
-   }
-   elsif (/^([\S]+)$/)
-   {
-      # No config value setting, so this is an enable flag
-      print "  $1: True\n";
+   # Retreive the config store object
+   config_store = session.getObjects(_class="condorconfigstore", _package="mrg.grid")
+   if config_store == []:
+      return(1)
+   else:
+      config_store = config_store[0]
 
-      # If the enable flag is for configuring an HA Central Manager
-      # then form the list of Central Managers by looking at the other
-      # config files for the ha_central_manager option
-      if ($1 eq "ha_central_manager")
-      {
-         # Generate the list of other HA Central Managers
-         $list = "";
-         @files = `grep -H ha_central_manager "$config_dir"/*`;
-         foreach (@files)
-         {
-            /^(.+):.+$/;
-            $filename = fileparse($1);
-            if (! ($list =~ /.*$filename.*/))
-            {
-               $list = $list . "$filename,";
-            }
-         }
-         chop $list;
-         print "  ha_cm_list: $list\n";
-      }
-      elsif ($1 eq "scheduler")
-      {
-         # Generate the list of nodes that should be able to submit to this
-         # scheduler node
-         $list = "";
-         @files = `egrep -H "^scheduler_name *= *$node_name\$" "$config_dir"/*`;
-         push(@files, `egrep -H "^additional_scheds = (.*)$node_name(.*)\$" "$config_dir"/*`);
+   # Retrieve the node object
+   result = config_store.GetGroup({'Name': node_name})
+   if result.status != 0:
+      # We don't know about the node, so print an empty config
+      print '--- {}\n'
+      return(0)
+   else:
+      node = result.outArgs['groupObj']
 
-         # If this is an HA Scheduler, look for the nodes that can write to
-         # this HA schedd name
-         if ((grep /ha_scheduler/, @config) >= 1)
-         {
-            # Find the ha schedd name for this ha scheduler
-            my $ha_name = `echo "@config" | grep ha_schedd_name | cut -d ' ' -f 4`;
-            chomp $ha_name;
+   # Retrieve the node's configuration
+   result = node.GetConfig()
+   if result.status != 0:
+      # Problem retrieving the configuration
+      print '--- {}\n'
+      return(1)
+   else:
+      node_config = result.outArgs['groupConfig']
 
-            push(@files, `egrep -H "^scheduler_name *= *.*$ha_name.*\$" "$config_dir"/*`);
-            push(@files, `egrep -H "^additional_scheds *= *.*$ha_name.*\$" "$config_dir"/*`);
-         }
-         foreach (@files)
-         {
-            /^(.+):.+$/;
-            $filename = fileparse($1);
-            if (! ($list =~ /.*$filename.*/))
-            {
-               $list = $list . "$filename,";
-            }
-         }
-         chop $list;
-         print "  sched_writes: $list\n";
-      }
-      elsif ($1 eq "startd")
-      {
-         # Generate the list of schedulers that can write to this startd
-         $list = "";
-         @files = `egrep "^scheduler_name *= *.*\$" "$config_dir"/$node_name | cut -d ' ' -f 3`;
-         my $cmd_out = `egrep "^additional_scheds *= *" "$config_dir"/$node_name`;
-         chomp $cmd_out;
-         $cmd_out =~ /^additional_scheds\s*=\s*(\S*)$/;
-         push(@files, split(/,/, $1));
-         foreach (@files)
-         {
-            chomp;
-            if ($_ =~ m(\@$))
-            {
-               # Need to add all HA Scheduler hosts that are part of the
-               # this HA scheduler name to the list
-               my @ha_scheds = `egrep -H "ha_scheduler" "$config_dir"/*`;
-               my $ha_name = $_;
-               foreach (@ha_scheds)
-               {
-                  /^(.+):.+$/;
-                  if (grep(/ha_schedd_name\s*=\s*$ha_name\s*$/, `cat "$1"`) >= 1)
-                  {
-                     $filename = fileparse($1);
-                     if (! ($list =~ /.*$filename.*/))
-                     {
-                        $list = $list . "$filename,";
-                     }
-                  }
-               }
-            }
-            elsif ("$_" ne "")
-            {
-               if (! ($list =~ /.*$_.*/))
-               {
-                  $list = $list . "$_,";
-               }
-            }
-         }
-         chop $list;
-         print "  schedd_list: $list\n";
-      }
-   }
-}
+   # Write the config to a file on disk
+   config_file = open('%s/%s' % (dir, node_name), 'w')
+   for key in node_config.keys():
+      config_file.write('%s = %s\n' % key, node_config[key])
+   config_file.close()
+   
+   # Print out the node's configuration
+   print '---'
+   print 'classes:'
+   print '  - condor::condor'
+   print 'parameters:'
+   print '  node_name: %s' % node_name;
+   print '  qmf_broker: %s' % config['QMF_BROKER_HOST']
+   print '   qmf_port: %s' % config['QMF_BROKER_PORT']
+   print '\n'
 
-# Generate the list of Central Managers
-$list = "";
-@files = `egrep -H "^central_manager" "$config_dir"/*`;
-foreach (@files)
-{
-   /^(.+):.+$/;
-   $filename = fileparse($1);
-   if (! ($list =~ /.*$filename.*/))
-   {
-      $list = $list . "$filename,";
-   }
-}
-chop $list;
-print "  cm_list: $list\n";
-
-# If the node is a Central Manager, then print the list of nodes configured
-if ((grep /central_manager/, @config) >= 1)
-{
-   $list = "";
-   opendir(DIR, $config_dir) || die("Unable to open $config_dir for reading\n");
-   @files = readdir(DIR);
-   closedir(DIR);
-   foreach $node (@files)
-   {
-      if(!(($node eq ".") || ($node eq "..")))
-      {
-         if (! ($list =~ /.*$node.*/))
-         {
-            $list = $list . "$node,";
-         }
-      }
-   }
-   chop $list;
-   print "  full_node_list: $list\n";
-}
-
-exit 0;
+if __name__ == '__main__':
+    sys.exit(main())

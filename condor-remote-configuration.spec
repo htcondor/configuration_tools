@@ -29,7 +29,6 @@ Group: Applications/System
 Requires: puppet-server >= 0.24.6
 Requires: facter >= 1.5.2-2
 Requires: python >= 2.4
-Requires: perl
 
 %description server
 The Condor Remote Configuration package provides a means to quickly and easily
@@ -48,55 +47,35 @@ server.
 mkdir -p %{buildroot}/%_sysconfdir
 mkdir -p %{buildroot}/%_sbindir
 mkdir -p %{buildroot}/%_sysconfdir/puppet/modules
+mkdir -p %{buildroot}/%_sysconfdir/puppet/modules/condor/files/config
+mkdir -p %{buildroot}/%_sysconfdir/mrg.grid/examples
 %if 0%{?rhel} != 4
 cp -rf module/* %{buildroot}/%_sysconfdir/puppet/modules
 cp -f condor_configure_node %{buildroot}/%_sbindir
+cp -f condor_configure_store %{buildroot}/%_sbindir
 cp -f condor_node %{buildroot}/%_sbindir
+cp -f config/remote-configuration.conf %{buildroot}/%_sysconfdir
 %endif
+cp -f condor_config_eventd %{buildroot}/%_sbindir
 
 %files
 %defattr(-,root,root,-)
 %doc LICENSE-2.0.txt config/namespaceauth.conf config/puppet.conf.client
+%defattr(0755,root,root,-)
+%_sbindir/condor_config_eventd
 
 %if 0%{?rhel} != 4
 %files server
 %defattr(-,root,root,-)
-%doc LICENSE-2.0.txt config/puppet.conf.master
+%doc LICENSE-2.0.txt config/puppet.conf.master config/namespaceauth.conf config/puppet.conf.client
 %defattr(0444,root,root,-)
-%config(noreplace) %_sysconfdir/puppet/modules/condor/files/common_createddl.sql
-%config(noreplace) %_sysconfdir/puppet/modules/condor/files/condor_dedicated_preemption
-%config(noreplace) %_sysconfdir/puppet/modules/condor/files/condor_job_router
-%config(noreplace) %_sysconfdir/puppet/modules/condor/files/condor_dedicated_scheduler
-%config(noreplace) %_sysconfdir/puppet/modules/condor/files/condor_collector
-%config(noreplace) %_sysconfdir/puppet/modules/condor/files/condor_dynamic_provisioning
-%config(noreplace) %_sysconfdir/puppet/modules/condor/files/condor_negotiator
-%config(noreplace) %_sysconfdir/puppet/modules/condor/files/condor_config.local
-%config(noreplace) %_sysconfdir/puppet/modules/condor/files/condor_EC2
-%config(noreplace) %_sysconfdir/puppet/modules/condor/files/condor_viewserver
-%config(noreplace) %_sysconfdir/puppet/modules/condor/files/condor_credd
-%config(noreplace) %_sysconfdir/puppet/modules/condor/files/pgsql_createddl.sql
-%config(noreplace) %_sysconfdir/puppet/modules/condor/files/condor_dbmsd
-%config(noreplace) %_sysconfdir/puppet/modules/condor/files/postgresql.conf
 %config(noreplace) %_sysconfdir/puppet/modules/condor/manifests/init.pp
-%config(noreplace) %_sysconfdir/puppet/modules/condor/templates/condor_EC2_enhanced
-%config(noreplace) %_sysconfdir/puppet/modules/condor/templates/condor_startd
-%config(noreplace) %_sysconfdir/puppet/modules/condor/templates/condor_central_manager
-%config(noreplace) %_sysconfdir/puppet/modules/condor/templates/condor_ha_central_manager
-%config(noreplace) %_sysconfdir/puppet/modules/condor/templates/condor_common
-%config(noreplace) %_sysconfdir/puppet/modules/condor/templates/condor_ha_scheduler
-%config(noreplace) %_sysconfdir/puppet/modules/condor/templates/condor_low_latency
-%config(noreplace) %_sysconfdir/puppet/modules/condor/templates/pg_hba_conf
-%config(noreplace) %_sysconfdir/puppet/modules/condor/templates/condor_concurrency_limits
-%config(noreplace) %_sysconfdir/puppet/modules/condor/templates/condor_quill
-%config(noreplace) %_sysconfdir/puppet/modules/condor/templates/pgpass
-%config(noreplace) %_sysconfdir/puppet/modules/condor/templates/condor_dedicated_resource
-%config(noreplace) %_sysconfdir/puppet/modules/condor/templates/condor_scheduler
 %config(noreplace) %_sysconfdir/puppet/modules/condor/templates/sesame.conf
 %config(noreplace) %_sysconfdir/puppet/modules/condor/templates/condor_vm_universe
 %defattr(0755,root,root,-)
-%_sysconfdir/puppet/modules/condor/files/condor_add_db_user.pl
-%_sysconfdir/puppet/modules/condor/files/condor_generate_config.sh
-%_sysconfdir/puppet/modules/condor/files/condor_insert_schema.pl
+%dir %_sysconfdir/puppet/modules/condor/files/config
+%_sysconfdir/remote-configuration.conf
+%_sbindir/condor_configure_store
 %_sbindir/condor_configure_node
 %_sbindir/condor_node
 %endif

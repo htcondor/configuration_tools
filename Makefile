@@ -25,6 +25,8 @@ SOURCES/${SOURCE}:
 	mkdir ${DIR}
 	mkdir ${DIR}/config
 	cp -f condor_configure_node ${DIR}
+	cp -f condor_configure_store ${DIR}
+	cp -f condor_config_eventd ${DIR}
 	cp -f condor_node ${DIR}
 	cp -f LICENSE-2.0.txt ${DIR}
 	cp -rf module ${DIR}

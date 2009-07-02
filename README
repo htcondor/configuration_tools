@@ -18,11 +18,6 @@ and the replace "<puppetmaster.fqdn>" with the Fully Qualified Doman Name of
 the machine that has the condor-remote-configuration-server package installed.
 There should only be one system with this package installed in a cluster.
 
-Finally, start the service by executing:
-
-service puppet start
-
-
 Server Configuration:
 To configure the remote configuration feature on the configuration server,
 install the condor-remote-configuration-server package.  Next, copy the
@@ -47,10 +42,10 @@ and features:
 
 condor_configure_node [-h|--help] -n <FQDN> action [-f|--features] feature[,feature,...]
 
-The currently supported actions are either add or delete.  The add action is
-used to add features to the provided node, and if any additional information
-is required then the tool will prompt the user.  Blank lines are valid for
-almost any entry.
+The currently supported actions are either add, delete, or list.  The add
+action is used to add features to the provided node or group of nodes, and if
+any additional information is required then the tool will prompt the user.
+Blank lines are valid for almost any entry.
 
 In addition, there are a few configuration items that will be prompted for
 regardless of which options are being enabled:

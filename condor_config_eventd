@@ -1,0 +1,209 @@
+#!/usr/bin/python
+#   Copyright 2008 Red Hat, Inc.
+#
+#   Licensed under the Apache License, Version 2.0 (the "License");
+#   you may not use this file except in compliance with the License.
+#   You may obtain a copy of the License at
+#
+#       http://www.apache.org/licenses/LICENSE-2.0
+#
+#   Unless required by applicable law or agreed to in writing, software
+#   distributed under the License is distributed on an "AS IS" BASIS,
+#   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+#   See the License for the specific language governing permissions and
+#   limitations under the License.
+
+import os
+import sys
+import syslog
+import signal
+import time
+import socket
+from qmf.console import Session, Console
+from subprocess import *
+
+
+class config_err(Exception):
+   def __init__(self, *str):
+      self.msg = str
+
+class EventConsole(Console):
+   def __init__(self, name):
+      self.hostname = name
+
+   def event(self, broker, event):
+      if event.getClassKey().getClassName() == 'condorrestartevent':
+         args = event.getArguments()
+         affected_hosts = args['AffectedNodes'].split(',')
+         if self.hostname in affected_hosts:
+            run_puppet()
+            if args['Restart'] == True:
+               cmd = 'condor_restart'
+            else:
+               cmd = 'condor_reconfig'
+            for host in affected_hosts:
+               for subsys in args['targets'].values().split(','):
+                  if subsys == 'carod':
+                     obj = Popen(['condor_restart', '-name %s -subsystem %s' % (host, subsys)], stdout=PIPE, stderr=PIPE)
+                  else:
+                     obj = Popen([cmd, '-name %s -subsystem %s' % (host, subsys)], stdout=PIPE, stderr=PIPE)
+                  obj.communicate()
+
+class Service:
+   def __init__(self):
+      self.broker_ip = ''
+      self.broker_port = 5672
+      self.broker = None
+      self.console = None
+      self.session = None
+      self.store = []
+      self.reponsible_nodes = ''
+      self.interval = 0
+
+   def init(self):
+      self.console = EventConsole(os.uname()[1])
+      self.session = Session(self.console, manageConnections=True, rcvObjects=False, rcvHeartbeats=False, rcvEvents=True)
+      self.store = self.session.getObjects(_class="condorconfigstore", _package="mrg.grid")
+
+   def config(self):
+      if self.broker != None:
+         self.session.delBroker(self.broker)
+         self.broker = None
+
+      try:
+         self.broker_ip = get_condor_val('QMF_BROKER', 'HOST')
+      except config_err, error:
+         # Broker host not defined, so exit
+         syslog.syslog(syslog.LOG_ERR, 'Error: %s.  Exiting' % error.msg)
+         return(False)
+
+      try:
+         self.broker_port = get_condor_val('QMF_BROKER', 'PORT')
+      except config_err, error:
+         syslog.syslog(syslog.LOG_INFO, '%s. Using default' % error.msg)
+         self.broker_port = 5672
+
+      try:
+         self.responsible_nodes = get_condor_val('QMF_CONFIG', 'WATCH_NODES')
+      except config_err, error:
+         syslog.syslog(syslog.LOG_INFO, '%s. Using default "%s"' % (error.msg, os.uname()[1]))
+         self.responsible_nodes = os.uname()[1]
+
+      try:
+         self.interval = get_condor_val('QMF_CONFIG', 'CHECK_INTERVAL')
+      except config_err, error:
+         syslog.syslog(syslog.LOG_INFO, '%s. Node configuration evaluation disabled' % error.msg)
+         self.interval = 0
+       
+      try:
+         self.broker = self.session.addBroker("amqp://%s:%s" % (self.broker_ip, self.broker_port))
+      except:
+         syslog.syslog(syslog.LOG_ERR, 'Error: Unable to connect to broker "%s"' % self.broker_ip)
+         return(False)
+
+      # Setup the alarm for evaluation
+      signal.alarm(0)
+      if self.interval > 0:
+         signal.alarm(self.interval)
+
+      return(True)
+
+   def shutdown(self):
+      if self.broker != None:
+         self.session.delBroker(self.broker)
+         self.broker = None
+
+   def get_interval(self):
+      return self.interval
+
+   def check_config_ver(self):
+      if self.store == []:
+         return(1)
+
+      result = self.store.GetNodeList()
+      if result.status != 0:
+         syslog.syslog('Error(%d, %s): Unable to retrieve list of nodes for configuration verification' % (result.status, result.text))
+         return(1)
+      else:
+         all_nodes = result.outArgs['nodeList'].values()
+
+         for node in all_nodes.split(','):
+            if node in self.responsible_nodes:
+               result = Popen(['condor_status', '-f "\%s\n" MyAddress %s' % node], stdout=PIPE, stderr=PIPE)
+               value = result.communicate()[0]
+               if result.returncode != 0:
+                  syslog.syslog('Error: Unable to find address of master daemon for "%s"' % node)
+                  continue
+               else:
+                  ip = value[0]
+
+               result = Popen(['condor_config_val', '-master -address "%s" QMF_CONFIG_VERSION' % ip], stdout=PIPE, stderr=PIPE)
+               version = result.communicate()[0]
+               if result.returncode != 0:
+                  syslog.syslog('Error: Unable to retrieve version of configureion "%s" is currently running' % node)
+                  continue
+
+               result = self.store.GetGroup({'Name': node})
+               if result.status != 0:
+                  syslog.syslog('Error(%d, %s): Unable to get node information for "%s"' % (result.status, result.txt, node))
+               else:
+                  obj = result.outArgs['groupObj']
+                  obj.CheckConfigVersion(version)
+
+def reconfig(signum, frame):
+   service.config()
+   signal.alarm(servce.get_interval())
+
+def exit_signal_handler(signum, frame):
+   service.shutdown()
+   del service
+   sys.exit(0)
+
+def config_check():
+   service.check_config_ver()
+
+def run_puppet():
+   result = Popen(['puppetd', '--onetime --no-daemonize'], stdout=PIPE, stderr=PIPE)
+   result.communicate()
+
+def get_condor_val(subsys, param):
+   # Try older underscore notation
+   obj = Popen(['condor_config_val', '%s_%s' % (subsys, param)], stdout=PIPE, stderr=PIPE)
+   value = obj.communicate()[0]
+   if obj.returncode != 0:
+      # Try using dot notation
+      obj = Popen(['condor_config_val', '%s.%s' % (subsys, param)], stdout=PIPE, stderr=PIPE)
+      value = obj.communicate()[0]
+      if obj.returncode != 0:
+         raise config_err('%s_%s is not defined' % (subsys, param))
+   return value
+
+service = Service()
+
+def main(argv=None):
+   if argv is None:
+      argv = sys.argv
+
+   # Open a connection to the system logger
+   syslog.openlog(os.path.basename(argv[0]))
+
+   # Set signal handlers
+   signal.signal(signal.SIGINT, exit_signal_handler)
+   signal.signal(signal.SIGTERM, exit_signal_handler)
+   signal.signal(signal.SIGHUP, reconfig)
+   signal.signal(signal.SIGALRM, config_check)
+
+   # Retrieve the broker information from condor's configuration file
+   service.init()
+   if service.config() != True:
+      return(1)
+
+   # Loop forever until told to shutdown
+   try:
+      while True:
+         time.sleep(1)
+   except:
+      pass
+
+if __name__ == '__main__':
+    sys.exit(main())

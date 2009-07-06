@@ -48,7 +48,6 @@ mkdir -p %{buildroot}/%_sysconfdir
 mkdir -p %{buildroot}/%_sbindir
 mkdir -p %{buildroot}/%_sysconfdir/puppet/modules
 mkdir -p %{buildroot}/%_sysconfdir/puppet/modules/condor/files/config
-mkdir -p %{buildroot}/%_sysconfdir/mrg.grid/examples
 %if 0%{?rhel} != 4
 cp -rf module/* %{buildroot}/%_sysconfdir/puppet/modules
 cp -f condor_configure_node %{buildroot}/%_sbindir
@@ -67,7 +66,7 @@ cp -f condor_config_eventd %{buildroot}/%_sbindir
 %if 0%{?rhel} != 4
 %files server
 %defattr(-,root,root,-)
-%doc LICENSE-2.0.txt config/puppet.conf.master config/namespaceauth.conf config/puppet.conf.client
+%doc LICENSE-2.0.txt config/puppet.conf.master
 %defattr(0444,root,root,-)
 %config(noreplace) %_sysconfdir/puppet/modules/condor/manifests/init.pp
 %config(noreplace) %_sysconfdir/puppet/modules/condor/templates/sesame.conf

@@ -151,7 +151,7 @@ class condor::condor {
    include condor_negotiator
    include condor_scheduler
    include condor_startd
-   include condor_triggerd
+   include condor_vm_universe
    include sesame
    condortemplate { "$feature_config_dir/condor_common":
                     content => template("condor/condor_common"),
@@ -783,19 +783,28 @@ class condor::condor_startd {
    }
 }
 
-class condor::condor_triggerd {
+class condor::condor_vm_universe {
    include condor_feature_dir
    include condor_pkg
    include condor_svc
    include condor_config_local
-   condorfile { "$feature_config_dir/condor_triggerd":
-                source => "condor_triggerd",
-                owner => root,
-                group => root,
-                mode => 644,
-                ensure => $triggerd ? {
-                          true => file,
-                          default => absent
-                }
+   package { xen:
+             ensure => $vmuni ? {
+                       true => installed,
+                       default => absent,
+             }
+   }
+   condortemplate { "$feature_config_dir/condor_vm_universe":
+                    content => $vmuni ? {
+                               true => template("condor/condor_vm_universe"),
+                               default => " "
+                    },
+                    owner => root,
+                    group => root,
+                    mode => 644,
+                    ensure => $vmuni ? {
+                              true => file,
+                              default => absent
+                    }
    }
 }

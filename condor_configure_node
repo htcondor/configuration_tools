@@ -227,6 +227,11 @@ def configure_ha_scheduler(conf, action, fields):
 
    if action == 'add':
       print '\nConfiguration for HA Scheduler\n'
+      name = raw_input('Enter the HA Scheduler name (must end with an @): ').rstrip().lstrip()
+      while name[-1] != '@':
+         print 'Invalid HA Scheduler name.  It MUST end with an @'
+         name = raw_input('Enter the HA Scheduler name (must end with an @): ').rstrip().lstrip()
+      conf.append('ha_schedd_name = %s\n' % name)
       conf.append('sharedfs = %s\n' % raw_input('Enter the mount point for the shared filesystem: '))
 
 def configure_quill(conf, action, fields):
@@ -268,12 +273,29 @@ def configure_db_users(conf, action):
          pass2 = getpass.getpass('Re-Enter the password for verification: ')
       conf.append('qwpw = %s\n' % pass1)
 
+def configure_vm_universe(conf, action, fields):
+   # Remove previous configuration it if exists
+   remove_fields(fields, conf)
+
+   if action == 'add':
+      print '\nConfiguration for VM universe\n'
+      conf.append('vm_type = %s\n' % raw_input('Type of Virtual Machines to run on this node (xen or kvm): '))
+      conf.append('vm_version = %s\n' % raw_input('Kernel version on this host: '))
+      conf.append('vm_max_mem = %s\n' % raw_input('Maximum memory the VM universe can use (in Mbytes): '))
+      response = raw_input('Enable networking in the VM universe [y/N] ? ')
+      if response.lower() == 'y':
+         conf.append('vm_network_enable = TRUE\n')
+         conf.append('vm_network_type = %s\n' % raw_input('Networking type (nat or bridge): '))
+      else:
+         conf.append('vm_network_enable = FALSE\n')
+
 def configure_node_schedulers(feats, conf, action):
    response = 'y'
    fields = ['scheduler_name', 'additional_scheds', 'is_haschedd']
 
-   if (not ('scheduler' in feats) and action == 'add') or \
-      (('scheduler' in feats) and action == 'delete'):
+   if ((not ('scheduler' in feats) or ('startd' in feats))
+       and action == 'add') or (('scheduler' in feats)
+       and action == 'delete'):
       for line in conf:
          match = re.match('^scheduler_name\s*=.*$', line)
          if match != None:
@@ -363,7 +385,7 @@ def main(argv=None):
             'central_manager': 'Make the node a Central Manager (Negotiator and Collector)',
             'credd': 'Enable the Condor Credential daemon',
             'startd': 'Enable the Condor Start daemon (execution node)',
-            'triggerd': 'Enable the Trigger Service'
+            'vmuni': 'Configure the Virtual Machine Universe'
           }
    feature_deps = { 'ec2e': 'ec2,job_router',
                     'concurrency_limits': 'negotiator',
@@ -377,7 +399,8 @@ def main(argv=None):
                     'central_manager': 'negotiator,collector',
                     'viewserver': 'collector',
                     'low_latency': 'startd',
-                    'job_router': 'scheduler'
+                    'job_router': 'scheduler',
+                    'vmuni': 'startd'
                   }
    feature_list = { 'dedicated_resource': False,
                     'dedicated_scheduler': False,
@@ -399,7 +422,7 @@ def main(argv=None):
                     'central_manager': False,
                     'credd': False,
                     'startd': False,
-                    'triggerd': False
+                    'vmuni': False
                   }
    feature_fields = { 'dedicated_resource': ['dedicatedscheduler'],
                       'ha_scheduler': ['sharedfs'],
@@ -431,6 +454,9 @@ def main(argv=None):
                                       'll_check_interval'],
                       'concurrency_limits': ['limits'],
                       'quill': ['db_node_name'],
+                      'vmuni': ['vm_type', 'vm_version', 'vm_max_mem',
+                                'vm_network_enable', 'vm_network_type',
+                                'vm_nobody_user']
                     }
 
    # Set signal handlers
@@ -582,6 +608,8 @@ def main(argv=None):
                configure_ha_scheduler(config, action, feature_fields[feature])
             elif feature == 'quill':
                configure_quill(config, action, feature_fields[feature])
+            elif feature == 'vmuni':
+               configure_vm_universe(config, action, feature_fields[feature])
 
       # Configure which schedulers the node can submit to
       configure_node_schedulers(features, config, action)

@@ -7,11 +7,11 @@ To configure the remote configuration feature on a condor node, install the
 condor-remote-configuration package.  Next, copy the puppet.conf.client to
 /etc/puppet by executing:
 
-cp -f /etc/opt/grid/examples/puppet.conf.client /etc/puppet/puppet.conf
+cp -f /usr/share/doc/condor-remote-configuration-1.0/puppet.conf.client /etc/puppet/puppet.conf
 
 Then copy the namespaceauth.conf to /etc/puppet by executing:
 
-cp -f /etc/opt/grid/examples/namespaceauth.conf /etc/puppet
+cp -f /usr/share/doc/condor-remote-configuration-1.0/namespaceauth.conf /etc/puppet
 
 Change the "allow <puppetmaster.fqdn>" entry in the namespaceauth.conf file
 and the replace "<puppetmaster.fqdn>" with the Fully Qualified Doman Name of
@@ -22,12 +22,13 @@ Finally, start the service by executing:
 
 service puppet start
 
+
 Server Configuration:
 To configure the remote configuration feature on the configuration server,
 install the condor-remote-configuration-server package.  Next, copy the
 puppet.conf.master to /etc/puppet by executing:
 
-cp -f /etc/opt/grid/examples/puppet.conf.master /etc/puppet/puppet.conf
+cp -f /usr/share/doc/condor-remote-configuration-server-1.0/puppet.conf.master /etc/puppet/puppet.conf
 
 And then create the site.pp file by executing:
 
@@ -44,7 +45,7 @@ itself to the configuration system.  Configuring a Condor node is as simple
 as running the condor_configure_node tool as root with the appropriate action
 and features:
 
-condor_configure_node [-h|--help] -n <FQDN> action feature[,feature,...]
+condor_configure_node [-h|--help] -n <FQDN> action [-f|--features] feature[,feature,...]
 
 The currently supported actions are either add or delete.  The add action is
 used to add features to the provided node, and if any additional information

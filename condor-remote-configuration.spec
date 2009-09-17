@@ -45,31 +45,24 @@ server.
 %setup -q
 
 %install
+mkdir -p %{buildroot}/%_sysconfdir
 mkdir -p %{buildroot}/%_sbindir
 mkdir -p %{buildroot}/%_sysconfdir/puppet/modules
-mkdir -p %{buildroot}/%_sysconfdir/opt/grid/examples
 %if 0%{?rhel} != 4
 cp -rf module/* %{buildroot}/%_sysconfdir/puppet/modules
 cp -f condor_configure_node %{buildroot}/%_sbindir
 cp -f condor_node %{buildroot}/%_sbindir
 %endif
-cp -f config/* %{buildroot}/%_sysconfdir/opt/grid/examples
-%if 0%{?rhel} == 4
-rm -f %{buildroot}/%_sysconfdir/opt/grid/examples/puppet.conf.master
-%endif
 
 %files
 %defattr(-,root,root,-)
-%doc LICENSE-2.0.txt
-%config(noreplace) %_sysconfdir/opt/grid/examples/puppet.conf.client
-%config(noreplace) %_sysconfdir/opt/grid/examples/namespaceauth.conf
+%doc LICENSE-2.0.txt config/namespaceauth.conf config/puppet.conf.client
 
 %if 0%{?rhel} != 4
 %files server
 %defattr(-,root,root,-)
-%doc LICENSE-2.0.txt
+%doc LICENSE-2.0.txt config/puppet.conf.master
 %defattr(0444,root,root,-)
-%config(noreplace) %_sysconfdir/opt/grid/examples/puppet.conf.master
 %config(noreplace) %_sysconfdir/puppet/modules/condor/files/common_createddl.sql
 %config(noreplace) %_sysconfdir/puppet/modules/condor/files/condor_dedicated_preemption
 %config(noreplace) %_sysconfdir/puppet/modules/condor/files/condor_job_router
@@ -82,7 +75,6 @@ rm -f %{buildroot}/%_sysconfdir/opt/grid/examples/puppet.conf.master
 %config(noreplace) %_sysconfdir/puppet/modules/condor/files/condor_EC2
 %config(noreplace) %_sysconfdir/puppet/modules/condor/files/condor_viewserver
 %config(noreplace) %_sysconfdir/puppet/modules/condor/files/condor_credd
-%config(noreplace) %_sysconfdir/puppet/modules/condor/files/condor_triggerd
 %config(noreplace) %_sysconfdir/puppet/modules/condor/files/pgsql_createddl.sql
 %config(noreplace) %_sysconfdir/puppet/modules/condor/files/condor_dbmsd
 %config(noreplace) %_sysconfdir/puppet/modules/condor/files/postgresql.conf
@@ -102,6 +94,7 @@ rm -f %{buildroot}/%_sysconfdir/opt/grid/examples/puppet.conf.master
 %config(noreplace) %_sysconfdir/puppet/modules/condor/templates/condor_dedicated_resource
 %config(noreplace) %_sysconfdir/puppet/modules/condor/templates/condor_scheduler
 %config(noreplace) %_sysconfdir/puppet/modules/condor/templates/sesame.conf
+%config(noreplace) %_sysconfdir/puppet/modules/condor/templates/condor_vm_universe
 %defattr(0755,root,root,-)
 %_sysconfdir/puppet/modules/condor/files/condor_add_db_user.pl
 %_sysconfdir/puppet/modules/condor/files/condor_generate_config.sh

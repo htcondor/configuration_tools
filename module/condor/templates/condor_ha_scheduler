@@ -2,5 +2,7 @@ MASTER_HA_LIST = $(MASTER_HA_LIST), SCHEDD
 SPOOL = <%= sharedfs %>
 HA_LOCK_URL = file:<%= sharedfs %>
 VALID_SPOOL_FILES = $(VALID_SPOOL_FILES), SCHEDD.lock
-SCHEDD_NAME = ha-schedd@
+SCHEDD_NAME = <%= ha_schedd_name %>
 SCHEDD.QMF_STOREFILE = $(SPOOL)/.schedd_storefile
+HA_LOCK_HOLD_TIME = 300
+HA_POLL_PERIOD = 60

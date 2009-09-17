@@ -80,7 +80,10 @@ foreach (@config)
          {
             /^(.+):.+$/;
             $filename = fileparse($1);
-            $list = $list . "$filename,";
+            if (! ($list =~ /.*$filename.*/))
+            {
+               $list = $list . "$filename,";
+            }
          }
          chop $list;
          print "  ha_cm_list: $list\n";
@@ -90,21 +93,28 @@ foreach (@config)
          # Generate the list of nodes that should be able to submit to this
          # scheduler node
          $list = "";
-         @files = `egrep -H "^scheduler_name = $node_name\$" "$config_dir"/*`;
+         @files = `egrep -H "^scheduler_name *= *$node_name\$" "$config_dir"/*`;
          push(@files, `egrep -H "^additional_scheds = (.*)$node_name(.*)\$" "$config_dir"/*`);
 
          # If this is an HA Scheduler, look for the nodes that can write to
-         # the common schedd name
+         # this HA schedd name
          if ((grep /ha_scheduler/, @config) >= 1)
          {
-            push(@files, `egrep -H "^scheduler_name = (.*)ha-schedd@(.*)\$" "$config_dir"/*`);
-            push(@files, `egrep -H "^additional_scheds = (.*)ha-schedd@(.*)\$" "$config_dir"/*`);
+            # Find the ha schedd name for this ha scheduler
+            my $ha_name = `echo "@config" | grep ha_schedd_name | cut -d ' ' -f 4`;
+            chomp $ha_name;
+
+            push(@files, `egrep -H "^scheduler_name *= *.*$ha_name.*\$" "$config_dir"/*`);
+            push(@files, `egrep -H "^additional_scheds *= *.*$ha_name.*\$" "$config_dir"/*`);
          }
          foreach (@files)
          {
             /^(.+):.+$/;
             $filename = fileparse($1);
-            $list = $list . "$filename,";
+            if (! ($list =~ /.*$filename.*/))
+            {
+               $list = $list . "$filename,";
+            }
          }
          chop $list;
          print "  sched_writes: $list\n";
@@ -113,28 +123,39 @@ foreach (@config)
       {
          # Generate the list of schedulers that can write to this startd
          $list = "";
-         @files = `egrep "^scheduler_name = .*\$" "$config_dir"/$node_name | cut -d ' ' -f 3`;
-         my $cmd_out = `egrep "^additional_scheds = " "$config_dir"/$node_name`;
+         @files = `egrep "^scheduler_name *= *.*\$" "$config_dir"/$node_name | cut -d ' ' -f 3`;
+         my $cmd_out = `egrep "^additional_scheds *= *" "$config_dir"/$node_name`;
          chomp $cmd_out;
          $cmd_out =~ /^additional_scheds\s*=\s*(\S*)$/;
          push(@files, split(/,/, $1));
          foreach (@files)
          {
             chomp;
-            if ("$_" eq "ha-schedd@")
+            if ($_ =~ m(\@$))
             {
-               # Need to add all HA Scheduler hosts to the list
+               # Need to add all HA Scheduler hosts that are part of the
+               # this HA scheduler name to the list
                my @ha_scheds = `egrep -H "ha_scheduler" "$config_dir"/*`;
+               my $ha_name = $_;
                foreach (@ha_scheds)
                {
                   /^(.+):.+$/;
-                  $filename = fileparse($1);
-                  $list = $list . "$filename,";
+                  if (grep(/ha_schedd_name\s*=\s*$ha_name\s*$/, `cat "$1"`) >= 1)
+                  {
+                     $filename = fileparse($1);
+                     if (! ($list =~ /.*$filename.*/))
+                     {
+                        $list = $list . "$filename,";
+                     }
+                  }
                }
             }
             elsif ("$_" ne "")
             {
-               $list = $list . "$_,";
+               if (! ($list =~ /.*$_.*/))
+               {
+                  $list = $list . "$_,";
+               }
             }
          }
          chop $list;
@@ -150,7 +171,10 @@ foreach (@files)
 {
    /^(.+):.+$/;
    $filename = fileparse($1);
-   $list = $list . "$filename,";
+   if (! ($list =~ /.*$filename.*/))
+   {
+      $list = $list . "$filename,";
+   }
 }
 chop $list;
 print "  cm_list: $list\n";
@@ -166,7 +190,10 @@ if ((grep /central_manager/, @config) >= 1)
    {
       if(!(($node eq ".") || ($node eq "..")))
       {
-         $list = $list . "$node,";
+         if (! ($list =~ /.*$node.*/))
+         {
+            $list = $list . "$node,";
+         }
       }
    }
    chop $list;

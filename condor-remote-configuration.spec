@@ -1,4 +1,4 @@
-%define rel 16
+%define rel 17
 
 Summary: Condor Remote Configuration Client Tools
 Name: condor-remote-configuration
@@ -104,6 +104,15 @@ cp -f condor_node %{buildroot}/%_sbindir
 %endif
 
 %changelog
+* Thu Sep 17 2009  <rrati@redhat> - 1.0-17
+- Added support for configuring VM universe (BZ491237)
+- Removed all files from /opt (BZ493767)
+- Removed configuration of Trigger Service (BZ522531)
+- Fixed conflict with schedd and startd on same node (BZ495685)
+- Correct HA Schedd lock period (BZ496227)
+- HA Schedd name is now prompted for (BZ493340)
+- Fixed EC2E configuration for use with multiple hook keywords (BZ502879)
+
 * Thu May 28 2009  <rrati@redhat> - 1.0-16
 - Triggerd will start correctly (BZ503051)
 

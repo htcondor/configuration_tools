@@ -463,9 +463,6 @@ def main(argv=None):
    signal.signal(signal.SIGINT, exit_signal_handler)
    signal.signal(signal.SIGTERM, exit_signal_handler)
 
-   if os.path.exists(base_config_dir) == False:
-      os.makedirs(base_config_dir)
-
    long_opts = ['add', 'delete', 'features=', 'help', 'list', 'node_name=']
    try:
       opts, args = getopt.getopt(argv[1:], 'adf:hln:', long_opts)
@@ -500,6 +497,14 @@ def main(argv=None):
             return(1)
          action = 'list'
        
+   if os.path.exists(base_config_dir) == False:
+      try:
+         os.makedirs(base_config_dir)
+      except:
+         print 'Failed to create feature configuration directory'
+         print 'This tool must be run as root'
+         return(1)
+
    # Perform list opertions
    if action == 'list':
       if node == '':

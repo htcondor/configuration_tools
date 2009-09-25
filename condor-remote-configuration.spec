@@ -1,4 +1,4 @@
-%define rel 17
+%define rel 18
 
 Summary: Condor Remote Configuration Client Tools
 Name: condor-remote-configuration
@@ -104,6 +104,11 @@ cp -f condor_node %{buildroot}/%_sbindir
 %endif
 
 %changelog
+* Fri Sep 25 2009  <rrati@redhat> - 1.0-18
+- Removed DC_DAEMON_LIST definition (BZ525746)
+- Moved create of the feature config directory and added better
+  error handling (BZ525749)
+
 * Thu Sep 17 2009  <rrati@redhat> - 1.0-17
 - Added support for configuring VM universe (BZ491237)
 - Removed all files from /opt (BZ493767)

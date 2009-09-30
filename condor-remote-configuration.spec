@@ -1,4 +1,4 @@
-%define rel 18
+%define rel 19
 
 Summary: Condor Remote Configuration Client Tools
 Name: condor-remote-configuration
@@ -104,6 +104,9 @@ cp -f condor_node %{buildroot}/%_sbindir
 %endif
 
 %changelog
+* Wed Sep 30 2009  <rrati@redhat> - 1.0-19
+- Removed prompting for AMQP exchange when configurating low-latency
+
 * Fri Sep 25 2009  <rrati@redhat> - 1.0-18
 - Removed DC_DAEMON_LIST definition (BZ525746)
 - Moved create of the feature config directory and added better

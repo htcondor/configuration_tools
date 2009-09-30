@@ -1,5 +1,4 @@
 [Broker]
-exchange=<%= exchange %>
 ip=<%= broker_ip %>
 port=<%= broker_port %>
 queue=<%= amqp_queue %>

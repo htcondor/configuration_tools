@@ -1,4 +1,4 @@
-%define rel 19
+%define rel 20
 
 Summary: Condor Remote Configuration Client Tools
 Name: condor-remote-configuration
@@ -104,6 +104,9 @@ cp -f condor_node %{buildroot}/%_sbindir
 %endif
 
 %changelog
+* Wed Oct  6 2009  <rrati@redhat> - 1.0-20
+- Remove prompting for VM_VERSION
+
 * Wed Sep 30 2009  <rrati@redhat> - 1.0-19
 - Removed prompting for AMQP exchange when configurating low-latency
 

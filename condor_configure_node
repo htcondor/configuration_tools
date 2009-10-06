@@ -279,7 +279,6 @@ def configure_vm_universe(conf, action, fields):
    if action == 'add':
       print '\nConfiguration for VM universe\n'
       conf.append('vm_type = %s\n' % raw_input('Type of Virtual Machines to run on this node (xen or kvm): '))
-      conf.append('vm_version = %s\n' % raw_input('Kernel version on this host: '))
       conf.append('vm_max_mem = %s\n' % raw_input('Maximum memory the VM universe can use (in Mbytes): '))
       response = raw_input('Enable networking in the VM universe [y/N] ? ')
       if response.lower() == 'y':
@@ -453,9 +452,8 @@ def main(argv=None):
                                       'll_check_interval'],
                       'concurrency_limits': ['limits'],
                       'quill': ['db_node_name'],
-                      'vmuni': ['vm_type', 'vm_version', 'vm_max_mem',
-                                'vm_network_enable', 'vm_network_type',
-                                'vm_nobody_user']
+                      'vmuni': ['vm_type', 'vm_max_mem', 'vm_network_enable',
+                                'vm_network_type', 'vm_nobody_user']
                     }
 
    # Set signal handlers

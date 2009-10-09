@@ -1,4 +1,4 @@
-%define rel 20
+%define rel 21
 
 Summary: Condor Remote Configuration Client Tools
 Name: condor-remote-configuration
@@ -102,6 +102,9 @@ cp -f condor_node %{buildroot}/%_sbindir
 %endif
 
 %changelog
+* Fri Oct  9 2009  <rrati@redhat> - 1.0-21
+- Configure low-altency through condor_config (BZ527908)
+
 * Wed Oct  6 2009  <rrati@redhat> - 1.0-20
 - Remove prompting for VM_VERSION
 

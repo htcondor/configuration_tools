@@ -281,49 +281,18 @@ class condor::condor_low_latency {
    include condor_pkg
    include condor_svc
    include condor_config_local
-   condorfile { "$feature_config_dir/condor_low_latency":
-                source => "condor_low_latency",
-                owner => root,
-                group => root,
-                mode => 644,
-                ensure => $low_latency ? {
-                          true => file,
-                          default => absent
-                }
-   }
-   file { "/etc/opt/grid/carod.conf":
-          mode => 644,
-          owner => root,
-          group => root,
-          content => $low_latency ? {
-                     true => template("condor/carod_conf"),
-                     default => " "
-          },
-          ensure => $low_latency ? {
-                    true => file,
-                    default => absent
-          },
-          require => $low_latency? {
-                     true => Package["condor-low-latency"],
-                     default => Package["condor"]
-          }
-   }
-   file { "/etc/opt/grid/job-hooks.conf":
-          mode => 644,
-          owner => root,
-          group => root,
-          content => $low_latency ? {
-                     true => template("condor/job-hooks_conf"),
-                     default => " "
-          },
-          ensure => $low_latency ? {
-                    true => file,
-                    default => absent
-          },
-          require => $low_latency? {
-                     true => Package["condor-job-hooks"],
-                     default => Package["condor"]
-          }
+   condortemplate { "$feature_config_dir/condor_low_latency":
+                     content => $low_latency ? {
+                                true => template("condor/condor_low_latency"),
+                                default => " "
+                     },
+                     owner => root,
+                     group => root,
+                     mode => 644,
+                     ensure => $low_latency ? {
+                               true => file,
+                               default => absent
+                     }
    }
    if $low_latency {
       package { python-qpid:
@@ -337,21 +306,6 @@ class condor::condor_low_latency {
                 require => [ Package["condor"], Package["python-qpid"],
                              Package["condor-job-hooks"] ];
       }
-   }
-   service { condor-low-latency:
-             enable => $low_latency ? {
-                       true => true,
-                       default => false
-             },
-             ensure => $low_latency ? {
-                       true => running,
-                       default => stopped
-             },
-             subscribe => $low_latency ? {
-                          true => [ File["/etc/opt/grid/carod.conf"],
-                                    Package["condor-low-latency"] ],
-                          default => File["/etc/opt/grid/carod.conf"]
-             }
    }
 }
 

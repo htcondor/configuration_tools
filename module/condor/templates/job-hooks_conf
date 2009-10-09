@@ -1,3 +1,0 @@
-[Hooks]
-ip=127.0.0.1
-port=<%= ll_daemon_port %>

@@ -1,3 +1,16 @@
+LL_DAEMON = /usr/sbin/carod
+LL_BROKER_IP = <%= broker_ip %>
+LL_BROKER_PORT = <%= broker_port %>
+LL_BROKER_QUEUE = <%= amqp_queue %>
+LL_DAEMON_IP = 127.0.0.1
+LL_DAEMON_PORT = <%= ll_daemon_port %>
+LL_DAEMON_QUEUED_CONNECTIONS = <%= ll_connections %>
+LL_DAEMON_LEASE_TIME = <%= ll_lease_time %>
+LL_DAEMON_LEASE_CHECK_INTERVAL = <%= ll_check_interval %>
+JOB_HOOKS_IP = 127.0.0.1
+JOB_HOOKS_PORT = $(LL_DAEMON_PORT)
+DAEMON_LIST = $(DAEMON_LIST), LL_DAEMON
+
 # Startd hooks
 LOW_LATENCY_HOOK_FETCH_WORK = $(LIBEXEC)/hooks/hook_fetch_work.py
 LOW_LATENCY_HOOK_REPLY_FETCH = $(LIBEXEC)/hooks/hook_reply_fetch.py

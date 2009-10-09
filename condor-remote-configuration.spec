@@ -67,7 +67,6 @@ cp -f condor_node %{buildroot}/%_sbindir
 %config(noreplace) %_sysconfdir/puppet/modules/condor/files/condor_dedicated_preemption
 %config(noreplace) %_sysconfdir/puppet/modules/condor/files/condor_job_router
 %config(noreplace) %_sysconfdir/puppet/modules/condor/files/condor_dedicated_scheduler
-%config(noreplace) %_sysconfdir/puppet/modules/condor/files/condor_low_latency
 %config(noreplace) %_sysconfdir/puppet/modules/condor/files/condor_collector
 %config(noreplace) %_sysconfdir/puppet/modules/condor/files/condor_dynamic_provisioning
 %config(noreplace) %_sysconfdir/puppet/modules/condor/files/condor_negotiator
@@ -79,14 +78,13 @@ cp -f condor_node %{buildroot}/%_sbindir
 %config(noreplace) %_sysconfdir/puppet/modules/condor/files/condor_dbmsd
 %config(noreplace) %_sysconfdir/puppet/modules/condor/files/postgresql.conf
 %config(noreplace) %_sysconfdir/puppet/modules/condor/manifests/init.pp
-%config(noreplace) %_sysconfdir/puppet/modules/condor/templates/carod_conf
 %config(noreplace) %_sysconfdir/puppet/modules/condor/templates/condor_EC2_enhanced
 %config(noreplace) %_sysconfdir/puppet/modules/condor/templates/condor_startd
 %config(noreplace) %_sysconfdir/puppet/modules/condor/templates/condor_central_manager
 %config(noreplace) %_sysconfdir/puppet/modules/condor/templates/condor_ha_central_manager
-%config(noreplace) %_sysconfdir/puppet/modules/condor/templates/job-hooks_conf
 %config(noreplace) %_sysconfdir/puppet/modules/condor/templates/condor_common
 %config(noreplace) %_sysconfdir/puppet/modules/condor/templates/condor_ha_scheduler
+%config(noreplace) %_sysconfdir/puppet/modules/condor/templates/condor_low_latency
 %config(noreplace) %_sysconfdir/puppet/modules/condor/templates/pg_hba_conf
 %config(noreplace) %_sysconfdir/puppet/modules/condor/templates/condor_concurrency_limits
 %config(noreplace) %_sysconfdir/puppet/modules/condor/templates/condor_quill

@@ -310,12 +310,3 @@ MAXJOBRETIREMENTTIME    = 0
 ##  configuration does not disable preemption of claims, we leave
 ##  CLAIM_WORKLIFE undefined (infinite).
 #CLAIM_WORKLIFE          = 1200
-
-# Enable data gathering for triggers
-STARTD_CRON_NAME = TRIGGER_DATA
-STARTD_CRON_AUTOPUBLISH = If_Changed
-TRIGGER_DATA_JOBLIST = GetData
-TRIGGER_DATA_GETDATA_PREFIX = Triggerd
-TRIGGER_DATA_GETDATA_EXECUTABLE = $(BIN)/get_trigger_data
-TRIGGER_DATA_GETDATA_PERIOD = 5m
-TRIGGER_DATA_GETDATA_RECONFIG = FALSE

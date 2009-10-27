@@ -5,7 +5,7 @@ NEGOTIATOR_INTERVAL = 20
 
 ##  Negotiator access.  Machines listed here are trusted central
 ##  managers.
-HOSTALLOW_NEGOTIATOR = $(HOSTALLOW_NEGOTIATOR), $(CONDOR_HOST)
+ALLOW_NEGOTIATOR = $(ALLOW_NEGOTIATOR), $(CONDOR_HOST)
 
 ## This setting tells the negotiator to ignore user priorities.  This
 ## avoids problems where jobs from different users won't run when using

@@ -30,7 +30,7 @@ VM_MEMORY = <%= vm_max_mem %>
 ## Default value is FALSE VM_NETWORKING = <%= vm_network_enable %>
 VM_NETWORKING = <%= vm_network_enable %>
 
-<% if vm_network_enable == "TRUE" or vm_network_enable == "true" -%>
+<% if vm_network_enable == true -%>
 ## What kind of networking types are supported?
 ##
 ## If you set VM_NETWORKING to TRUE, you must define this parameter.
@@ -45,6 +45,21 @@ VM_NETWORKING = <%= vm_network_enable %>
 VM_NETWORKING_TYPE = nat, bridge
 VM_NETWORKING_DEFAULT_TYPE = <%= vm_network_type %>
 
+<% if vm_type == "xen" -%>
+## Networking parameters
+##
+## This parameter is used only for virsh.
+##
+## A string specifying a script and its arguments that will be run to
+## setup a bridging network interface for guests. The interface should
+## provide direct access to the host system's LAN, i.e. not be NAT'd on the
+## host. 
+##
+## Example 
+##  VM_BRIDGE_SCRIPT = vif-bridge bridge=xenbr0 
+VM_BRIDGE_SCRIPT = /etc/xen/scripts/network-bridge start bridge=xenbr0 
+
+<% end -%>
 <% end -%>
 ## In default, the number of possible virtual machines is same as
 ## NUM_CPUS.
@@ -111,39 +126,12 @@ VM_NETWORKING_DEFAULT_TYPE = <%= vm_network_type %>
 ##--------------------------------------------------------------------
 
 ##  Where is the Condor script program to control Xen? (Required)
-XEN_SCRIPT = $(SBIN)/condor_vm_xen.sh
-
-##  Where is the default kernel image for Xen domainU? (Required)
-##
-##  This kernel image will be used when a job submission user doesn't
-##  define a kernel image explicitly. 
-##  If a job submission user defines its own kernel image in the submit
-##  description file, it will be used instead of this default kernel.
-##  (e.g.) XEN_DEFAULT_KERNEL = /boot/vmlinuz-2.6.16-xen
-#XEN_DEFAULT_KERNEL = /full/path/to/<kernel-image-file>
-
-##  Where is the default initrd image for Xen domainU? (Optional)
-##
-##  The complete path and image file name for the initrd image, if
-##  needed for the default kernel image. 
-##  (e.g.) XEN_DEFAULT_INITRD = /boot/initrd-2.6.16-xen0.img
-#XEN_DEFAULT_INITRD = /full/path/to/<initrd-image-file>
+VM_SCRIPT = $(SBIN)/condor_vm_xen.sh
+<% if vm_type == "xen" -%>
 
 ##  Where is bootloader for Xen domainU? (Required)
 ##
 ##  The bootloader will be used in the case that a kernel image includes
 ##  a disk image
 XEN_BOOTLOADER = /usr/bin/pygrub
-
-## Networking parameters for Xen
-##
-## This parameter is used only for virsh.
-##
-## A string specifying a script and its arguments that will be run to
-## setup a bridging network interface for guests. The interface should
-## provide direct access to the host system's LAN, i.e. not be NAT'd on the
-## host. 
-##
-## Example 
-##  XEN_BRIDGE_SCRIPT = vif-bridge bridge=xenbr0 
-XEN_BRIDGE_SCRIPT = /etc/xen/scripts/network-bridge start bridge=xenbr0 
+<% end -%>

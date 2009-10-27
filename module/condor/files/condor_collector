@@ -8,8 +8,8 @@ FLOCK_COLLECTOR_HOSTS = $(FLOCK_TO)
 
 ##  Flocking Configs.  These are the real things that Condor looks at,
 ##  but we set them from the FLOCK_FROM/TO macros above.
-HOSTALLOW_WRITE_COLLECTOR = $(HOSTALLOW_WRITE), $(FLOCK_FROM)
-HOSTALLOW_READ_COLLECTOR  = $(HOSTALLOW_READ), $(FLOCK_FROM)
+ALLOW_WRITE_COLLECTOR = $(ALLOW_WRITE), $(FLOCK_FROM)
+ALLOW_READ_COLLECTOR  = $(ALLOW_READ), $(FLOCK_FROM)
 
 ## Plugins configuration
 COLLECTOR.PLUGINS = $(LIB)/plugins/MgmtCollectorPlugin-plugin.so

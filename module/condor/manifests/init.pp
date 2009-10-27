@@ -742,12 +742,6 @@ class condor::condor_vm_universe {
    include condor_pkg
    include condor_svc
    include condor_config_local
-   package { xen:
-             ensure => $vmuni ? {
-                       true => installed,
-                       default => absent,
-             }
-   }
    condortemplate { "$feature_config_dir/condor_vm_universe":
                     content => $vmuni ? {
                                true => template("condor/condor_vm_universe"),

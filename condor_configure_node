@@ -744,13 +744,12 @@ def main(argv=None):
                print 'Error: Problem saving configuration in store (%d, %s)' % (result.status, result.text)
             else: 
                print 'Configuration saved with ID "%s"' % result.outArgs['configId']
-
-         if raw_input('\nActivate this configuration [y/N] ? ').lower() == 'y':
-            result = config_store.ActivateConfiguration(config_name)
-            if result.status != 0:
-               print 'Error: Problem activating configuration (%d, %s)' % (result.status, result.text)
-            else: 
-               print 'Configuration activated'
+               if raw_input('\nActivate this configuration [y/N] ? ').lower() == 'y':
+                  result = config_store.ActivateConfiguration(config_name)
+                  if result.status != 0:
+                     print 'Error: Problem activating configuration (%d, %s)' % (result.status, result.text)
+                  else: 
+                     print 'Configuration activated'
       else:
          print 'Configuration not applied'
          # Tell all nodes to check in to see if there are configuration updates

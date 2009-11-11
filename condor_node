@@ -18,11 +18,22 @@ import os
 import ConfigParser
 from qmf.console import Session
 
+def print_config():
+   # Print out the node's configuration
+   print '---'
+   print 'classes:'
+   print '  - condor::condor'
+   print 'parameters:'
+   print '  node_name: %s' % node_name;
+   print '  qmf_broker: %s' % config['QMF_BROKER_HOST']
+   print '  qmf_port: %s' % config['QMF_BROKER_PORT']
+   print '\n'
+
 def main(argv=None):
    if argv is None:
       argv = sys.argv
 
-   dir = '/etc/puppet/modules/condor/files/config'
+   dir = '/etc/puppet/modules/condor/files/configs'
    config = '/etc/remote-configuration.conf'
    parser = ConfigParser.ConfigParser()
    node_name = argv[1]
@@ -37,12 +48,20 @@ def main(argv=None):
    try:
       broker = session.addBroker("amqp://%s" % broker_ip)
    except:
-      return(1)
+      if os.path.exists('%s/%s' % (dir, node_name)):
+         print_config()
+         return(0)
+      else:
+         return(1)
 
    # Retreive the config store object
    config_store = session.getObjects(_class="condorconfigstore", _package="mrg.grid")
    if config_store == []:
-      return(1)
+      if os.path.exists('%s/%s' % (dir, node_name)):
+         print_config()
+         return(0)
+      else:
+         return(1)
    else:
       config_store = config_store[0]
 
@@ -59,8 +78,12 @@ def main(argv=None):
    result = node.GetConfig()
    if result.status != 0:
       # Problem retrieving the configuration
-      print '--- {}\n'
-      return(1)
+      if os.path.exists('%s/%s' % (dir, node_name)):
+         print_config()
+         return(0)
+      else:
+         print '--- {}\n'
+         return(1)
    else:
       node_config = result.outArgs['groupConfig']
 
@@ -69,16 +92,8 @@ def main(argv=None):
    for key in node_config.keys():
       config_file.write('%s = %s\n' % key, node_config[key])
    config_file.close()
-   
-   # Print out the node's configuration
-   print '---'
-   print 'classes:'
-   print '  - condor::condor'
-   print 'parameters:'
-   print '  node_name: %s' % node_name;
-   print '  qmf_broker: %s' % config['QMF_BROKER_HOST']
-   print '   qmf_port: %s' % config['QMF_BROKER_PORT']
-   print '\n'
+
+   print_config()
 
 if __name__ == '__main__':
     sys.exit(main())

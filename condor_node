@@ -65,27 +65,14 @@ def main(argv=None):
    else:
       config_store = config_store[0]
 
-   # Retrieve the node object
-   result = config_store.GetGroup({'Name': node_name})
+   # Retrieve the node's configuration
+   result = config_store.GetNodeConfig(node_name)
    if result.status != 0:
-      # We don't know about the node, so print an empty config
+      # The store doesn't know about the node, so print an empty config
       print '--- {}\n'
       return(0)
    else:
-      node = result.outArgs['groupObj']
-
-   # Retrieve the node's configuration
-   result = node.GetConfig()
-   if result.status != 0:
-      # Problem retrieving the configuration
-      if os.path.exists('%s/%s' % (dir, node_name)):
-         print_config()
-         return(0)
-      else:
-         print '--- {}\n'
-         return(1)
-   else:
-      node_config = result.outArgs['groupConfig']
+      node_config = result.outArgs['nodeConfig']
 
    # Write the config to a file on disk
    config_file = open('%s/%s' % (dir, node_name), 'w')

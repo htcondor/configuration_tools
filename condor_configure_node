@@ -28,7 +28,7 @@ def exit_signal_handler(signum, frame):
       print 'Error: Problem removing features (%d, %s)' % (result.status, result.text)
    sys.exit(0)
 
-def print_help(name, store):
+def print_help(name, sess):
    print 'usage: %s [-h|--help] -b <broker> -n <name> action [-f|--features feature[,feature,...]] [-p|--params param=1,param2=string,...] ' % os.path.basename(name)
    print '  <broker> - The ip/hostname of the broker used by the configuration store'
    print '  <name> - The name of the group or node to configure'
@@ -39,34 +39,23 @@ def print_help(name, store):
    print '  -l|--list   - List configurations.  If provided without a specific'
    print '                group, prints the list of nodes being managed.  If'
    print '                a group is provided, print the list of features'
-   print '                for the provided group.  If provided with one or'
-   print '                more features in addition to a group, then print'
-   print '                the specific configurations for those features for'
-   print '                that group'
+   print '                and parameters for the provided group.  If provided'
+   print '                with one or more features or parameters in addition'
+   print '                to a group, then print the specific configurations'
+   print '                for those features and/or parameters for that group'
    print '\navailable features:'
-   if store != []:
-      result = store.GetFeatureList()
-      features = result.outArgs['featureList']
-      keys = features.keys()
-      list = ""
-      for key in keys:
-         list.append("%s," % features[key])
-      list = list[:-1]
-      print '  %-21s\b' % list
-      print
-   else:
-      print 'Specify broker for list of available features'
-
-def generate_node_list(store):
-   result = store.GetNodeList()
-   if result.status != 0:
-      print "Error: Unable to get node list from data store (%d, %s)" % (result.status, result.text)
-      return None
-   else:
-      nodes = result.outArgs['nodeList']
-      names = nodes.values()
-      names.sort()
-      return names
+   if sess != []:
+      features = session.getObjects(_class='feature', _package='mrg.grid.config')
+      if features != []:
+         for feat in features:
+            id = feat.getIndex()
+            result = feat.GetFeatureName()
+            if result.status != 0:
+               print 'Error: Unable to retrieve feature name for feature id "%s"' % id
+            else:
+               print '%-21s\b' % result.outArgs['name']
+      else:
+         print 'Unable to retrieve list of features'
 
 def get_group(store, name):
    result = store.GetGroup({'Name': name})
@@ -74,49 +63,35 @@ def get_group(store, name):
       print "Error: Unable to get node info from data store (%d, %s)" % (result.status, result.text)
       return None
    else:
-      return result.outArgs['groupObj']
+      return result.outArgs['obj']
 
-def print_feature_info(store, group, feature_name):
-   result = store.GetFeature({'Name': feature_name})
+def print_feature_info(store, feature_name):
+   result = store.GetFeature(feature_name)
    if result.status != 0:
       print 'Error: Failed to retrieve configration for feature "%s" (%d, %s)' % (feature_name, result.status, result.text)
    else:
       # Retrieve the Feature ID
-      feature_obj = result.outArgs['featureObj']
-      result = feature_obj.GetFeatureId()
-      if result.status != 0:
-         print 'Error: Failed to retrieve feature ID for feature "%" (%d, %s)' % (feature_name, result.status, result.text)
-      else:
-         print 'Feature ID: %s' % result.outArgs['featureId']
+      feature_obj = result.outArgs['obj']
+      id = feature_obj.getIndex()
+      print 'Feature ID: %d' % id
 
-      # Retrieve the group's parameret list
-      group_params = {}
-      result = group.GetParams()
-      if result.status != 0:
-         print 'Error: Failed to retrieve parameters (%d, %s)' % (result.status, result.text)
-      else:
-         group_params = result.outArgs['customParams']
-
-      # Retrieve the Feature parameter list
-      result = feature_obj.GetAttrList()
+      # Retrieve the parameter list
+      result = feature_obj.GetParams()
       if result.status != 0:
          print 'Error: Failed to retrieve feature parameters for feature "%" (%d, %s)' % (feature_name, result.status, result.text)
       else:
-         params = result.outArgs['paramList']
-         print 'Feature Attributes:'
+         params = result.outArgs['list']
+         print 'Feature Parameters:'
          for param in params.keys():
-            if param in group_params.keys():
-               print '%s = %s' % (param, group_params[param])
-            else:
-               print '%s = %s' % (param, params[param])
+            print '%s = %s' % (param, params[param])
 
       # Retrieve any features this feature includes upon
-      result = feature_obj.GetFeatureList()
+      result = feature_obj.GetFeatures()
       if result.status != 0:
          print 'Error: Failed to retrieve included features for feature "%" (%d, %s)' % (feature_name, result.status, result.text)
       else:
-         inc_features = result.outArgs['featureList']
-         print 'Included Features (priority: name):'
+         inc_features = result.outArgs['list']
+         print 'Included Features (name: priority):'
          for feat in inc_features.keys():
            print '%s: %s' % (feat, inc_features[feat])
 
@@ -125,210 +100,23 @@ def print_feature_info(store, group, feature_name):
       if result.status != 0:
          print 'Error: Failed to retrieve feature conflicts for feature "%" (%d, %s)' % (feature_name, result.status, result.text)
       else:
-         conflicts = result.outArgs['conflictList']
-         print 'Conflicting Features (priority: name):'
+         conflicts = result.outArgs['list']
+         print 'Conflicting Features:'
          for conf in conflicts.keys():
-           print '%s: %s' % (conf, conflicts[conf])
+            print '%s' % conf
 
       # Retrieve any features this feature depends on
       result = feature_obj.GetDepends()
       if result.status != 0:
          print 'Error: Failed to retrieve feature dependencies for feature "%" (%d, %s)' % (feature_name, result.status, result.text)
       else:
-         depends = result.outArgs['dependsList']
-         print 'Feature Depedencies (priority: name):'
+         depends = result.outArgs['list']
+         print 'Feature Depedencies (name: priority):'
          for dep in depends.keys():
            print '%s: %s' % (dep, depends[dep])
 
-#def print_node_features(conf):
-#   attr_white_list = ['scheduler_name', 'default_schedd_isha',
-#                      'additional_scheds', 'collector_name', 'qmf_broker',
-#                      'qmf_port']
-#   for line in conf:
-#      match = re.match('^([^=]+)\s*=\s*(.*)$', line)
-#      if match == None or (match.groups()[0].rstrip() in attr_white_list and \
-#         match.groups()[1].rstrip() != ''):
-#         print line.rstrip()
-#
-#def print_feature_config(conf, fields):
-#   for line in conf:
-#      match = re.match('^([^=]+)\s*=\s*(.*)$', line)
-#      if match != None and (match.groups()[0].rstrip() in fields and \
-#         match.groups()[1].rstrip() != ''):
-#         print line.rstrip()
-#
-#def remove_fields(field_list, conf):
-#   # Remove provided fields
-#   for field in field_list:
-#      for line in conf:
-#         match = re.match('^(%s\s*=.*)$' % field, line)
-#         if match != None and match.groups() != None:
-#            conf.remove(match.groups()[0] + '\n')
-#            break
-#
-#def process_feature_deps(feat, deps):
-#   feature_list = ''
-#   try:
-#      for dep in deps[feat].split(','):
-#         # Handle recursive deps
-#         feature_list += ',' + dep
-#         if dep in deps.keys():
-#            feature_list += process_feature_deps(dep, deps)
-#   except:
-#      pass
-#
-#   return feature_list
-#
-#def process_remove_deps(feat, deps):
-#   list = ''
-#   for key in deps.keys():
-#      for dep in deps[key].split(','):
-#         if feat == dep:
-#            list += ',' + key
-#            for value in deps.values():
-#               if key in value.split(','):
-#                  list += process_remove_deps(key, deps)
-#                  break
-#   return list
-#
-#def find_config(node_name, config_dir):
-#   search_dirs = []
-#   path = None
-#
-#   # Create a list of dirs to search through
-#   for item in os.listdir(config_dir):
-#      if os.path.isdir(os.path.join(config_dir, item)) == True:
-#         search_dirs.append(os.path.join(config_dir, item.rstrip().lstrip()))
-#
-#   # Search the directories for the node's configuration
-#   for dir in search_dirs:
-#      if os.path.exists(os.path.join(dir, node_name)) == True:
-#         path = dir
-#         break
-#
-#   return(path)
-
-#def configure_low_lat(attrs, action):
-#   # Remove previous configuration it if exists
-#   remove_fields(fields, conf)
-#
-#   print '\nConfiguration for Low-Latency\n'
-#   conf.append('exchange = %s\n' % raw_input('Enter the AMQP Exchange name for Low-Latency: '))
-#   conf.append('broker_ip = %s\n' % raw_input('Enter the Broker\'s IP for Low-Latency: '))
-#   conf.append('broker_port = %s\n' % raw_input('Enter the port of the Broker for Low-Latency: '))
-#   conf.append('amqp_queue = %s\n' % raw_input('Enter the AMQP queue for Low-Latency: '))
-#   conf.append('ll_daemon_port = %s\n' % raw_input('Enter the port for Low-Latency daemon will listen on: '))
-#   conf.append('ll_connections = %s\n' % raw_input('Enter the number of outstanding connections the Low-Latency daemon should allow: '))
-#   conf.append('ll_lease_time = %s\n' % raw_input('Enter the lease time for the Low-Latency daemon: '))
-#   conf.append('ll_check_interval = %s\n' % raw_input('Enter the Low-Latency check interval: '))
-
-#def configure_limits(attrs, action):
-#   # Remove previous configuration it if exists
-##   remove_fields(fields, conf)
-#
-#   if action == 'add':
-#      print '\nConfiguration for Concurrency Limits\n'
-#      value = raw_input('Enter the limits separated by commas (ie x_limit=10,y_limit=2): ')
-#      for limit in value.split(','):
-#         pair = limit.split('=')
-#         attrs[pair[0]] = pair[1]
-#
-#def configure_dedicated_resource(attrs, action):
-##   fields = ['dedicatedscheduler']
-#
-##   remove_fields(fields, conf)
-#   if action == 'add':
-#      print '\nConfiguration for Dedicated Resource\n'
-##      value = raw_input('Enter FQDN of the Dedicated Scheduler: ')
-#      attrs['DedicatedScheduler'] = "DedicatedScheduler@%s" % value
-
-#def configure_ec2e(conf, action, fields):
-#   # Remove previous configuration it if exists
-#   remove_fields(fields, conf)
-#
-#   if action == 'add':
-#      print '\nConfiguration for EC2-Enhanced\n'
-#      answer = raw_input('Enable EC2 routing to the Small AMI type [y/N] ? ')
-#      if answer.lower() == 'y':
-#         conf.append('ec2e_route_small = True\n')
-#         conf.append('ec2es_pub_key = %s\n' % raw_input('Enter a filename containing an AWS Public Key for this route: '))
-#         conf.append('ec2es_priv_key = %s\n' % raw_input('Enter a filename containing an AWS Private Key for this route: '))
-#         conf.append('ec2es_access_key = %s\n' % raw_input('Enter a filename containing an AWS Access Key for this route: '))
-#         conf.append('ec2es_secret_key = %s\n' % raw_input('Enter a filename containing an AWS Secret Key for this route: '))
-#         conf.append('ec2es_rsapub_key = %s\n' % raw_input('Enter a filename containing an RSA Public Key for this route: '))
-#         conf.append('ec2es_bucket = %s\n' % raw_input('Enter an S3 Storage Bucket name for this route: '))
-#         conf.append('ec2es_queue = %s\n' % raw_input('Enter an SQS Queue name for this route: '))
-#         conf.append('ec2es_amiid = %s\n' % raw_input('Enter an AMI ID for use with this route: '))
-#      else:
-#         conf.append('ec2e_route_small =\n')
-#
-#      answer = raw_input('Enable EC2 routing to the Large AMI type [y/N] ? ')
-#      if answer.lower() == 'y':
-#         conf.append('ec2e_route_large = True\n')
-#         conf.append('ec2elarge_pub_key = %s\n' % raw_input('Enter a filename containing an AWS Public Key for this route: '))
-#         conf.append('ec2elarge_priv_key = %s\n' % raw_input('Enter a filename containing an AWS Private Key for this route: '))
-#         conf.append('ec2elarge_access_key = %s\n' % raw_input('Enter a filename containing an AWS Access Key for this route: '))
-#         conf.append('ec2elarge_secret_key = %s\n' % raw_input('Enter a filename containing an AWS Secret Key for this route: '))
-#         conf.append('ec2elarge_rsapub_key = %s\n' % raw_input('Enter a filename containing an RSA Public Key for this route: '))
-#         conf.append('ec2elarge_bucket = %s\n' % raw_input('Enter an S3 Storage Bucket name for this route: '))
-#         conf.append('ec2elarge_queue = %s\n' % raw_input('Enter an SQS Queue name for this route: '))
-#         conf.append('ec2elarge_amiid = %s\n' % raw_input('Enter an AMI ID for this route: '))
-#      else:
-#         conf.append('ec2e_route_large =\n')
-#
-#      answer = raw_input('Enable EC2 routing to the X-Large AMI type [y/N] ? ')
-#      if answer.lower() == 'y':
-#         conf.append('ec2e_route_xlarge = True\n')
-#         conf.append('ec2exlarge_pub_key = %s\n' % raw_input('Enter a filename containing an AWS Public Key for this route: '))
-#         conf.append('ec2exlarge_priv_key = %s\n' % raw_input('Enter a filename containing an AWS Private Key for this route: '))
-#         conf.append('ec2exlarge_access_key = %s\n' % raw_input('Enter a filename containing an AWS Access Key for this route: '))
-#         conf.append('ec2exlarge_secret_key = %s\n' % raw_input('Enter a filename containing an AWS Secret Key for this route: '))
-#         conf.append('ec2exlarge_rsapub_key = %s\n' % raw_input('Enter a filename containing an RSA Public Key for this route: '))
-#         conf.append('ec2exlarge_bucket = %s\n' % raw_input('Enter an S3 Storage Bucket name for this route: '))
-#         conf.append('ec2exlarge_queue = %s\n' % raw_input('Enter an SQS Queue name for this route: '))
-#         conf.append('ec2exlarge_amiid = %s\n' % raw_input('Enter an AMI ID for this route: '))
-#      else:
-#         conf.append('ec2e_route_xlarge =\n')
-#
-#      answer = raw_input('Enable EC2 routing to the High-Compute Medium AMI type [y/N] ? ')
-#      if answer.lower() == 'y':
-#         conf.append('ec2e_route_hcmedium = True\n')
-#         conf.append('ec2ehcm_pub_key = %s\n' % raw_input('Enter a filename containing an AWS Public Key for this route: '))
-#         conf.append('ec2ehcm_priv_key = %s\n' % raw_input('Enter a filename containing an AWS Private Key for this route: '))
-#         conf.append('ec2ehcm_access_key = %s\n' % raw_input('Enter a filename containing an AWS Access Key for this route: '))
-#         conf.append('ec2ehcm_secret_key = %s\n' % raw_input('Enter a filename containing an AWS Secret Key for this route: '))
-#         conf.append('ec2ehcm_rsapub_key = %s\n' % raw_input('Enter a filename containing an RSA Public Key for this route: '))
-#         conf.append('ec2ehcm_bucket = %s\n' % raw_input('Enter an S3 Storage Bucket name for this route: '))
-#         conf.append('ec2ehcm_queue = %s\n' % raw_input('Enter an SQS Queue name for this route: '))
-#         conf.append('ec2ehcm_amiid = %s\n' % raw_input('Enter an AMI ID for this route: '))
-#      else:
-#         conf.append('ec2e_route_hcmedium =\n')
-#
-#      answer = raw_input('Enable EC2 routing to the High-Compute Large AMI type [y/N] ? ')
-#      if answer.lower() == 'y':
-#         conf.append('ec2e_route_hcelarge = True\n')
-#         conf.append('ec2ehcel_pub_key = %s\n' % raw_input('Enter a filename containing an AWS Public Key for this route: '))
-#         conf.append('ec2ehcel_priv_key = %s\n' % raw_input('Enter a filename containing an AWS Private Key for this route: '))
-#         conf.append('ec2ehcel_access_key = %s\n' % raw_input('Enter a filename containing an AWS Access Key for this route: '))
-#         conf.append('ec2ehcel_secret_key = %s\n' % raw_input('Enter a filename containing an AWS Secret Key for this route: '))
-#         conf.append('ec2ehcel_rsapub_key = %s\n' % raw_input('Enter a filename containing an RSA Public Key for this route: '))
-#         conf.append('ec2ehcel_bucket = %s\n' % raw_input('Enter an S3 Storage Bucket name for this route: '))
-#         conf.append('ec2ehcel_queue = %s\n' % raw_input('Enter an SQS Queue name for this route: '))
-#         conf.append('ec2ehcel_amiid = %s\n' % raw_input('Enter an AMI ID for this route: '))
-#      else:
-#         conf.append('ec2e_route_hcelarge =\n')
-#
-#def configure_ha_scheduler(conf, action, fields):
-#   # Remove previous configuration it if exists
-#   remove_fields(fields, conf)
-#
-#   if action == 'add':
-#      print '\nConfiguration for HA Scheduler\n'
-#      conf.append('sharedfs = %s\n' % raw_input('Enter the mount point for the shared filesystem: '))
-#
-def configure_node_schedulers(feats, params):
+def configure_node_schedulers(params):
    response = 'y'
-#   fields = ['scheduler_name', 'additional_scheds', 'is_haschedd']
 
    if raw_input('Modify which schedulers this node can submit to [y/N] ? ').lower() == 'y':
       def_sched = raw_input('Enter the name of the default scheduler: ')
@@ -344,39 +132,12 @@ def configure_node_schedulers(feats, params):
          params['HOSTALLOW_WRITE_DAEMON'] = addl_scheds
          params['HOSTALLOW_READ_DAEMON'] = addl_scheds
 
-#def configure_collector_name(conf, base_dir):
-#   response = 'y'
-#   fields = ['collector_name']
-#
-#   for line in conf:
-#      match = re.match('^collector_name\s*=(.*)$', line)
-#      if match != None:
-#         # Only ask to change the collector name if it is not set
-#         response = raw_input('Modify the pool description for this node [y/N] ? ')
-#         break
-#
-#   if response.lower() == 'y':
-#      # Remove previous configuration it if exists
-#      remove_fields(fields, conf)
-#      collector_name = raw_input('Enter a short pool description for this node: ')
-#      while collector_name.rstrip().lstrip() == '':
-#         print 'The pool description can not be blank.\n'
-#         collector_name = raw_input('Enter a short pool description for this node: ')
-#      conf.append('collector_name = %s\n' % collector_name)
-#      dir_name = os.path.join(base_dir, collector_name.lstrip().rstrip())
-#   else:
-#      dir_name = os.path.join(base_dir, match.groups()[0].lstrip().rstrip())
-#
-#   return dir_name
-
 def configure_qmf_broker(params):
    response = 'y'
-#   fields = ['qmf_broker', 'qmf_port']
 
    response = raw_input('Change the broker information this node uses to communicate with the Management Console [y/N] ? ')
    if response.lower() == 'y':
       # Remove previous configuration it if exists
-#      remove_fields(fields, conf)
       value = raw_input('Enter the hostname of the AMQP broker this node will use to communicate with the Management Console: ')
       params['QMF_BROKER_HOST'] = value
       value = raw_input('Enter the port the AMQP broker listens on (Default: 5672): ')
@@ -387,75 +148,6 @@ def main(argv=None):
    if argv is None:
       argv = sys.argv
 
-#   node_was_hacm = False
-#   base_config_dir = '/etc/puppet/modules/condor/node_configs'
-#   feature_deps = { 'ec2e': 'ec2,job_router',
-#                    'concurrency_limits': 'negotiator',
-#                    'dedicated_preemption': 'dedicated_scheduler',
-#                    'dbmsd': 'quill',
-#                    'ha_scheduler': 'scheduler',
-#                    'dedicated_scheduler': 'scheduler',
-#                    'dedicated_resource': 'startd',
-#                    'dynamic_provisioning': 'startd',
-#                    'ha_central_manager': 'central_manager',
-#                    'central_manager': 'negotiator,collector',
-#                    'viewserver': 'collector',
-#                    'low_latency': 'startd',
-#                    'job_router': 'scheduler'
-#                  }
-#   feature_list = { 'dedicated_resource': False,
-#                    'dedicated_scheduler': False,
-#                    'ha_scheduler': False,
-#                    'ha_central_manager': False,
-#                    'ec2': False,
-#                    'ec2e': False,
-#                    'low_latency': False,
-#                    'concurrency_limits': False,
-#                    'quill': False,
-#                    'dbmsd': False,
-#                    'dynamic_provisioning': False,
-#                    'dedicated_preemption': False,
-#                    'viewserver': False,
-#                    'job_router': False,
-#                    'scheduler': False,
-#                    'negotiator': False,
-#                    'collector': False,
-#                    'central_manager': False,
-#                    'credd': False,
-#                    'startd': False,
-#                    'triggerd': False
-#                  }
-#   feature_fields = { 'dedicated_resource': ['dedicatedscheduler'],
-#                      'ha_scheduler': ['sharedfs'],
-#                      'ec2e': ['ec2e_route_small', 'ec2es_pub_key',
-#                               'ec2es_priv_key', 'ec2es_access_key',
-#                               'ec2es_secret_key', 'ec2es_rsapub_key',
-#                               'ec2es_bucket', 'ec2es_queue', 'ec2es_amiid',
-#                               'ec2e_route_large', 'ec2elarge_pub_key',
-#                               'ec2elarge_priv_key', 'ec2elarge_access_key',
-#                               'ec2elarge_secret_key', 'ec2elarge_rsapub_key',
-#                               'ec2elarge_bucket', 'ec2elarge_queue',
-#                               'ec2elarge_amiid', 'ec2e_route_xlarge',
-#                               'ec2exlarge_pub_key', 'ec2exlarge_priv_key',
-#                               'ec2exlarge_access_key', 'ec2exlarge_secret_key',
-#                               'ec2exlarge_rsapub_key', 'ec2exlarge_bucket',
-#                               'ec2exlarge_queue', 'ec2exlarge_amiid',
-#                               'ec2e_route_hcmedium', 'ec2ehcm_pub_key',
-#                               'ec2ehcm_priv_key', 'ec2ehcm_access_key',
-#                               'ec2ehcm_secret_key', 'ec2ehcm_rsapub_key',
-#                               'ec2ehcm_bucket', 'ec2ehcm_queue',
-#                               'ec2ehcm_amiid', 'ec2e_route_hcelarge',
-#                               'ec2ehcel_pub_key', 'ec2ehcel_priv_key',
-#                               'ec2ehcel_access_key', 'ec2ehcel_secret_key',
-#                               'ec2ehcel_rsapub_key', 'ec2ehcel_bucket',
-#                               'ec2ehcel_queue', 'ec2ehcel_amiid'],
-#                      'low_latency': ['exchange', 'broker_ip', 'broker_port',
-#                                      'amqp_queue', 'll_daemon_port', 
-#                                      'll_connections', 'll_lease_time',
-#                                      'll_check_interval'],
-#                      'concurrency_limits': ['limits'],
-#                      'quill': ['db_node_name'],
-#                    }
    node = ''
    action = ''
    features = ''
@@ -463,14 +155,12 @@ def main(argv=None):
    param_list = {}
    group_config = {}
    config_store = []
+   session = []
    need_print_help = False
 
    # Set signal handlers
    signal.signal(signal.SIGINT, exit_signal_handler)
    signal.signal(signal.SIGTERM, exit_signal_handler)
-
-#   if os.path.exists(base_config_dir) == False:
-#      os.makedirs(base_config_dir)
 
    long_opts = ['add', 'broker=', 'delete', 'features=', 'help', 'list',
                 'name=', 'params=']
@@ -496,7 +186,7 @@ def main(argv=None):
          if action != '':
             print 'Only 1 action may be specified'
             return(1)
-         action = 'delete'
+         action = 'remove'
       if option in ('-f', '--features'):
          features = arg
       if option in ('-l', '--list'):
@@ -512,7 +202,7 @@ def main(argv=None):
    # Connect to the configuration store
    if broker_ip == '':
       if need_print_help == True:
-         print_help(argv[0], config_store)
+         print_help(argv[0], session)
          return(0)
       print 'No broker specified.  Exiting'
       return(0)
@@ -525,14 +215,14 @@ def main(argv=None):
       return(1)
 
    # Retreive the config store object
-   config_store = session.getObjects(_class="condorconfigstore", _package="mrg.grid")
+   config_store = session.getObjects(_class='store', _package='mrg.grid.config')
    if config_store == []:
       print 'Unable to contact Configuration Store'
    else:
       config_store = config_store[0]
        
    if need_print_help == True:
-      print_help(argv[0], config_store)
+      print_help(argv[0], session)
       return(0)
 
    if config_store == []:
@@ -541,200 +231,108 @@ def main(argv=None):
    # Perform list opertions
    if action == 'list':
       if name == '' and features == '':
-         node_list = generate_node_list(config_store)
-         if node_list == None:
+         node_list = []
+         node_list = session.getObjects(_class='node', _package='mrg.grid.config')
+         if node_list == []:
             return(1)
 
          print 'Nodes being managed:'
-         for node_name in node_list:
-            print node_name
-      else:
+         for obj in node_list:
+            print obj.getIndex()
+      elif name != '' and features == '':
          # Get the group object from the store
          group_obj = get_group(config_store, name)
          if group_obj == None:
             return(1)
 
-         if features == '':
-            print 'Configuration for %s:' % name
-            print_node_features(config)
+         print 'Configuration for %s:' % name
 
-            # Get the list of nodes included in this group
-            result = group_obj.GetIncludedNodes()
-            if result.status != 0:
-               print 'Error: Failed to retrieve included nodes for group %s (%d, %s)' % (name, result.status, result.text)
-            else:
-               print 'Nodes included:'
-               for group_node in result.outArgs['nodeList'].values():
-                  print group_node
-
-            # Get the features configured for this group
-            result = group_obj.GetFeatures()
-            if result.status != 0:
-               print 'Error: Failed to retrieve included features for group %s (%d, %s)' % (name, result.status, result.text)
-            else:
-               print 'Features Configured:'
-               for feature in result.outArgs['groupFeatures'].values():
-                  print feature
-
-            # Get parameters specific to this group
-            result = group_obj.GetParams()
-            if result.status != 0:
-               print 'Error: Failed to retrieve included parameters for group %s (%d, %s)' % (name, result.status, result.text)
-            else:
-               print 'Attributes Configured:'
-               for param in result.outArgs['customParams'].values():
-                  print param
-
-            # Get the full configuration
-            result = group_obj.GetConfig()
-            if result.status != 0:
-               print 'Error: Failed to retrieve configuration for group %s (%d, %s)' % (name, result.status, result.text)
-            else:
-               print 'Configuration:' % name
-               group_config = result.outArgs['groupConfig']
-               for key in group_config.keys():
-                  print '%s = %s' % (key, group_config[key])
+         # Get the list of nodes included in this group
+         result = group_obj.GetMembership()
+         if result.status != 0:
+            print 'Error: Failed to retrieve included nodes for group %s (%d, %s)' % (name, result.status, result.text)
          else:
-            # Provide the configuration for the features
-            for feat in features.split(','):
-               print 'Configuration for feature %s:' % feat
-               print_feature_info(config_store, group_obj, feat)
+            print 'Nodes included:'
+            for group_node in result.outArgs['list'].keys():
+               print group_node
+
+         # Get the features configured for this group
+         result = group_obj.GetFeatures()
+         if result.status != 0:
+            print 'Error: Failed to retrieve included features for group %s (%d, %s)' % (name, result.status, result.text)
+         else:
+            print 'Features Configured:'
+            for feature in result.outArgs['groupFeatures'].keys():
+               print feature
+
+         # Get parameters specific to this group
+         result = group_obj.GetParams()
+         if result.status != 0:
+            print 'Error: Failed to retrieve included parameters for group %s (%d, %s)' % (name, result.status, result.text)
+         else:
+            print 'Attributes Configured:'
+            params = result.outArgs['customParams']
+            for ker in params.keys():
+               print '%s = %s' % (key, params[key])
+      elif features != '':
+         # Provide the configuration for the features
+         for feat in features.split(','):
+            print 'Configuration for feature %s:' % feat
+            print_feature_info(config_store, feat)
             
       return(0)
 
    if name == '':
       print 'No name name supplied.  Exiting'
-      print_help(argv[0], config_store)
+      print_help(argv[0], session)
    elif action == '':
       print 'No action specified.  Exiting'
-      print_help(argv[0], config_store)
+      print_help(argv[0], session)
    elif features == '':
       print 'No features specified.  Exiting'
-      print_help(argv[0], config_store)
+      print_help(argv[0], session)
    else:
       # Query the store to get the group
-      result = config_store.GetGroup(query)
+      result = config_store.GetGroup({'Name': name})
       if result.status != 0:
-         print "Error: Failed to retrieve group '%s'.  Store returned %d: %s" % (query, result.status, result.text)
+         # This group doesn't exist
+         print "Error: Failed to retrieve group '%s'.  Store returned %d: %s" % (name, result.status, result.text)
          return(1)
-      group = result.outArgs['groupObj']
+      group_obj = result.outArgs['obj']
 
-
-      # Find the config file for this node
-#      config_dir = find_config(node, base_config_dir)
-#      config = []
-#      if config_dir != None:
-#         file = open('%s/%s' % (config_dir, node), 'r')
-#         for line in file.read().split('\n'):
-#            if line != '':
-#               config.append(line + '\n')
-#         file.close()
-#      if 'ha_central_manager\n' in config:
-#         node_was_hacm = True
-
-      # Process any dependencies
-#      for feature in features.split(','):
-#         if action == 'add':
-#            dep_list = process_feature_deps(feature, feature_deps)
-#            if dep_list != '':
-#               features += dep_list
-#         elif action == 'delete':
-#            remove_list = process_remove_deps(feature, feature_deps)
-#            if remove_list != '':
-#               features += remove_list
-
-#      result = group_obj.GetConfig()
-#      if result.status != 0:
-#         print 'Error: Failed to retrieve configuration for group %s (%d, %s)' % (node, result.status, result.text)
-#      else:
-#         group_config = result.outArgs['groupConfig']
-
+      # Generate the list of features to act upon
       for feature in features.split(','):
-         result = config_store.GetFeature({'Name': feature})
-         if result.status != 0:
-            print 'Error: Failed to retrieve feature information for %s (%d, %s)' % (feature, result.status, result.text)
-            return(1)
-         else:
-            feature_id = result.outArgs['featureObj'].getIndex()
-            feature_list[feature_id] = 0
+         feature_list[feature] = 0
          
-#         # Exit if a feature was given that isn't known about
-#         if feature not in feature_list.keys():
-#            print 'Error: Unknown feature: %s' % feature
-#            return(1)
-#         
-#         # Check if we have already configured this item (ie protect against
-#         # duplicate features provided)
-#         item_present = True
-#         if feature_list[feature] == False:
-#            feature_list[feature] = True
-#            try:
-#               config.index(feature + '\n')
-#            except:
-#               item_present = False
-#
-#            # Add or remove the feature keyword along with any dependencies
-#            # if they exist
-#            if action == 'add' and item_present == False:
-#               config.append(feature + '\n')
-#            elif action == 'delete' and item_present == True:
-#               config.remove(feature + '\n')
-#
-            # Add feature specific configs if needed
-#         if action == 'add':
-#            if feature == 'low_latency':
-#               configure_low_lat(attr_list)
-#            elif feature == 'concurrency_limits':
-#               configure_limits(attr_list)
-#            elif feature == 'dedicated_resource':
-#               configure_dedicated_resource(attr_list)
-#            elif feature == 'ec2e':
-#               configure_ec2e(attr_list)
-#            elif feature == 'ha_scheduler':
-#               configure_ha_scheduler(attr_list)
-
       # Configure which schedulers the node can submit to
-      configure_node_schedulers(features, param_list)
-
-      # Configure the collector name
-#      new_config_dir = configure_collector_name(attr_list, base_config_dir)
+      configure_node_schedulers(param_list)
 
       # Configure the AMQP broker used to communicate with the Management
       # Console
       configure_qmf_broker(param_list)
 
       if raw_input('\nApply these changes [y/N] ? ').lower() == 'y':
-#         if config_dir != None:
-#            os.remove(os.path.join(config_dir, node))
-#         if os.path.exists(new_config_dir) == False:
-#            os.makedirs(new_config_dir)
-#         file = open(os.path.join(new_config_dir, node), 'w')
-#         file.writelines(config)
-#         file.close()
-         if action == 'add':
-            req_params = {}
-            result = group_obj.AddFeatures(feature_list, req_params)
-            if result.status != 0:
-               print 'Error: Problem adding features (%d, %s)' % (result.status, result.text)
-               return(1)
-            if req_params != {}:
-               print 'The following parameters must be set for this configuration to be valid:'
-               for param in req_params.keys():
-                  print '\nAttribute Name: %s' % param
-                  print 'Reason: %s' % req_params[param]
-                  value = raw_input('Value: ')
-                  param_list[param] = value
+         req_params = {}
+         result = group_obj.ModifyFeatures(action, feature_list)
+         if result.status != 0:
+            print 'Error: Problem modifying features (%d, %s)' % (result.status, result.text)
+            return(1)
+         else:
+            req_params = result.outArgs['params']
+
+         if req_params != {}:
+            print 'The following parameters must be set for this configuration to be valid:'
+            for param in req_params.keys():
+               print '\nAttribute Name: %s' % param
+               print 'Reason: %s' % req_params[param]
+               value = raw_input('Value: ')
+               param_list[param] = value
                   
-            if param_list != {}:
-               result = group_obj.AddParams(param_list)
+         if param_list != {}:
+               result = group_obj.ModifyParams(action, param_list)
                if result.status != 0:
-                  print 'Error: Problem adding parameter (%d, %s)' % (result.status, result.text)
+                  print 'Error: Problem modifying parameters (%d, %s)' % (result.status, result.text)
                   return(1)
-         elif action == 'delete':
-            result = group_obj.RemoveFeatures(feature_list)
-            if result.status != 0:
-               print 'Error: Problem removing features (%d, %s)' % (result.status, result.text)
-               return(1)
          print 'Configuration applied'
 
          if raw_input('\nSave this configuration [y/N] ? ').lower() == 'y':
@@ -752,46 +350,6 @@ def main(argv=None):
                      print 'Configuration activated'
       else:
          print 'Configuration not applied'
-         # Tell all nodes to check in to see if there are configuration updates
-#         print 'Refreshing node configurations'
-#         os.chdir(base_config_dir)
-#         dirs = os.listdir('.')
-#         nodes = []
-#         for dir in dirs:
-#            if os.path.isdir(dir) == True:
-#               nodes += os.listdir(dir)
-#         null = open('/dev/null', 'w')
-#         for condor_node in nodes:
-#            refresh = Popen('/usr/bin/puppetrun' + ' --host' + ' %s' % condor_node, shell=True, stdout=null, stderr=null)
-#            status = os.waitpid(refresh.pid, 0)
-#         null.close()
-         
-#         null = open('/dev/null', 'w')
-#         if ('ha_central_manager' in features) and \
-#            ((action == 'add' and node_was_hacm == False) or \
-#             (action == 'delete' and node_was_hacm == True)):
-#            # Need to tell other HA Central Managers to refresh their
-#           # configuration if this node is being added as a new HA CM
-#            # or if the node was an HA CM and is being removed from the
-#            # list
-#            os.chdir(new_config_dir)
-#            cmd = Popen('grep'+' -H' + ' ha_central_manager' + ' *', stdout=PIPE, shell=True)
-#            ha_cm_list = cmd.communicate()[0]
-#            for cm in ha_cm_list.split('\n'):
-#               match = re.match('^(.+):.+$', cm)
-#               if match != None and match.groups() != None:
-#                  refresh = Popen('/usr/bin/puppetrun' + ' --host' + ' %s' % match.groups()[0], shell=True, stdout=null, stderr=null)
-#                  status = os.waitpid(refresh.pid, 0)
-#            if action == 'delete':
-#               # Refesh the node being configured, since it won't be detected
-#               # as a node to refresh
-#               refresh = Popen('/usr/bin/puppetrun' + ' --host' + ' %s' % node, shell=True, stdout=null, stderr=null)
-#               status = os.waitpid(refresh.pid, 0)
-#         else:
-#            # Only tell the node configured to refresh its configuration
-#            refresh = Popen('/usr/bin/puppetrun' + ' --host' + ' %s' % node, shell=True, stdout=null, stderr=null)
-#            status = os.waitpid(refresh.pid, 0)
-#         null.close()
 
 if __name__ == '__main__':
     sys.exit(main())

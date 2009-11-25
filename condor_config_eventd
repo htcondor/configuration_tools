@@ -32,7 +32,7 @@ class EventConsole(Console):
       self.hostname = name
 
    def event(self, broker, event):
-      if event.getClassKey().getClassName() == 'condorrestartevent':
+      if event.getClassKey().getClassName() == 'restartevent':
          args = event.getArguments()
          affected_hosts = args['AffectedNodes'].split(',')
          if self.hostname in affected_hosts:
@@ -63,7 +63,7 @@ class Service:
    def init(self):
       self.console = EventConsole(os.uname()[1])
       self.session = Session(self.console, manageConnections=True, rcvObjects=False, rcvHeartbeats=False, rcvEvents=True)
-      self.store = self.session.getObjects(_class="condorconfigstore", _package="mrg.grid")
+      self.store = self.session.getObjects(_class='store', _package='mrg.grid.config')
 
    def config(self):
       if self.broker != None:
@@ -96,7 +96,7 @@ class Service:
          self.interval = 0
        
       try:
-         self.broker = self.session.addBroker("amqp://%s:%s" % (self.broker_ip, self.broker_port))
+         self.broker = self.session.addBroker('amqp://%s:%s' % (self.broker_ip, self.broker_port))
       except:
          syslog.syslog(syslog.LOG_ERR, 'Error: Unable to connect to broker "%s"' % self.broker_ip)
          return(False)
@@ -120,39 +120,34 @@ class Service:
       if self.store == []:
          return(1)
 
-      result = self.store.GetNodeList()
-      if result.status != 0:
-         syslog.syslog('Error(%d, %s): Unable to retrieve list of nodes for configuration verification' % (result.status, result.text))
-         return(1)
-      else:
-         all_nodes = result.outArgs['nodeList'].values()
+      all_nodes = self.session.getObjects(_class='node', _package='mrg.grid.config')
+      for node in all_nodes:
+         name = node.getIndex()
+         if name in self.responsible_nodes:
+            result = Popen(['condor_status', '-f "\%s\n" MyAddress %s' % name], stdout=PIPE, stderr=PIPE)
+            value = result.communicate()[0]
+            if result.returncode != 0:
+               syslog.syslog('Error: Unable to find address of master daemon for "%s"' % name)
+               continue
+            else:
+               ip = value[0]
 
-         for node in all_nodes.split(','):
-            if node in self.responsible_nodes:
-               result = Popen(['condor_status', '-f "\%s\n" MyAddress %s' % node], stdout=PIPE, stderr=PIPE)
-               value = result.communicate()[0]
-               if result.returncode != 0:
-                  syslog.syslog('Error: Unable to find address of master daemon for "%s"' % node)
-                  continue
-               else:
-                  ip = value[0]
+         result = Popen(['condor_config_val', '-master -address "%s" QMF_CONFIG_VERSION' % ip], stdout=PIPE, stderr=PIPE)
+         version = result.communicate()[0]
+         if result.returncode != 0:
+            syslog.syslog('Error: Unable to retrieve version of configuration "%s" is currently running' % name)
+            continue
 
-               result = Popen(['condor_config_val', '-master -address "%s" QMF_CONFIG_VERSION' % ip], stdout=PIPE, stderr=PIPE)
-               version = result.communicate()[0]
-               if result.returncode != 0:
-                  syslog.syslog('Error: Unable to retrieve version of configureion "%s" is currently running' % node)
-                  continue
-
-               result = self.store.GetGroup({'Name': node})
-               if result.status != 0:
-                  syslog.syslog('Error(%d, %s): Unable to get node information for "%s"' % (result.status, result.txt, node))
-               else:
-                  obj = result.outArgs['groupObj']
-                  obj.CheckConfigVersion(version)
+         result = self.store.GetNode(name)
+         if result.status != 0:
+            syslog.syslog('Error(%d, %s): Unable to get node information for "%s"' % (result.status, result.txt, name))
+         else:
+            obj = result.outArgs['obj']
+            obj.CheckConfigVersion(version)
 
 def reconfig(signum, frame):
    service.config()
-   signal.alarm(servce.get_interval())
+   signal.alarm(service.get_interval())
 
 def exit_signal_handler(signum, frame):
    service.shutdown()

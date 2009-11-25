@@ -46,7 +46,7 @@ def main(argv=None):
 
    session = Session()
    try:
-      broker = session.addBroker("amqp://%s" % broker_ip)
+      broker = session.addBroker('amqp://%s' % broker_ip)
    except:
       if os.path.exists('%s/%s' % (dir, node_name)):
          print_config()
@@ -55,7 +55,7 @@ def main(argv=None):
          return(1)
 
    # Retreive the config store object
-   config_store = session.getObjects(_class="condorconfigstore", _package="mrg.grid")
+   config_store = session.getObjects(_class='store', _package='mrg.grid.config')
    if config_store == []:
       if os.path.exists('%s/%s' % (dir, node_name)):
          print_config()
@@ -65,14 +65,23 @@ def main(argv=None):
    else:
       config_store = config_store[0]
 
-   # Retrieve the node's configuration
-   result = config_store.GetNodeConfig(node_name)
+   # Get the node
+   result = config_store.GetNode(node_name)
    if result.status != 0:
       # The store doesn't know about the node, so print an empty config
       print '--- {}\n'
       return(0)
    else:
-      node_config = result.outArgs['nodeConfig']
+      node = result.outArgs['obj']
+
+   # Retrieve the node's configuration
+   result = node.GetConfig()
+   if result.status != 0:
+      # Problem getting the configuration, so print an empty config
+      print '--- {}\n'
+      return(0)
+   else:
+      node_config = result.outArgs['config']
 
    # Write the config to a file on disk
    config_file = open('%s/%s' % (dir, node_name), 'w')

@@ -577,7 +577,7 @@ def list_group_info(store, group):
          for key in value.keys():
             print '%s, %s\n' % (key, value[key])
 
-      result = group_obj.GetFeatures()
+      result = group_obj.GetFeatureSet()
       if result.status != 0:
          print 'Error: Failed to retrieve group features (%d, %s)\n' % (result.status, result.txt)
       else:

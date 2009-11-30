@@ -49,7 +49,7 @@ def print_help(name, sess):
       if features != []:
          for feat in features:
             id = feat.getIndex()
-            result = feat.GetFeatureName()
+            result = feat.GetName()
             if result.status != 0:
                print 'Error: Unable to retrieve feature name for feature id "%s"' % id
             else:
@@ -257,7 +257,7 @@ def main(argv=None):
                print group_node
 
          # Get the features configured for this group
-         result = group_obj.GetFeatures()
+         result = group_obj.GetFeatureSet()
          if result.status != 0:
             print 'Error: Failed to retrieve included features for group %s (%d, %s)' % (name, result.status, result.text)
          else:
@@ -313,7 +313,7 @@ def main(argv=None):
 
       if raw_input('\nApply these changes [y/N] ? ').lower() == 'y':
          req_params = {}
-         result = group_obj.ModifyFeatures(action, feature_list)
+         result = group_obj.ModifyFeatureSet(action, feature_list)
          if result.status != 0:
             print 'Error: Problem modifying features (%d, %s)' % (result.status, result.text)
             return(1)

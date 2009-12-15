@@ -69,9 +69,8 @@ def modify_feature(obj, name, action):
    answer = 'y'
    print 'Modifying feature "%s"' % name
    if action == 'edit':
-      answer = raw_input('Modify the parameters included in feature "%s" [Y/n] ?' % name)
-      if answer == '':
-         answer = 'y'
+      answer = raw_input('Modify the parameters included in feature "%s" [y/N] ?' % name)
+      if answer.lower() == 'y':
          result = obj.GetParams()
          if result.status != 0:
             print 'Error: Failed to retrieve current parameter list for feature "%s" (%d, %s)' % (name, result.status, result.txt)
@@ -93,9 +92,8 @@ def modify_feature(obj, name, action):
          print 'Error: Failed to modify parameters of feature "%s" (%d, %s)' % (name, result.status, result.txt)
 
    if action == 'edit':
-      answer = raw_input('Modify the features included in feature "%s" [Y/n] ?' % name)
-      if answer == '':
-         answer = 'y'
+      answer = raw_input('Modify the features included in feature "%s" [y/N] ?' % name)
+      if answer.lower() == 'y':
          result = obj.GetFeatures()
          if result.status != 0:
             print 'Error: Failed to retrieve current feature list for feature "%s" (%d, %s)' % (name, result.status, result.txt)
@@ -116,9 +114,8 @@ def modify_feature(obj, name, action):
          print 'Error: Failed to modify included features for feature "%s" (%d, %s)' % (name, result.status, result.txt)
 
    if action == 'edit':
-      answer = raw_input('Modify the features that feature "%s" conflicts with [Y/n] ?' % name)
-      if answer == '':
-         answer = 'y'
+      answer = raw_input('Modify the features that feature "%s" conflicts with [y/N] ?' % name)
+      if answer.lower() == 'y':
          result = obj.GetConflicts()
          if result.status != 0:
             print 'Error: Failed to retrieve current list of conflicts for feature "%s" (%d, %s)' % (name, result.status, result.txt)
@@ -137,9 +134,8 @@ def modify_feature(obj, name, action):
          print 'Error: Failed to modify conflicts of feature "%s" (%d, %s)' % (name, result.status, result.txt)
 
    if action == 'edit':
-      answer = raw_input('Modify the features that feature "%s" depends on [Y/n] ?' % name)
-      if answer == '':
-         answer = 'y'
+      answer = raw_input('Modify the features that feature "%s" depends on [y/N] ?' % name)
+      if answer.lower() == 'y':
          result = obj.GetDepends()
          if result.status != 0:
             print 'Error: Failed to retrieve current list of dependencies for feature "%s" (%d, %s)' % (name, result.status, result.txt)
@@ -160,9 +156,8 @@ def modify_feature(obj, name, action):
          print 'Error: Failed to modify depends of feature "%s" (%d, %s)' % (name, result.status, result.txt)
 
    if action == 'edit':
-      answer = raw_input('Modify the list of subsystems that feature "%s" uses [Y/n] ?' % name)
-      if answer == '':
-         answer = 'y'
+      answer = raw_input('Modify the list of subsystems that feature "%s" uses [y/N] ?' % name)
+      if answer.lower() == 'y':
          result = obj.GetSubsys()
          if result.status != 0:
             print 'Error: Failed to retrieve current list of subsystems for feature "%s" (%d, %s)' % (name, result.status, result.txt)
@@ -183,7 +178,6 @@ def modify_feature(obj, name, action):
 
 def add_param(store, name):
    print 'Adding parameter "%s"' % name
-   answer = 'y'
    split = name.split('=')
    result = store.AddParam(split[0])
    if result.status != 0:
@@ -212,9 +206,8 @@ def modify_param(obj, name, action):
    answer = 'y'
    print 'Modifying parameter "%s"' % name
    if action == 'edit':
-      answer = raw_input('Modify the type for parameter "%s" [Y/n] ?' % name)
-      if answer == '':
-         answer = 'y'
+      answer = raw_input('Modify the type for parameter "%s" [y/N] ?' % name)
+      if answer.lower() == 'y':
          result = obj.GetType()
          if result.status != 0:
             print 'Error: Failed to retrieve type for parameter "%s" (%d, %s)' % (name, result.status, result.txt)
@@ -228,9 +221,8 @@ def modify_param(obj, name, action):
          print 'Error: Failed to modify type of parameter "%s" (%d, %s)' % (name, result.status, result.txt)
    
    if action == 'edit':
-      answer = raw_input('Modify the default value for parameter "%s" [Y/n] ?' % name)
-      if answer == '':
-         answer = 'y'
+      answer = raw_input('Modify the default value for parameter "%s" [y/N] ?' % name)
+      if answer.lower() == 'y':
          result = obj.GetDefault()
          if result.status != 0:
             print 'Error: Failed to retrieve default value for parameter "%s" (%d, %s)' % (name, result.status, result.txt)
@@ -244,9 +236,8 @@ def modify_param(obj, name, action):
          print 'Error: Failed to modify default value of parameter "%s" (%d, %s)' % (name, result.status, result.txt)
 
    if action == 'edit':
-      answer = raw_input('Modify the description for parameter "%s" [Y/n] ?' % name)
-      if answer == '':
-         answer = 'y'
+      answer = raw_input('Modify the description for parameter "%s" [y/N] ?' % name)
+      if answer.lower() == 'y':
          result = obj.GetDescription()
          if result.status != 0:
             print 'Error: Failed to retrieve description for parameter "%s" (%d, %s)' % (name, result.status, result.txt)
@@ -260,9 +251,8 @@ def modify_param(obj, name, action):
          print 'Error: Failed to modify description of "%s" for parameter "%s" (%d, %s)' % (value, name, result.status, result.txt)
 
    if action == 'edit':
-      answer = raw_input('Modify the DefaultMustChange for parameter "%s" [Y/n] ?' % name)
-      if answer == '':
-         answer = 'y'
+      answer = raw_input('Modify the DefaultMustChange for parameter "%s" [y/N] ?' % name)
+      if answer.lower() == 'y':
          result = obj.GetDefaultMustChange()
          if result.status != 0:
             print 'Error: Failed to retrieve DefaultMustChange for parameter "%s" (%d, %s)' % (name, result.status, result.txt)
@@ -279,9 +269,8 @@ def modify_param(obj, name, action):
          print 'Error: Failed to modify DefaultMustChange of parameter "%s" (%d, %s)' % (name, result.status, result.txt)
 
    if action == 'edit':
-      answer = raw_input('Modify the expert level for parameter "%s" [Y/n] ?' % name)
-      if answer == '':
-         answer = 'y'
+      answer = raw_input('Modify the expert level for parameter "%s" [y/N] ?' % name)
+      if answer.lower() == 'y':
          result = obj.GetVisibilityLevel()
          if result.status != 0:
             print 'Error: Failed to retrieve expert level for parameter "%s" (%d, %s)' % (name, result.status, result.txt)
@@ -297,9 +286,8 @@ def modify_param(obj, name, action):
          print 'Error: Failed to modify expert level of parameter "%s" (%d, %s)' % (name, result.status, result.txt)
 
    if action == 'edit':
-      answer = raw_input('Modify whether changes to parameter "%s" forces a restart [Y/n] ?' % name)
-      if answer == '':
-         answer = 'y'
+      answer = raw_input('Modify whether changes to parameter "%s" forces a restart [y/N] ?' % name)
+      if answer.lower() == 'y':
          result = obj.GetRequiresRestart()
          if result.status != 0:
             print 'Error: Failed to retrieve requires restart for parameter "%s" (%d, %s)' % (name, result.status, result.txt)
@@ -316,9 +304,8 @@ def modify_param(obj, name, action):
          print 'Error: Failed to modify RequiresRestart of parameter "%s" (%d, %s)' % (name, result.status, result.txt)
 
    if action == 'edit':
-      answer = raw_input('Modify parameter dependencies for parameter "%s" [Y/n] ?' % name)
-      if answer == '':
-         answer = 'y'
+      answer = raw_input('Modify parameter dependencies for parameter "%s" [y/N] ?' % name)
+      if answer.lower() == 'y':
          result = obj.GetDepends()
          if result.status != 0:
             print 'Error: Failed to retrieve parameter dependencies for parameter "%s" (%d, %s)' % (name, result.status, result.txt)
@@ -337,9 +324,8 @@ def modify_param(obj, name, action):
          print 'Error: Failed to modify depenecies of parameter "%s" (%d, %s)' % (name, result.status, result.txt)
 
    if action == 'edit':
-      answer = raw_input('Modify parameter conflicts for parameter "%s" [Y/n] ?' % name)
-      if answer == '':
-         answer = 'y'
+      answer = raw_input('Modify parameter conflicts for parameter "%s" [y/n] ?' % name)
+      if answer.lower() == 'y':
          result = obj.GetConflicts()
          if result.status != 0:
             print 'Error: Failed to retrieve parameter conflicts for parameter "%s" (%d, %s)' % (name, result.status, result.txt)
@@ -380,9 +366,8 @@ def get_group(store, name):
 def modify_group(obj, name, action):
    print 'Modifying group "%s"' % name
    if action == 'edit':
-      answer = raw_input('Modify the node membership of group "%s" [Y/n] ?' % name)
-      if answer == '':
-         answer = 'y'
+      answer = raw_input('Modify the node membership of group "%s" [y/N] ?' % name)
+      if answer.lower() == 'y':
          result = obj.GetMembership()
          if result.status != 0:
             print 'Error: Failed to retrieve current node membership for group "%s" (%d, %s)' % (name, result.status, result.txt)

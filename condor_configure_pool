@@ -255,7 +255,7 @@ def main(argv=None):
          if result.status != 0:
             print 'Error: Unable to the identity group for node "%s" (%d, %s)' % (node, result.status, result.text)
          else:
-            name = result.outArgs['name']
+            name = result.outArgs['group']
 
    # Perform list opertions
    if action == 'list':

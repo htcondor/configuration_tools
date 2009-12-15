@@ -365,6 +365,7 @@ def get_group(store, name):
 
 def modify_group(obj, name, action):
    print 'Modifying group "%s"' % name
+   answer = 'y'
    if action == 'edit':
       answer = raw_input('Modify the node membership of group "%s" [y/N] ?' % name)
       if answer.lower() == 'y':
@@ -374,16 +375,38 @@ def modify_group(obj, name, action):
          else:
             print 'Current node membership:'
             val = results.outArgs('list')
-            list = ''
+            pre_edit_list = ''
             for key in val.keys():
-               list += '%s,' % key
-            print list[:-1]
+               pre_edit_list += '%s,' % key
+            pre_edit_list = pre_edit_list[:-1]
+            print pre_edit_list
    if answer.lower() == 'y':
       input = raw_input('Names of nodes included in this group (comma separated): ')
       definition = process_comma_sep_list(input)
-      result = obj.ModifyMembership('replace', definition, {})
-      if result.status != 0:
-         print 'Error: Failed to modify node membership of group "%s" (%d, %s)' % (name, result.status, result.txt)
+      for node in definition.keys():
+         node = node.rstrip().lstrip()
+         if node not in pre_edit_list.split(','):
+            result = store.GetNode(node)
+            if result.status != 0:
+               print 'Error: Failed to retrieve information for node "%s" (%d, %s)' % (node, result.status, result.txt)
+               continue
+            else:
+               node_obj = result.outArgs['obj']
+               result = node_obj.ModifyMemberships('add', {name:True}, {})
+               if result.status != 0:
+                  print 'Error: Failed to add node "%s" to group "%s" (%d, %s)' % (node, name, result.status, result.txt)
+      for node in pre_edit_list.split(','):
+         node = node.rstrip().lstrip()
+         if node not in definition.keys():
+            result = store.GetNode(node)
+            if result.status != 0:
+               print 'Error: Failed to retrieve information for node "%s" (%d, %s)' % (node, result.status, result.txt)
+               continue
+            else:
+               node_obj = result.outArgs['obj']
+               result = node_obj.ModifyMemberships('remove', {name:True}, {})
+               if result.status != 0:
+                  print 'Error: Failed to remove node "%s" to group "%s" (%d, %s)' % (node, name, result.status, result.txt)
 
 
 def modify_node(store, name, action):
@@ -602,6 +625,15 @@ def list_node_info(store, name):
       else:
          value = result.outArgs['time']
          print 'Last Check-in Time: %d' % value
+
+      result = node_obj.GetMemberships()
+      if result.status != 0:
+         print 'Error: Failed to retrieve group memberships (%d, %s)' % (result.status, result.txt)
+      else:
+         value = result.outArgs['groups']
+         print 'Group Memberships:'
+         for key in value.keys():
+            print '%s' % key
 
       result = node_obj.GetConfig()
       if result.status != 0:

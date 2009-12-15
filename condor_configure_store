@@ -24,17 +24,18 @@ def exit_signal_handler(signum, frame):
 
 
 def print_help(name):
-   print 'usage: %s [-h|--help] -b <broker> action [-f|--features feature[,feature,...]] [-p|--params param[=1],param2[=string],...] [-n|--nodes hostname,hostname] [-g|--groups name[,name]]\n' % os.path.basename(name)
-   print '  <broker> - The ip/hostname of the broker used by the configuration store\n'
-   print '  -h - Print help\n'
-   print '\naction:\n'
-   print '  -a|--add    - Add the target(s) to the store\n'
-   print '  -d|--delete - Remove the target(s) from the store\n'
-   print '  -e|--edit   - Edit the target(s) in the store\n'
-   print '  -l|--list   - List configuration store information.  If provided\n'
-   print '                without any targets, lists all items in the store.\n'
-   print '                If a target is provided, print the information\n'
-   print '                for the provided targets\n'
+   print 'usage: %s [-h|--help] -b|--broker <broker> [-p|--port <port>] action [-f|--features feature[,feature,...]] [-p|--params param[=1],param2[=string],...] [-n|--nodes hostname,hostname] [-g|--groups group[,group]]' % os.path.basename(name)
+   print '  <broker> - The ip/hostname of the broker used by the configuration store'
+   print '  <port> - The port of the broker used by the configuration store'
+   print '  -h - Print help'
+   print '\naction:'
+   print '  -a|--add    - Add the target(s) to the store'
+   print '  -d|--delete - Remove the target(s) from the store'
+   print '  -e|--edit   - Edit the target(s) in the store'
+   print '  -l|--list   - List configuration store information.  If provided'
+   print '                without any targets, lists all items in the store.'
+   print '                If a target is provided, print the information'
+   print '                for the provided targets'
 
 
 def process_comma_sep_list(list):
@@ -46,10 +47,10 @@ def process_comma_sep_list(list):
 
 def add_feature(store, name):
    # Add the feature to the store
-   print 'Adding feature "%s"\n' % name
+   print 'Adding feature "%s"' % name
    result = store.AddFeature(name)
    if result.status != 0:
-      print 'Error: Failed to add feature "%s" (%d, %s)\n' % (name, result.status, result.txt)
+      print 'Error: Failed to add feature "%s" (%d, %s)' % (name, result.status, result.txt)
       return(None)
    return(result.outArgs['obj'])
 
@@ -57,7 +58,7 @@ def add_feature(store, name):
 def get_feature(store, name):
    result = store.GetFeature(name)
    if result.status != 0:
-      print 'Error: Failed to find feature "%s" (%d, %s)\n' % (name, result.status, restult.txt)
+      print 'Error: Failed to find feature "%s" (%d, %s)' % (name, result.status, restult.txt)
       return(None)
    else:
       return(result.outArgs['obj'])
@@ -66,22 +67,22 @@ def get_feature(store, name):
 def modify_feature(obj, name, action):
    # Get the information needed for the feature
    answer = 'y'
-   print 'Modifying feature "%s"\n' % name
+   print 'Modifying feature "%s"' % name
    if action == 'edit':
       answer = raw_input('Modify the parameters included in feature "%s" [Y/n] ?' % name)
       if answer == '':
          answer = 'y'
          result = obj.GetParams()
          if result.status != 0:
-            print 'Error: Failed to retrieve current parameter list for feature "%s" (%d, %s)\n' % (name, result.status, result.txt)
+            print 'Error: Failed to retrieve current parameter list for feature "%s" (%d, %s)' % (name, result.status, result.txt)
          else:
-            print 'Current configured parameters:\n'
+            print 'Current configured parameters:'
             val = results.outArgs('list')
             list = ''
             for key in val.keys():
                list += '%s=%s,' % (key, params[key])
             print list[:-1]
-   if answer.lower() = 'y':
+   if answer.lower() == 'y':
       input = raw_input('List of parameters (param=value,param=value,etc): ')
       list = {}
       for pair in input.split(','):
@@ -89,7 +90,7 @@ def modify_feature(obj, name, action):
          list[param[0].lstrip().rstrip()] = param[1].lstrip().rstrip()
       result = obj.ModifyParams('replace', list)
       if result.status != 0:
-         print 'Error: Failed to modify parameters of feature "%s" (%d, %s)\n' % (name, result.status, result.txt)
+         print 'Error: Failed to modify parameters of feature "%s" (%d, %s)' % (name, result.status, result.txt)
 
    if action == 'edit':
       answer = raw_input('Modify the features included in feature "%s" [Y/n] ?' % name)
@@ -97,22 +98,22 @@ def modify_feature(obj, name, action):
          answer = 'y'
          result = obj.GetFeatures()
          if result.status != 0:
-            print 'Error: Failed to retrieve current feature list for feature "%s" (%d, %s)\n' % (name, result.status, result.txt)
+            print 'Error: Failed to retrieve current feature list for feature "%s" (%d, %s)' % (name, result.status, result.txt)
          else:
-            print 'Current configured features:\n'
+            print 'Current configured features:'
             val = results.outArgs('list')
             list = ''
             for key in val.keys():
                list += '%s=%s,' % (key, params[key])
             print list[:-1]
-   if answer.lower() = 'y':
+   if answer.lower() == 'y':
       input = raw_input('Feature names this feature will include (feature=priority,feature=priority,etc): ')
       for pair in input.split(','):
          param = pair.split('=')
          list[param[0].lstrip().rstrip()] = param[1].lstrip().rstrip()
       result = obj.ModifyFeatures('replace', list)
       if result.status != 0:
-         print 'Error: Failed to modify included features for feature "%s" (%d, %s)\n' % (name, result.status, result.txt)
+         print 'Error: Failed to modify included features for feature "%s" (%d, %s)' % (name, result.status, result.txt)
 
    if action == 'edit':
       answer = raw_input('Modify the features that feature "%s" conflicts with [Y/n] ?' % name)
@@ -120,20 +121,20 @@ def modify_feature(obj, name, action):
          answer = 'y'
          result = obj.GetConflicts()
          if result.status != 0:
-            print 'Error: Failed to retrieve current list of conflicts for feature "%s" (%d, %s)\n' % (name, result.status, result.txt)
+            print 'Error: Failed to retrieve current list of conflicts for feature "%s" (%d, %s)' % (name, result.status, result.txt)
          else:
-            print 'Current configured feature conflicts:\n'
+            print 'Current configured feature conflicts:'
             val = results.outArgs('list')
             list = ''
             for key in val.keys():
                list += '%s,' % key
             print list[:-1]
-   if answer.lower() = 'y':
+   if answer.lower() == 'y':
       input = raw_input('Comma separated list of feature names this feature conflicts with: ')
       list = process_comma_sep_list(input)
       result = obj.ModifyConflicts('replace', list)
       if result.status != 0:
-         print 'Error: Failed to modify conflicts of feature "%s" (%d, %s)\n' % (name, result.status, result.txt)
+         print 'Error: Failed to modify conflicts of feature "%s" (%d, %s)' % (name, result.status, result.txt)
 
    if action == 'edit':
       answer = raw_input('Modify the features that feature "%s" depends on [Y/n] ?' % name)
@@ -141,22 +142,22 @@ def modify_feature(obj, name, action):
          answer = 'y'
          result = obj.GetDepends()
          if result.status != 0:
-            print 'Error: Failed to retrieve current list of dependencies for feature "%s" (%d, %s)\n' % (name, result.status, result.txt)
+            print 'Error: Failed to retrieve current list of dependencies for feature "%s" (%d, %s)' % (name, result.status, result.txt)
          else:
-            print 'Current configured feature dependencies:\n'
+            print 'Current configured feature dependencies:'
             val = results.outArgs('list')
             list = ''
             for key in val.keys():
                list += '%s=%s,' % (key, params[key])
             print list[:-1]
-   if answer.lower() = 'y':
+   if answer.lower() == 'y':
       input = raw_input('Feature names this feature depends on (feature=priority,feature=priority,etc): ')
       for pair in input.split(','):
          param = pair.split('=')
          list[param[0].lstrip().rstrip()] = param[1].lstrip().rstrip()
       result = obj.ModifyDepends('replace', list)
       if result.status != 0:
-         print 'Error: Failed to modify depends of feature "%s" (%d, %s)\n' % (name, result.status, result.txt)
+         print 'Error: Failed to modify depends of feature "%s" (%d, %s)' % (name, result.status, result.txt)
 
    if action == 'edit':
       answer = raw_input('Modify the list of subsystems that feature "%s" uses [Y/n] ?' % name)
@@ -164,44 +165,43 @@ def modify_feature(obj, name, action):
          answer = 'y'
          result = obj.GetSubsys()
          if result.status != 0:
-            print 'Error: Failed to retrieve current list of subsystems for feature "%s" (%d, %s)\n' % (name, result.status, result.txt)
+            print 'Error: Failed to retrieve current list of subsystems for feature "%s" (%d, %s)' % (name, result.status, result.txt)
          else:
-            print 'Current configured subsystems:\n'
+            print 'Current configured subsystems:'
             val = results.outArgs('list')
             list = ''
             for key in val.keys():
                list += '%s,' % key
             print list[:-1]
-   if answer.lower() = 'y':
+   if answer.lower() == 'y':
       input = raw_input('Comma separated list of subsystems this feature uses): ')
       list = process_comma_sep_list(input)
       result = obj.ModifySubsys('replace', list)
       if result.status != 0:
-         print 'Error: Failed to modify subsystem list of feature "%s" (%d, %s)\n' % (name, result.status, result.txt)
+         print 'Error: Failed to modify subsystem list of feature "%s" (%d, %s)' % (name, result.status, result.txt)
 
 
 def add_param(store, name):
-   print 'Adding parameter "%s"\n' % name
+   print 'Adding parameter "%s"' % name
    answer = 'y'
    split = name.split('=')
    result = store.AddParam(split[0])
    if result.status != 0:
-      print 'Error: Failed to add parameter "%s" (%d, %s)\n' % (split[0], result.status, result.txt)
+      print 'Error: Failed to add parameter "%s" (%d, %s)' % (split[0], result.status, result.txt)
       return(None)
    else:
       obj = result.outArgs['obj']
       if split[1] != '':
          result = obj.SetValue(split[1])
          if result.status != 0:
-            print 'Error: Failed to set value of parameter "%s" to "%s" (%d, %s)\n' % (split[0], split[1], result.status, result.txt)
+            print 'Error: Failed to set value of parameter "%s" to "%s" (%d, %s)' % (split[0], split[1], result.status, result.txt)
       return(obj)
-      
 
 
 def get_param(store, name):
    result = store.GetParam(name)
    if result.status != 0:
-      print 'Error: Failed to find parameter "%s" (%d, %s)\n' % (name, result.status, restult.txt)
+      print 'Error: Failed to find parameter "%s" (%d, %s)' % (name, result.status, restult.txt)
       return(None)
    else:
       return(result.outArgs['obj'])
@@ -210,22 +210,22 @@ def get_param(store, name):
 def modify_param(obj, name, action):
    # Get the specifics of the parameter
    answer = 'y'
-   print 'Modifying parameter "%s"\n' % name
+   print 'Modifying parameter "%s"' % name
    if action == 'edit':
       answer = raw_input('Modify the type for parameter "%s" [Y/n] ?' % name)
       if answer == '':
          answer = 'y'
          result = obj.GetType()
          if result.status != 0:
-            print 'Error: Failed to retrieve type for parameter "%s" (%d, %s)\n' % (name, result.status, result.txt)
+            print 'Error: Failed to retrieve type for parameter "%s" (%d, %s)' % (name, result.status, result.txt)
          else:
             val = results.outArgs('type')
-            print 'Current type: %s\n' % val
-   if answer.lower() = 'y':
+            print 'Current type: %s' % val
+   if answer.lower() == 'y':
       value = raw_input('Type: ')
       result = store.SetType(value)
       if result.status != 0:
-         print 'Error: Failed to modify type of parameter "%s" (%d, %s)\n' % (name, result.status, result.txt)
+         print 'Error: Failed to modify type of parameter "%s" (%d, %s)' % (name, result.status, result.txt)
    
    if action == 'edit':
       answer = raw_input('Modify the default value for parameter "%s" [Y/n] ?' % name)
@@ -233,15 +233,15 @@ def modify_param(obj, name, action):
          answer = 'y'
          result = obj.GetDefault()
          if result.status != 0:
-            print 'Error: Failed to retrieve default value for parameter "%s" (%d, %s)\n' % (name, result.status, result.txt)
+            print 'Error: Failed to retrieve default value for parameter "%s" (%d, %s)' % (name, result.status, result.txt)
          else:
             val = results.outArgs('default')
-            print 'Current default value: %s\n' % val
-   if answer.lower() = 'y':
+            print 'Current default value: %s' % val
+   if answer.lower() == 'y':
       value = raw_input('Default Value: ')
       result = store.SetDefault(value)
       if result.status != 0:
-         print 'Error: Failed to modify default value of parameter "%s" (%d, %s)\n' % (name, result.status, result.txt)
+         print 'Error: Failed to modify default value of parameter "%s" (%d, %s)' % (name, result.status, result.txt)
 
    if action == 'edit':
       answer = raw_input('Modify the description for parameter "%s" [Y/n] ?' % name)
@@ -249,15 +249,15 @@ def modify_param(obj, name, action):
          answer = 'y'
          result = obj.GetDescription()
          if result.status != 0:
-            print 'Error: Failed to retrieve description for parameter "%s" (%d, %s)\n' % (name, result.status, result.txt)
+            print 'Error: Failed to retrieve description for parameter "%s" (%d, %s)' % (name, result.status, result.txt)
          else:
             val = results.outArgs('description')
-            print 'Current description: %s\n' % val
-   if answer.lower() = 'y':
+            print 'Current description: %s' % val
+   if answer.lower() == 'y':
       value = raw_input('Description: ')
       result = store.SetDescription(value)
       if result.status != 0:
-         print 'Error: Failed to modify description of "%s" for parameter "%s" (%d, %s)\n' % (value, name, result.status, result.txt)
+         print 'Error: Failed to modify description of "%s" for parameter "%s" (%d, %s)' % (value, name, result.status, result.txt)
 
    if action == 'edit':
       answer = raw_input('Modify the DefaultMustChange for parameter "%s" [Y/n] ?' % name)
@@ -265,18 +265,18 @@ def modify_param(obj, name, action):
          answer = 'y'
          result = obj.GetDefaultMustChange()
          if result.status != 0:
-            print 'Error: Failed to retrieve DefaultMustChange for parameter "%s" (%d, %s)\n' % (name, result.status, result.txt)
+            print 'Error: Failed to retrieve DefaultMustChange for parameter "%s" (%d, %s)' % (name, result.status, result.txt)
          else:
             val = results.outArgs('mustChange')
-            print 'Current DefaultMustChange: %s\n' % val
-   if answer.lower() = 'y':
+            print 'Current DefaultMustChange: %s' % val
+   if answer.lower() == 'y':
       value = raw_input('Should this parameter require customization when used [Y/n]? ')
       if value.lower() == 'n':
          result = store.SetDefaultMustChange(False)
       else:
          result = store.SetDefaultMustChange(True)
       if result.status != 0:
-         print 'Error: Failed to modify DefaultMustChange of parameter "%s" (%d, %s)\n' % (name, result.status, result.txt)
+         print 'Error: Failed to modify DefaultMustChange of parameter "%s" (%d, %s)' % (name, result.status, result.txt)
 
    if action == 'edit':
       answer = raw_input('Modify the expert level for parameter "%s" [Y/n] ?' % name)
@@ -284,17 +284,17 @@ def modify_param(obj, name, action):
          answer = 'y'
          result = obj.GetVisibilityLevel()
          if result.status != 0:
-            print 'Error: Failed to retrieve expert level for parameter "%s" (%d, %s)\n' % (name, result.status, result.txt)
+            print 'Error: Failed to retrieve expert level for parameter "%s" (%d, %s)' % (name, result.status, result.txt)
          else:
             val = results.outArgs('level')
-            print 'Current expert level: %s\n' % val
-   if answer.lower() = 'y':
+            print 'Current expert level: %s' % val
+   if answer.lower() == 'y':
       value = raw_input('Expert level [0]: ')
       if value == '':
          value = 0
       result = store.SetVisibilityLevel(value)
       if result.status != 0:
-         print 'Error: Failed to modify expert level of parameter "%s" (%d, %s)\n' % (name, result.status, result.txt)
+         print 'Error: Failed to modify expert level of parameter "%s" (%d, %s)' % (name, result.status, result.txt)
 
    if action == 'edit':
       answer = raw_input('Modify whether changes to parameter "%s" forces a restart [Y/n] ?' % name)
@@ -302,18 +302,18 @@ def modify_param(obj, name, action):
          answer = 'y'
          result = obj.GetRequiresRestart()
          if result.status != 0:
-            print 'Error: Failed to retrieve requires restart for parameter "%s" (%d, %s)\n' % (name, result.status, result.txt)
+            print 'Error: Failed to retrieve requires restart for parameter "%s" (%d, %s)' % (name, result.status, result.txt)
          else:
             val = results.outArgs('needsRestart')
-            print 'Current requires restart: %s\n' % val
-   if answer.lower() = 'y':
+            print 'Current requires restart: %s' % val
+   if answer.lower() == 'y':
       value = raw_input('Restart condor when this parameter is changed [y/N]? ')
       if value.lower() == 'y':
          result = store.SetRequiresRestart(True)
       else:
          result = store.SetRequiresRestart(False)
       if result.status != 0:
-         print 'Error: Failed to modify RequiresRestart of parameter "%s" (%d, %s)\n' % (name, result.status, result.txt)
+         print 'Error: Failed to modify RequiresRestart of parameter "%s" (%d, %s)' % (name, result.status, result.txt)
 
    if action == 'edit':
       answer = raw_input('Modify parameter dependencies for parameter "%s" [Y/n] ?' % name)
@@ -321,20 +321,20 @@ def modify_param(obj, name, action):
          answer = 'y'
          result = obj.GetDepends()
          if result.status != 0:
-            print 'Error: Failed to retrieve parameter dependencies for parameter "%s" (%d, %s)\n' % (name, result.status, result.txt)
+            print 'Error: Failed to retrieve parameter dependencies for parameter "%s" (%d, %s)' % (name, result.status, result.txt)
          else:
-            print 'Current parameter dependencies:\n'
+            print 'Current parameter dependencies:'
             val = results.outArgs('depends')
             list = ''
             for key in val.keys():
                list += '%s=%s,' % (key, params[key])
             print list[:-1]
-   if answer.lower() = 'y':
+   if answer.lower() == 'y':
       value = raw_input('Other parameter names this parameter depends on (param=priority,param=priority): ')
       list = process_comma_sep_list(value)
       result = store.ModifyDepends('replace', list)
       if result.status != 0:
-         print 'Error: Failed to modify depenecies of parameter "%s" (%d, %s)\n' % (name, result.status, result.txt)
+         print 'Error: Failed to modify depenecies of parameter "%s" (%d, %s)' % (name, result.status, result.txt)
 
    if action == 'edit':
       answer = raw_input('Modify parameter conflicts for parameter "%s" [Y/n] ?' % name)
@@ -342,28 +342,28 @@ def modify_param(obj, name, action):
          answer = 'y'
          result = obj.GetConflicts()
          if result.status != 0:
-            print 'Error: Failed to retrieve parameter conflicts for parameter "%s" (%d, %s)\n' % (name, result.status, result.txt)
+            print 'Error: Failed to retrieve parameter conflicts for parameter "%s" (%d, %s)' % (name, result.status, result.txt)
          else:
-            print 'Current parameter conflicts:\n'
+            print 'Current parameter conflicts:'
             val = results.outArgs('conflicts')
             list = ''
             for key in val.keys():
                list += '%s,' % key
             print list[:-1]
-   if answer.lower() = 'y':
+   if answer.lower() == 'y':
       value = raw_input('Comma separated list of other parameter names this parameter conflicts with: ')
       list = process_comma_sep_list(value)
       result = store.ModifyConflicts('replace', list)
       if result.status != 0:
-         print 'Error: Failed to modify conflicts of parameter "%s" (%d, %s)\n' % (name, result.status, result.txt)
+         print 'Error: Failed to modify conflicts of parameter "%s" (%d, %s)' % (name, result.status, result.txt)
 
 
 def add_group(store, name):
-   print 'Adding Group "%s"\n' % name
+   print 'Adding Group "%s"' % name
 
    result = store.AddExplicitGroup(name)
    if result.status != 0:
-      print 'Error: Failed to add group "%s" (%d, %s)\n' % (name, result.status, result.txt)
+      print 'Error: Failed to add group "%s" (%d, %s)' % (name, result.status, result.txt)
       return(None)
    return(result.outArgs['obj'])
 
@@ -371,34 +371,34 @@ def add_group(store, name):
 def get_group(store, name):
    result = store.GetGroup({'Name': name})
    if result.status != 0:
-      print 'Error: Failed to find group "%s" (%d, %s)\n' % (name, result.status, restult.txt)
+      print 'Error: Failed to find group "%s" (%d, %s)' % (name, result.status, restult.txt)
       return(None)
    else:
       return(result.outArgs['obj'])
 
 
 def modify_group(obj, name, action):
-   print 'Modifying group "%s"\n' % name
+   print 'Modifying group "%s"' % name
    if action == 'edit':
       answer = raw_input('Modify the node membership of group "%s" [Y/n] ?' % name)
       if answer == '':
          answer = 'y'
          result = obj.GetMembership()
          if result.status != 0:
-            print 'Error: Failed to retrieve current node membership for group "%s" (%d, %s)\n' % (name, result.status, result.txt)
+            print 'Error: Failed to retrieve current node membership for group "%s" (%d, %s)' % (name, result.status, result.txt)
          else:
-            print 'Current node membership:\n'
+            print 'Current node membership:'
             val = results.outArgs('list')
             list = ''
             for key in val.keys():
                list += '%s,' % key
             print list[:-1]
-   if answer.lower() = 'y':
+   if answer.lower() == 'y':
       input = raw_input('Names of nodes included in this group (comma separated): ')
       definition = process_comma_sep_list(input)
       result = obj.ModifyMembership('replace', definition, {})
       if result.status != 0:
-         print 'Error: Failed to modify node membership of group "%s" (%d, %s)\n' % (name, result.status, result.txt)
+         print 'Error: Failed to modify node membership of group "%s" (%d, %s)' % (name, result.status, result.txt)
 
 
 def modify_node(store, name, action):
@@ -409,218 +409,218 @@ def modify_node(store, name, action):
    elif action == 'edit':
       result = store.ModifyNode(name, pool)
    if result.status != 0:
-      print 'Error: Failed to add/modify node "%s" (%d, %s)\n' % (name, result.status, result.txt)
+      print 'Error: Failed to modify node "%s" (%d, %s)' % (name, result.status, result.txt)
 
 
 def list_feature_info(store, feature):
-   print 'Feature "%s":\n' % feature
+   print 'Feature "%s":' % feature
    result = store.GetFeature(feature)
    if result.status != 0:
-      print 'Error: Failed to retrive info for feature "%s" (%d, %s)\n' % (feature, result.status, result.txt)
+      print 'Error: Failed to retrive info for feature "%s" (%d, %s)' % (feature, result.status, result.txt)
    else:
       feat_obj = result.outArgs['obj']
 
       value = feat_obj.getIndex()
-      print 'Id: %s\n' % value
+      print 'Id: %s' % value
 
       result = feat_obj.GetName()
       if result.status != 0:
-         print 'Error: Failed to retrieve Feature Name (%d, %s)\n' % (result.status, result.txt)
+         print 'Error: Failed to retrieve Feature Name (%d, %s)' % (result.status, result.txt)
       else:
          value = result.outArgs['name']
-         print 'Name: %s\n' % value
+         print 'Name: %s' % value
 
       result = feat_obj.GetFeatures()
       if result.status != 0:
-         print 'Error: Failed to retrieve included Features (%d, %s)\n' % (result.status, result.txt)
+         print 'Error: Failed to retrieve included Features (%d, %s)' % (result.status, result.txt)
       else:
          value = result.outArgs['list']
-         print 'Included Features (featureId, priority):\n'
+         print 'Included Features (featureId, priority):'
          for key in value.keys():
-            print '%s, %s\n' % (key, value[key])
+            print '%s, %s' % (key, value[key])
 
       result = feat_obj.GetParams()
       if result.status != 0:
-         print 'Error: Failed to retrieve included Parameters (%d, %s)\n' % (result.status, result.txt)
+         print 'Error: Failed to retrieve included Parameters (%d, %s)' % (result.status, result.txt)
       else:
          value = result.outArgs['list']
-         print 'Included Parameters:\n'
+         print 'Included Parameters:'
          for key in value.keys():
-            print '%s = %s\n' % (key, value[key])
+            print '%s = %s' % (key, value[key])
 
       result = feat_obj.GetConflicts()
       if result.status != 0:
-         print 'Error: Failed to retrieve feature Conflicts (%d, %s)\n' % (result.status, result.txt)
+         print 'Error: Failed to retrieve feature Conflicts (%d, %s)' % (result.status, result.txt)
       else:
          value = result.outArgs['list']
-         print 'Conflicts (featureId, priority):\n'
+         print 'Conflicts (featureId, priority):'
          for key in value.keys():
-            print '%s, %s\n' % (key, value[key])
+            print '%s, %s' % (key, value[key])
 
       result = feat_obj.GetDepends()
       if result.status != 0:
-         print 'Error: Failed to retrieve feature Dependencies (%d, %s)\n' % (result.status, result.txt)
+         print 'Error: Failed to retrieve feature Dependencies (%d, %s)' % (result.status, result.txt)
       else:
          value = result.outArgs['list']
-         print 'Dependencies (featureId, priority):\n'
+         print 'Dependencies (featureId, priority):'
          for key in value.keys():
-            print '%s, %s\n' % (key, value[key])
+            print '%s, %s' % (key, value[key])
 
 
 def list_param_info(store, name):
-   print 'Parameter "%s":\n' % name
+   print 'Parameter "%s":' % name
    result = store.GetParam(name)
    if result.status != 0:
-      print 'Error: Failed to retrive info for parameter "%s" (%d, %s)\n' % (name, result.status, result.txt)
+      print 'Error: Failed to retrive info for parameter "%s" (%d, %s)' % (name, result.status, result.txt)
    else:
       param_obj = result.outArgs['obj']
 
       result = param_obj.GetName()
       if result.status != 0:
-         print 'Error: Failed to retrieve parameter\'s Name (%d, %s)\n' % (result.status, result.txt)
+         print 'Error: Failed to retrieve parameter\'s Name (%d, %s)' % (result.status, result.txt)
       else:
          value = result.outArgs['name']
-         print 'Name: %s\n' % value
+         print 'Name: %s' % value
 
       result = param_obj.GetType()
       if result.status != 0:
-         print 'Error: Failed to retrieve parameter\'s Type (%d, %s)\n' % (result.status, result.txt)
+         print 'Error: Failed to retrieve parameter\'s Type (%d, %s)' % (result.status, result.txt)
       else:
          value = result.outArgs['type']
-         print 'Type: %s\n' % value
+         print 'Type: %s' % value
 
       result = param_obj.GetValue()
       if result.status != 0:
-         print 'Error: Failed to retrieve parameter\'s Value (%d, %s)\n' % (result.status, result.txt)
+         print 'Error: Failed to retrieve parameter\'s Value (%d, %s)' % (result.status, result.txt)
       else:
          value = result.outArgs['value']
-         print 'Value: %s\n' % value
+         print 'Value: %s' % value
 
       result = param_obj.GetDefault()
       if result.status != 0:
-         print 'Error: Failed to retrieve parameter\'s Default value (%d, %s)\n' % (result.status, result.txt)
+         print 'Error: Failed to retrieve parameter\'s Default value (%d, %s)' % (result.status, result.txt)
       else:
          value = result.outArgs['default']
-         print 'Default: %s\n' % value
+         print 'Default: %s' % value
 
       result = param_obj.GetDescription()
       if result.status != 0:
-         print 'Error: Failed to retrieve parameter\'s Description (%d, %s)\n' % (result.status, result.txt)
+         print 'Error: Failed to retrieve parameter\'s Description (%d, %s)' % (result.status, result.txt)
       else:
          value = result.outArgs['description']
-         print 'Description: %s\n' % value
+         print 'Description: %s' % value
 
       result = param_obj.GetDefaultMustChange()
       if result.status != 0:
-         print 'Error: Failed to retrieve parameter\'s MustChange (%d, %s)\n' % (result.status, result.txt)
+         print 'Error: Failed to retrieve parameter\'s MustChange (%d, %s)' % (result.status, result.txt)
       else:
          value = result.outArgs['mustChange']
-         print 'MustChange: %s\n' % value
+         print 'MustChange: %s' % value
 
       result = param_obj.GetVisibilityLevel()
       if result.status != 0:
-         print 'Error: Failed to retrieve parameter\'s Visibility Level (%d, %s)\n' % (result.status, result.txt)
+         print 'Error: Failed to retrieve parameter\'s Visibility Level (%d, %s)' % (result.status, result.txt)
       else:
          value = result.outArgs['level']
-         print 'VisibilityLevel: %s\n' % value
+         print 'VisibilityLevel: %s' % value
 
       result = param_obj.GetRequiresRestart()
       if result.status != 0:
-         print 'Error: Failed to retrieve parameter\'s Requires Restart (%d, %s)\n' % (result.status, result.txt)
+         print 'Error: Failed to retrieve parameter\'s Requires Restart (%d, %s)' % (result.status, result.txt)
       else:
          value = result.outArgs['needsRestart']
-         print 'RequiresRestart: %s\n' % value
+         print 'RequiresRestart: %s' % value
 
       result = param_obj.GetDepends()
       if result.status != 0:
-         print 'Error: Failed to retrieve parameter\'s Dependencies (%d, %s)\n' % (result.status, result.txt)
+         print 'Error: Failed to retrieve parameter\'s Dependencies (%d, %s)' % (result.status, result.txt)
       else:
          value = result.outArgs['depends']
-         print 'Dependencies (featureId, priority):\n'
+         print 'Dependencies (featureId, priority):'
          for key in value.keys():
-            print '%s, %s\n' % (key, value[key])
+            print '%s, %s' % (key, value[key])
 
       result = param_obj.GetConflicts()
       if result.status != 0:
-         print 'Error: Failed to retrieve parameter\'s Conflicts (%d, %s)\n' % (result.status, result.txt)
+         print 'Error: Failed to retrieve parameter\'s Conflicts (%d, %s)' % (result.status, result.txt)
       else:
          value = result.outArgs['conflicts']
-         print 'Conflicts (featureId, priority):\n'
+         print 'Conflicts (featureId, priority):'
          for key in value.keys():
-            print '%s, %s\n' % (key, value[key])
+            print '%s, %s' % (key, value[key])
 
 
 def list_group_info(store, group):
-   print 'Group "%s":\n' % group
+   print 'Group "%s":' % group
    result = store.GetGroup({'Name':group})
    if result.status != 0:
-      print 'Error: Failed to retrive info for group "%s" (%d, %s)\n' % (group, result.status, result.txt)
+      print 'Error: Failed to retrive info for group "%s" (%d, %s)' % (group, result.status, result.txt)
    else:
       group_obj = result.outArgs['obj']
 
       value = group_obj.getIndex()
-      print 'Id: %s\n' % value
+      print 'Id: %s' % value
 
       result = feat_obj.GetName()
       if result.status != 0:
-         print 'Error: Failed to retrieve group name (%d, %s)\n' % (result.status, result.txt)
+         print 'Error: Failed to retrieve group name (%d, %s)' % (result.status, result.txt)
       else:
          value = result.outArgs['name']
-         print 'Name: %s\n' % value
+         print 'Name: %s' % value
 
       result = group_obj.GetMembership()
       if result.status != 0:
-         print 'Error: Failed to retrieve group membership (%d, %s)\n' % (result.status, result.txt)
+         print 'Error: Failed to retrieve group membership (%d, %s)' % (result.status, result.txt)
       else:
          value = result.outArgs['list']
-         print 'Members (hostname, priority):\n'
+         print 'Members (hostname, priority):'
          for key in value.keys():
-            print '%s, %s\n' % (key, value[key])
+            print '%s, %s' % (key, value[key])
 
       result = group_obj.GetFeatureSet()
       if result.status != 0:
-         print 'Error: Failed to retrieve group features (%d, %s)\n' % (result.status, result.txt)
+         print 'Error: Failed to retrieve group features (%d, %s)' % (result.status, result.txt)
       else:
          value = result.outArgs['features']
-         print 'Features (name, priority):\n'
+         print 'Features (name, priority):'
          for key in value.keys():
-            print '%s, %s\n' % (key, value[key])
+            print '%s, %s' % (key, value[key])
 
       result = group_obj.GetParams()
       if result.status != 0:
-         print 'Error: Failed to retrieve group parameters (%d, %s)\n' % (result.status, result.txt)
+         print 'Error: Failed to retrieve group parameters (%d, %s)' % (result.status, result.txt)
       else:
          value = result.outArgs['params']
-         print 'Parameters:\n'
+         print 'Parameters:'
          for key in value.keys():
-            print '%s = %s\n' % (key, value[key])
+            print '%s = %s' % (key, value[key])
 
 
 def list_node_info(store, name):
    print 'Name: %s' % name
    result = store.GetNode(name)
    if result.status != 0:
-      print 'Error: Failed to retrive info for node "%s" (%d, %s)\n' % (name, result.status, result.txt)
+      print 'Error: Failed to retrive info for node "%s" (%d, %s)' % (name, result.status, result.txt)
    else:
       node_obj = result.outArgs['obj']
 
       result = node_obj.GetPool()
       if result.status != 0:
-         print 'Error: Failed to retrieve pool (%d, %s)\n' % (result.status, result.txt)
+         print 'Error: Failed to retrieve pool (%d, %s)' % (result.status, result.txt)
       else:
          value = result.outArgs['pool']
          print 'Pool: %s' % value
 
       result = node_obj.GetLastCheckinTime()
       if result.status != 0:
-         print 'Error: Failed to retrieve LastCheckinTime (%d, %s)\n' % (result.status, result.txt)
+         print 'Error: Failed to retrieve LastCheckinTime (%d, %s)' % (result.status, result.txt)
       else:
          value = result.outArgs['time']
          print 'Last Check-in Time: %d' % value
 
       result = node_obj.GetConfig()
       if result.status != 0:
-         print 'Error: Failed to retrieve configuration (%d, %s)\n' % (result.status, result.txt)
+         print 'Error: Failed to retrieve configuration (%d, %s)' % (result.status, result.txt)
       else:
          print 'Configuration:'
          value = result.outArgs['config']
@@ -633,6 +633,7 @@ def main(argv=None):
       argv = sys.argv
 
    broker_ip = ''
+   port = '5672'
    action = ''
    features = ''
    groups = ''
@@ -648,9 +649,9 @@ def main(argv=None):
    signal.signal(signal.SIGTERM, exit_signal_handler)
 
    long_opts = ['add', 'broker=', 'delete', 'edit', 'features=', 'groups=',
-                'help', 'list', 'nodes=', 'params=']
+                'help', 'list', 'nodes=', 'params=', 'port=']
    try:
-      opts, args = getopt.getopt(argv[1:], 'ab:def:g:hln:p:', long_opts)
+      opts, args = getopt.getopt(argv[1:], 'ab:def:g:hln:p:o:', long_opts)
    except getopt.GetoptError, error:
       print str(error)
       return(1)
@@ -658,19 +659,19 @@ def main(argv=None):
    for option, arg in opts:
       if option in ('-a', '--add'):
          if action != '':
-            print 'Only 1 action may be specified\n'
+            print 'Only 1 action may be specified'
             return(1)
          action = 'add'
       if option in ('-b', '--broker'):
          broker_ip = arg
       if option in ('-d', '--delete'):
          if action != '':
-            print 'Only 1 action may be specified\n'
+            print 'Only 1 action may be specified'
             return(1)
          action = 'delete'
       if option in ('-e', '--edit'):
          if action != '':
-            print 'Only 1 action may be specified\n'
+            print 'Only 1 action may be specified'
             return(1)
          action = 'edit'
       if option in ('-f', '--features'):
@@ -682,30 +683,32 @@ def main(argv=None):
          return(0)
       if option in ('-l', '--list'):
          if action != '':
-            print 'Only 1 action may be specified\n'
+            print 'Only 1 action may be specified'
             return(1)
          action = 'list'
       if option in ('-n', '--nodes'):
          nodes = arg
       if option in ('-p', '--params'):
          params = arg
+      if option in ('-o', '--port'):
+         port = arg
 
    if broker_ip == '':
-      print 'No broker specified.  Exiting\n'
+      print 'No broker specified.  Exiting'
       print_help(argv[0])
       return(0)
 
    session = Session()
    try:
-      broker = session.addBroker('amqp://%s' % broker_ip)
+      broker = session.addBroker('amqp://%s:%s' % (broker_ip, port))
    except:
-      print 'Unable to connect to broker "%s"\n' % broker_ip
+      print 'Unable to connect to broker "%s"' % broker_ip
       return(1)
 
    # Retreive the config store object
    config_store = session.getObjects(_class='store', _package='mrg.grid.config')
    if config_store == []:
-      print 'Unable to contact Configuration Store\n'
+      print 'Unable to contact Configuration Store'
    else:
       config_store = config_store[0]
 
@@ -719,7 +722,7 @@ def main(argv=None):
       store_nodes = []
       store_nodes = session.getObjects(_class='node', _package='mrg.grid.config')
       if store_nodes == []:
-         print 'There are no nodes configured in the store\n'
+         print 'There are no nodes configured in the store'
       else:
          for node in store_nodes:
             name = node.getIndex()
@@ -729,13 +732,13 @@ def main(argv=None):
       store_groups = []
       store_groups = session.getObjects(_class='group', _package='mrg.grid.config')
       if store_groups == []:
-         print 'There are no groups configured in the store\n'
+         print 'There are no groups configured in the store'
       else:
          for group in store_groups:
             id = group.getIndex()
             result = group.GetName()
             if result.status != 0:
-               print 'Error: Unable to retrieve group name for group id "%s"\n' % id
+               print 'Error: Unable to retrieve group name for group id "%s"' % id
             else:
                name = result.outArgs['name']
                list_group_info(config_store, name)
@@ -744,7 +747,7 @@ def main(argv=None):
       store_params = []
       store_params = session.getObjects(_class='parameter', _package='mrg.grid.config')
       if store_params == []:
-         print 'There are no parameters configured in the store\n'
+         print 'There are no parameters configured in the store'
       else:
          for param in store_params:
             id = param.getIndex()
@@ -754,13 +757,13 @@ def main(argv=None):
       store_feats = []
       store_feats = session.getObjects(_class='feature', _package='mrg.grid.config')
       if store_feats == []:
-         print 'There are no features configured in the store\n'
+         print 'There are no features configured in the store'
       else:
          for feat in store_feats:
             id = feat.getIndex()
             result = feat.GetFeatureName()
             if result.status != 0:
-               print 'Error: Unable to retrieve feature name for feature id "%s"\n' % id
+               print 'Error: Unable to retrieve feature name for feature id "%s"' % id
             else:
                name = result.outArgs['name']
                list_feature_info(config_store, name)
@@ -768,23 +771,23 @@ def main(argv=None):
       return(0)
 
    # First add all the params/nodes/features/etc the user entered on the
-   # commandline, then edit them if needed.  This is done to address any
+   # command line, then edit them if needed.  This is done to address any
    # potential issues with conflicts/depends/includes
 
    # Process the nodes
    for node in nodes.split(','):
       if action == 'add':
-         print 'Adding Node "%s"\n' % name
+         print 'Adding Node "%s"' % name
          modify_node(config_store, node, action)
       elif action == 'delete':
          result = config_store.RemoveNode(node)
          if result.status != 0:
-            print 'Error: Failed to remove node "%s" (%d, %s)\n' % (feat, result.status, result.text)
+            print 'Error: Failed to remove node "%s" (%d, %s)' % (feat, result.status, result.text)
             continue
       elif action == 'list':
          list_node_info(config_store, node)
       elif action == 'edit':
-         print 'Modifying Node "%s"\n' % name
+         print 'Modifying Node "%s"' % name
          modify_node(config_store, node, action)
 
    # Process the parameters
@@ -796,7 +799,7 @@ def main(argv=None):
       elif action == 'delete':
          result = config_store.RemoveParam(param)
          if result.status != 0:
-            print 'Error: Failed to remove parameter "%s" (%d, %s)\n' % (param, result.status, result.text)
+            print 'Error: Failed to remove parameter "%s" (%d, %s)' % (param, result.status, result.text)
       elif action == 'list':
          list_param_info(config_store, param)
       elif action == 'edit':
@@ -805,7 +808,7 @@ def main(argv=None):
          if obj != None:
             result = obj.SetValue(split[1])
             if result.status != 0:
-               print 'Error: Failed to modify value of parameter "%s" to "%s" (%d, %s)\n' % (split[0], split[1], result.status, result.text)
+               print 'Error: Failed to modify value of parameter "%s" to "%s" (%d, %s)' % (split[0], split[1], result.status, result.text)
             param_list[split[0]] = obj
 
    # Process the features
@@ -820,7 +823,7 @@ def main(argv=None):
             id = obj.getIndex()
             result = config_store.RemoveFeature(id)
             if result.status != 0:
-               print 'Error: Failed to remove feature "%s" (%d, %s)\n' % (feat, result.status, result.text)
+               print 'Error: Failed to remove feature "%s" (%d, %s)' % (feat, result.status, result.text)
       elif action == 'list':
          list_feature_info(config_store, feat)
       elif action == 'edit':
@@ -840,7 +843,7 @@ def main(argv=None):
             id = obj.getIndex()
             result = config_store.RemoveGroup(id)
             if result.status != 0:
-               print 'Error: Failed to remove group "%s" (%d, %s)\n' % (group, result.status, result.text)
+               print 'Error: Failed to remove group "%s" (%d, %s)' % (group, result.status, result.text)
       elif action == 'list':
          list_group_info(config_store, group)
       elif action == 'edit':

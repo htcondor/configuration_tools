@@ -16,11 +16,10 @@ Requires: facter >= 1.5.2-2
 %description
 The Condor Remote Configuration package provides a means to quickly and easily
 configure machines running Condor by providing sensible defaults for different
-features.  The condor nodes will need to be running puppet clients for this
+features.  The condor nodes will need to have puppet installed for this
 package to work.
 
-This package provides configuration files for clients that will need to
-be tailored depending on where the server package is installed.
+This package provides the tools needed for clients
 
 %if 0%{?rhel} != 4
 %package server
@@ -33,7 +32,7 @@ Requires: python >= 2.4
 %description server
 The Condor Remote Configuration package provides a means to quickly and easily
 configure machines running Condor by providing sensible defaults for different
-features.  The condor nodes will need to be running puppet clients for this
+features.  The condor nodes will need to have puppet installed for this
 package to work.
 
 This package provides tools and configuration files for the configuration
@@ -50,7 +49,7 @@ mkdir -p %{buildroot}/%_sysconfdir/puppet/modules
 mkdir -p %{buildroot}/%_sysconfdir/puppet/modules/condor/files/config
 %if 0%{?rhel} != 4
 cp -rf module/* %{buildroot}/%_sysconfdir/puppet/modules
-cp -f condor_configure_node %{buildroot}/%_sbindir
+cp -f condor_configure_pool %{buildroot}/%_sbindir
 cp -f condor_configure_store %{buildroot}/%_sbindir
 cp -f condor_node %{buildroot}/%_sbindir
 cp -f config/remote-configuration.conf %{buildroot}/%_sysconfdir
@@ -59,7 +58,7 @@ cp -f condor_config_eventd %{buildroot}/%_sbindir
 
 %files
 %defattr(-,root,root,-)
-%doc LICENSE-2.0.txt config/namespaceauth.conf config/puppet.conf.client
+%doc LICENSE-2.0.txt
 %defattr(0755,root,root,-)
 %_sbindir/condor_config_eventd
 
@@ -75,7 +74,7 @@ cp -f condor_config_eventd %{buildroot}/%_sbindir
 %dir %_sysconfdir/puppet/modules/condor/files/config
 %_sysconfdir/remote-configuration.conf
 %_sbindir/condor_configure_store
-%_sbindir/condor_configure_node
+%_sbindir/condor_configure_pool
 %_sbindir/condor_node
 %endif
 

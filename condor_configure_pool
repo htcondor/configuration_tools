@@ -29,23 +29,25 @@ def exit_signal_handler(signum, frame):
    sys.exit(0)
 
 def print_help(name, sess):
-   print 'usage: %s [-h|--help] -b <broker> -n <name> action [-f|--features feature[,feature,...]] [-p|--params param=1,param2=string,...] ' % os.path.basename(name)
+   print 'usage: %s [-h|--help] -b|--broker <broker> [-p|--port <port>] [-g|--group|-n|--node name] action [-f|--features feature[,feature,...]] [-p|--params param=1,param2=string,...] ' % os.path.basename(name)
    print '  <broker> - The ip/hostname of the broker used by the configuration store'
-   print '  <name> - The name of the group or node to configure'
+   print '  <port> - The port of the broker used by the configuration store'
+   print '  -g - The name of the group to configure'
+   print '  -n - The name of the specific node to configure'
    print '  -h - Print help'
    print '\naction:'
-   print '  -a|--add    - Add the feature(s) to the group'
-   print '  -d|--delete - Remove the feature(s) from the group'
+   print '  -a|--add    - Add the feature(s) to the group/node'
+   print '  -d|--delete - Remove the feature(s) from the group/node'
    print '  -l|--list   - List configurations.  If provided without a specific'
-   print '                group, prints the list of nodes being managed.  If'
-   print '                a group is provided, print the list of features'
-   print '                and parameters for the provided group.  If provided'
+   print '                name, prints the list of nodes being managed.  If'
+   print '                a name is provided, print the list of features'
+   print '                and parameters for the provided name.  If provided'
    print '                with one or more features or parameters in addition'
-   print '                to a group, then print the specific configurations'
-   print '                for those features and/or parameters for that group'
+   print '                to a name, then print the specific configurations'
+   print '                for those features and/or parameters for that name'
    print '\navailable features:'
    if sess != []:
-      features = session.getObjects(_class='feature', _package='mrg.grid.config')
+      features = sess.getObjects(_class='feature', _package='mrg.grid.config')
       if features != []:
          for feat in features:
             id = feat.getIndex()
@@ -60,7 +62,7 @@ def print_help(name, sess):
 def get_group(store, name):
    result = store.GetGroup({'Name': name})
    if result.status != 0:
-      print "Error: Unable to get node info from data store (%d, %s)" % (result.status, result.text)
+      print 'Error: Unable to get group info from data store (%d, %s)' % (result.status, result.text)
       return None
    else:
       return result.outArgs['obj']
@@ -78,7 +80,7 @@ def print_feature_info(store, feature_name):
       # Retrieve the parameter list
       result = feature_obj.GetParams()
       if result.status != 0:
-         print 'Error: Failed to retrieve feature parameters for feature "%" (%d, %s)' % (feature_name, result.status, result.text)
+         print 'Error: Failed to retrieve feature parameters for feature "%s" (%d, %s)' % (feature_name, result.status, result.text)
       else:
          params = result.outArgs['list']
          print 'Feature Parameters:'
@@ -88,7 +90,7 @@ def print_feature_info(store, feature_name):
       # Retrieve any features this feature includes upon
       result = feature_obj.GetFeatures()
       if result.status != 0:
-         print 'Error: Failed to retrieve included features for feature "%" (%d, %s)' % (feature_name, result.status, result.text)
+         print 'Error: Failed to retrieve included features for feature "%s" (%d, %s)' % (feature_name, result.status, result.text)
       else:
          inc_features = result.outArgs['list']
          print 'Included Features (name: priority):'
@@ -98,7 +100,7 @@ def print_feature_info(store, feature_name):
       # Retrieve any features this feature conflicts with
       result = feature_obj.GetConflicts()
       if result.status != 0:
-         print 'Error: Failed to retrieve feature conflicts for feature "%" (%d, %s)' % (feature_name, result.status, result.text)
+         print 'Error: Failed to retrieve feature conflicts for feature "%s" (%d, %s)' % (feature_name, result.status, result.text)
       else:
          conflicts = result.outArgs['list']
          print 'Conflicting Features:'
@@ -108,7 +110,7 @@ def print_feature_info(store, feature_name):
       # Retrieve any features this feature depends on
       result = feature_obj.GetDepends()
       if result.status != 0:
-         print 'Error: Failed to retrieve feature dependencies for feature "%" (%d, %s)' % (feature_name, result.status, result.text)
+         print 'Error: Failed to retrieve feature dependencies for feature "%s" (%d, %s)' % (feature_name, result.status, result.text)
       else:
          depends = result.outArgs['list']
          print 'Feature Depedencies (name: priority):'
@@ -118,7 +120,7 @@ def print_feature_info(store, feature_name):
 def configure_node_schedulers(params):
    response = 'y'
 
-   if raw_input('Modify which schedulers this node can submit to [y/N] ? ').lower() == 'y':
+   if raw_input('Modify which schedulers this group can submit to [y/N] ? ').lower() == 'y':
       def_sched = raw_input('Enter the name of the default scheduler: ')
       if def_sched != '':
          if raw_input('Is this a High Available Scheduler [y/N] ? ').lower() == 'y':
@@ -135,10 +137,10 @@ def configure_node_schedulers(params):
 def configure_qmf_broker(params):
    response = 'y'
 
-   response = raw_input('Change the broker information this node uses to communicate with the Management Console [y/N] ? ')
+   response = raw_input('Change the broker information this group uses to communicate with the Management Console [y/N] ? ')
    if response.lower() == 'y':
       # Remove previous configuration it if exists
-      value = raw_input('Enter the hostname of the AMQP broker this node will use to communicate with the Management Console: ')
+      value = raw_input('Enter the hostname of the AMQP broker this group will use to communicate with the Management Console: ')
       params['QMF_BROKER_HOST'] = value
       value = raw_input('Enter the port the AMQP broker listens on (Default: 5672): ')
       if value != '':
@@ -148,10 +150,12 @@ def main(argv=None):
    if argv is None:
       argv = sys.argv
 
-   node = ''
    action = ''
    features = ''
    broker_ip = ''
+   name = ''
+   node = ''
+   port = '5672'
    param_list = {}
    group_config = {}
    config_store = []
@@ -162,19 +166,15 @@ def main(argv=None):
    signal.signal(signal.SIGINT, exit_signal_handler)
    signal.signal(signal.SIGTERM, exit_signal_handler)
 
-   long_opts = ['add', 'broker=', 'delete', 'features=', 'help', 'list',
-                'name=', 'params=']
+   long_opts = ['add', 'broker=', 'delete', 'features=', 'group=', 'help',
+                'list', 'node=', 'params=', 'port=']
    try:
-      opts, args = getopt.getopt(argv[1:], 'ab:df:hln:p:', long_opts)
+      opts, args = getopt.getopt(argv[1:], 'ab:df:g:hln:p:o:', long_opts)
    except getopt.GetoptError, error:
       print str(error)
       return(1)
 
    for option, arg in opts:
-      if option in ('-h', '--help'):
-         need_print_help = True
-      if option in ('-n', '--name'):
-         name = arg
       if option in ('-a', '--add'):
          if action != '':
             print 'Only 1 action may be specified'
@@ -189,11 +189,25 @@ def main(argv=None):
          action = 'remove'
       if option in ('-f', '--features'):
          features = arg
+      if option in ('-g', '--group'):
+         if node != '':
+            print 'Can only configure 1 node or group at a time'
+            return(1)
+         name = arg
+      if option in ('-h', '--help'):
+         need_print_help = True
       if option in ('-l', '--list'):
          if action != '':
             print 'Only 1 action may be specified'
             return(1)
          action = 'list'
+      if option in ('-n', '--node'):
+         if name != '':
+            print 'Can only configure 1 node or group at a time'
+            return(1)
+         node = arg
+      if option in ('-o', '--port'):
+         port = arg
       if option in ('-p', '--params'):
          for param_pair in arg.split(','):
             param = param_pair.split('=')
@@ -209,9 +223,9 @@ def main(argv=None):
 
    session = Session()
    try:
-      broker = session.addBroker("amqp://%s" % broker_ip)
+      broker = session.addBroker('amqp://%s:%s' % (broker_ip, port))
    except:
-      print "Unable to connect to broker '%s'" % broker_ip
+      print 'Unable to connect to broker "%s"' % broker_ip
       return(1)
 
    # Retreive the config store object
@@ -227,6 +241,21 @@ def main(argv=None):
 
    if config_store == []:
       return(1)
+
+   # If configuring a single node, grab that node's identity group and
+   # act upon that
+   if node != '':
+      result = config_store.GetNode(node)
+      if result.status != 0:
+         print 'Error: Unable to get node "%s" from data store (%d, %s)' % (node, result.status, result.text)
+         return(1)
+      else:
+         obj = result.outArgs['obj']
+         result = obj.GetIdentityGroup()
+         if result.status != 0:
+            print 'Error: Unable to the identity group for node "%s" (%d, %s)' % (node, result.status, result.text)
+         else:
+            name = result.outArgs['name']
 
    # Perform list opertions
    if action == 'list':
@@ -283,7 +312,7 @@ def main(argv=None):
       return(0)
 
    if name == '':
-      print 'No name name supplied.  Exiting'
+      print 'No name supplied.  Exiting'
       print_help(argv[0], session)
    elif action == '':
       print 'No action specified.  Exiting'
@@ -296,7 +325,7 @@ def main(argv=None):
       result = config_store.GetGroup({'Name': name})
       if result.status != 0:
          # This group doesn't exist
-         print "Error: Failed to retrieve group '%s'.  Store returned %d: %s" % (name, result.status, result.text)
+         print 'Error: Failed to retrieve group "%s".  Store returned %d: %s' % (name, result.status, result.text)
          return(1)
       group_obj = result.outArgs['obj']
 

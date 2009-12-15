@@ -24,7 +24,7 @@ SOURCES/${SOURCE}:
 	rm -rf ${DIR}
 	mkdir ${DIR}
 	mkdir ${DIR}/config
-	cp -f condor_configure_node ${DIR}
+	cp -f condor_configure_pool ${DIR}
 	cp -f condor_configure_store ${DIR}
 	cp -f condor_config_eventd ${DIR}
 	cp -f condor_node ${DIR}

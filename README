@@ -3,20 +3,17 @@ must be added to DNS with the name puppet.  It must be pointing to the
 machine that has the condor-remote-configuration-server installed.
 
 Client Configuration:
-To configure the remote configuration feature on a condor node, install the
-condor-remote-configuration package.  Next, copy the puppet.conf.client to
-/etc/puppet by executing:
+To configure the remote configuration feature on a condor node, first
+install the condor-remote-configuration package.  Next, configure the
+/etc/condor/remote-configuration.conf file and change the qmf_broker
+to point to the broker that will be used for remote-configuration
 
-cp -f /usr/share/doc/condor-remote-configuration-1.0/puppet.conf.client /etc/puppet/puppet.conf
+Then add the following lines to condor_config.local:
+QMF_CONFIG_EVENTD = /usr/sbin/condor_config_eventd
+DAEMON_LIST = $(DAEMON_LIST), QMF_CONFIG_EVENTD
 
-Then copy the namespaceauth.conf to /etc/puppet by executing:
+and restart condor.
 
-cp -f /usr/share/doc/condor-remote-configuration-1.0/namespaceauth.conf /etc/puppet
-
-Change the "allow <puppetmaster.fqdn>" entry in the namespaceauth.conf file
-and the replace "<puppetmaster.fqdn>" with the Fully Qualified Doman Name of
-the machine that has the condor-remote-configuration-server package installed.
-There should only be one system with this package installed in a cluster.
 
 Server Configuration:
 To configure the remote configuration feature on the configuration server,

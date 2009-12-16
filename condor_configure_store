@@ -185,7 +185,7 @@ def add_param(store, name):
       return(None)
    else:
       obj = result.outArgs['obj']
-      if split[1] != '':
+      if len(split) > 1:
          result = obj.SetValue(split[1])
          if result.status != 0:
             print 'Error: Failed to set value of parameter "%s" to "%s" (%d, %s)' % (split[0], split[1], result.status, result.txt)
@@ -216,7 +216,7 @@ def modify_param(obj, name, action):
             print 'Current type: %s' % val
    if answer.lower() == 'y':
       value = raw_input('Type: ')
-      result = store.SetType(value)
+      result = obj.SetType(value)
       if result.status != 0:
          print 'Error: Failed to modify type of parameter "%s" (%d, %s)' % (name, result.status, result.txt)
    
@@ -231,7 +231,7 @@ def modify_param(obj, name, action):
             print 'Current default value: %s' % val
    if answer.lower() == 'y':
       value = raw_input('Default Value: ')
-      result = store.SetDefault(value)
+      result = obj.SetDefault(value)
       if result.status != 0:
          print 'Error: Failed to modify default value of parameter "%s" (%d, %s)' % (name, result.status, result.txt)
 
@@ -246,7 +246,7 @@ def modify_param(obj, name, action):
             print 'Current description: %s' % val
    if answer.lower() == 'y':
       value = raw_input('Description: ')
-      result = store.SetDescription(value)
+      result = obj.SetDescription(value)
       if result.status != 0:
          print 'Error: Failed to modify description of "%s" for parameter "%s" (%d, %s)' % (value, name, result.status, result.txt)
 
@@ -262,9 +262,9 @@ def modify_param(obj, name, action):
    if answer.lower() == 'y':
       value = raw_input('Should this parameter require customization when used [Y/n]? ')
       if value.lower() == 'n':
-         result = store.SetDefaultMustChange(False)
+         result = obj.SetDefaultMustChange(False)
       else:
-         result = store.SetDefaultMustChange(True)
+         result = obj.SetDefaultMustChange(True)
       if result.status != 0:
          print 'Error: Failed to modify DefaultMustChange of parameter "%s" (%d, %s)' % (name, result.status, result.txt)
 
@@ -281,7 +281,7 @@ def modify_param(obj, name, action):
       value = raw_input('Expert level [0]: ')
       if value == '':
          value = 0
-      result = store.SetVisibilityLevel(value)
+      result = obj.SetVisibilityLevel(value)
       if result.status != 0:
          print 'Error: Failed to modify expert level of parameter "%s" (%d, %s)' % (name, result.status, result.txt)
 
@@ -297,9 +297,9 @@ def modify_param(obj, name, action):
    if answer.lower() == 'y':
       value = raw_input('Restart condor when this parameter is changed [y/N]? ')
       if value.lower() == 'y':
-         result = store.SetRequiresRestart(True)
+         result = obj.SetRequiresRestart(True)
       else:
-         result = store.SetRequiresRestart(False)
+         result = obj.SetRequiresRestart(False)
       if result.status != 0:
          print 'Error: Failed to modify RequiresRestart of parameter "%s" (%d, %s)' % (name, result.status, result.txt)
 
@@ -319,7 +319,7 @@ def modify_param(obj, name, action):
    if answer.lower() == 'y':
       value = raw_input('Other parameter names this parameter depends on (param=priority,param=priority): ')
       list = process_comma_sep_list(value)
-      result = store.ModifyDepends('replace', list)
+      result = obj.ModifyDepends('replace', list)
       if result.status != 0:
          print 'Error: Failed to modify depenecies of parameter "%s" (%d, %s)' % (name, result.status, result.txt)
 
@@ -339,7 +339,7 @@ def modify_param(obj, name, action):
    if answer.lower() == 'y':
       value = raw_input('Comma separated list of other parameter names this parameter conflicts with: ')
       list = process_comma_sep_list(value)
-      result = store.ModifyConflicts('replace', list)
+      result = obj.ModifyConflicts('replace', list)
       if result.status != 0:
          print 'Error: Failed to modify conflicts of parameter "%s" (%d, %s)' % (name, result.status, result.txt)
 
@@ -409,15 +409,34 @@ def modify_group(obj, name, action):
                   print 'Error: Failed to remove node "%s" to group "%s" (%d, %s)' % (node, name, result.status, result.txt)
 
 
-def modify_node(store, name, action):
-   pool = raw_input('Pool: ')
+def add_node(store, name):
+   print 'Adding Node "%s"' % name
 
-   if action == 'add':
-      result = store.AddNode(name, pool)
-   elif action == 'edit':
-      result = store.ModifyNode(name, pool)
+   result = store.AddNode(name)
    if result.status != 0:
-      print 'Error: Failed to modify node "%s" (%d, %s)' % (name, result.status, result.txt)
+      print 'Error: Failed to add node "%s" (%d, %s)' % (name, result.status, result.txt)
+      return(None)
+   return(result.outArgs['obj'])
+
+
+def modify_node(obj, name, action):
+   # Get the specifics of the node
+   answer = 'y'
+   print 'Modifying node "%s"' % name
+   if action == 'edit':
+      answer = raw_input('Modify the pool node "%s" belongs to [y/N] ?' % name)
+      if answer.lower() == 'y':
+         result = obj.GetPool()
+         if result.status != 0:
+            print 'Error: Failed to retrieve the pool for node "%s" (%d, %s)' % (name, result.status, result.txt)
+         else:
+            val = results.outArgs('pool')
+            print 'Current pool: %s' % val
+   if answer.lower() == 'y':
+      value = raw_input('Pool: ')
+      result = obj.SetPool(value)
+      if result.status != 0:
+         print 'Error: Failed to set pool for node "%s" to "%s" (%d, %s)' % (name, value, result.status, result.txt)
 
 
 def list_feature_info(store, feature):
@@ -656,10 +675,11 @@ def main(argv=None):
    groups = ''
    nodes = ''
    params = ''
-   group_list = ''
    config_store = []
    feat_list = {}
-   parm_list = {}
+   param_list = {}
+   group_list = {}
+   node_list = {}
 
    # Set signal handlers
    signal.signal(signal.SIGINT, exit_signal_handler)
@@ -723,7 +743,7 @@ def main(argv=None):
       return(1)
 
    # Retreive the config store object
-   config_store = session.getObjects(_class='store', _package='mrg.grid.config')
+   config_store = session.getObjects(_class='Store', _package='mrg.grid.config')
    if config_store == []:
       print 'Unable to contact Configuration Store'
    else:
@@ -737,7 +757,7 @@ def main(argv=None):
    if action == 'list' and features == '' and params == '':
       # List all nodes
       store_nodes = []
-      store_nodes = session.getObjects(_class='node', _package='mrg.grid.config')
+      store_nodes = session.getObjects(_class='Node', _package='mrg.grid.config')
       if store_nodes == []:
          print 'There are no nodes configured in the store'
       else:
@@ -747,7 +767,7 @@ def main(argv=None):
 
       # List all groups
       store_groups = []
-      store_groups = session.getObjects(_class='group', _package='mrg.grid.config')
+      store_groups = session.getObjects(_class='Group', _package='mrg.grid.config')
       if store_groups == []:
          print 'There are no groups configured in the store'
       else:
@@ -762,7 +782,7 @@ def main(argv=None):
 
       # List all parameters
       store_params = []
-      store_params = session.getObjects(_class='parameter', _package='mrg.grid.config')
+      store_params = session.getObjects(_class='Parameter', _package='mrg.grid.config')
       if store_params == []:
          print 'There are no parameters configured in the store'
       else:
@@ -772,7 +792,7 @@ def main(argv=None):
 
       # List all features
       store_feats = []
-      store_feats = session.getObjects(_class='feature', _package='mrg.grid.config')
+      store_feats = session.getObjects(_class='Feature', _package='mrg.grid.config')
       if store_feats == []:
          print 'There are no features configured in the store'
       else:
@@ -792,81 +812,88 @@ def main(argv=None):
    # potential issues with conflicts/depends/includes
 
    # Process the nodes
-   for node in nodes.split(','):
-      if action == 'add':
-         print 'Adding Node "%s"' % name
-         modify_node(config_store, node, action)
-      elif action == 'delete':
-         result = config_store.RemoveNode(node)
-         if result.status != 0:
-            print 'Error: Failed to remove node "%s" (%d, %s)' % (feat, result.status, result.text)
-            continue
-      elif action == 'list':
-         list_node_info(config_store, node)
-      elif action == 'edit':
-         print 'Modifying Node "%s"' % name
-         modify_node(config_store, node, action)
+   if nodes != '':
+      for node in nodes.split(','):
+         if action == 'add':
+            obj = add_node(config_store, node)
+            if obj != None:
+              node_list[node] = obj
+         elif action == 'delete':
+            result = config_store.RemoveNode(node)
+            if result.status != 0:
+               print 'Error: Failed to remove node "%s" (%d, %s)' % (feat, result.status, result.text)
+               continue
+         elif action == 'list':
+            list_node_info(config_store, node)
+         elif action == 'edit':
+            obj = get_node(config_store, node)
+            if obj != None:
+               node_list[node] = obj
 
    # Process the parameters
-   for param in params.split(','):
-      if action == 'add':
-         obj = add_param(config_store, param)
-         if obj != None:
-            param_list[param] = obj
-      elif action == 'delete':
-         result = config_store.RemoveParam(param)
-         if result.status != 0:
-            print 'Error: Failed to remove parameter "%s" (%d, %s)' % (param, result.status, result.text)
-      elif action == 'list':
-         list_param_info(config_store, param)
-      elif action == 'edit':
-         split = param.split('=')
-         obj = get_param(config_store, split[0])
-         if obj != None:
-            result = obj.SetValue(split[1])
+   if params != '':
+      for param in params.split(','):
+         if action == 'add':
+            print config_store
+            obj = add_param(config_store, param)
+            if obj != None:
+               param_list[param] = obj
+         elif action == 'delete':
+            result = config_store.RemoveParam(param)
             if result.status != 0:
-               print 'Error: Failed to modify value of parameter "%s" to "%s" (%d, %s)' % (split[0], split[1], result.status, result.text)
-            param_list[split[0]] = obj
+               print 'Error: Failed to remove parameter "%s" (%d, %s)' % (param, result.status, result.text)
+         elif action == 'list':
+            list_param_info(config_store, param)
+         elif action == 'edit':
+            split = param.split('=')
+            obj = get_param(config_store, split[0])
+            if obj != None:
+               result = obj.SetValue(split[1])
+               if result.status != 0:
+                  print 'Error: Failed to modify value of parameter "%s" to "%s" (%d, %s)' % (split[0], split[1], result.status, result.text)
+               param_list[split[0]] = obj
 
    # Process the features
-   for feat in features.split(','):
-      if action == 'add':
-         obj = add_feature(config_store, feat)
-         if obj != None:
-            feat_list[feat] = obj
-      elif action == 'delete':
-         obj = get_feature(config_store, feat)
-         if obj != None:
-            id = obj.getIndex()
-            result = config_store.RemoveFeature(id)
-            if result.status != 0:
-               print 'Error: Failed to remove feature "%s" (%d, %s)' % (feat, result.status, result.text)
-      elif action == 'list':
-         list_feature_info(config_store, feat)
-      elif action == 'edit':
-         obj = get_feature(config_store, feat)
-         if obj != None:
-            feat_list[feat] = obj
+   if features != '':
+      for feat in features.split(','):
+         if action == 'add':
+            obj = add_feature(config_store, feat)
+            if obj != None:
+               feat_list[feat] = obj
+         elif action == 'delete':
+            obj = get_feature(config_store, feat)
+            if obj != None:
+               id = obj.getIndex()
+               result = config_store.RemoveFeature(id)
+               if result.status != 0:
+                  print 'Error: Failed to remove feature "%s" (%d, %s)' % (feat, result.status, result.text)
+         elif action == 'list':
+            list_feature_info(config_store, feat)
+         elif action == 'edit':
+            obj = get_feature(config_store, feat)
+            if obj != None:
+               feat_list[feat] = obj
 
    # Process the groups
-   for group in groups.split(','):
-      if action == 'add':
-         obj = add_group(config_store, group)
-         if obj != None:
-            group_list[group] = obj
-      elif action == 'delete':
-         obj = get_group(config_store, group)
-         if obj != None:
-            id = obj.getIndex()
-            result = config_store.RemoveGroup(id)
-            if result.status != 0:
-               print 'Error: Failed to remove group "%s" (%d, %s)' % (group, result.status, result.text)
-      elif action == 'list':
-         list_group_info(config_store, group)
-      elif action == 'edit':
-         obj = get_group(config_store, group)
-         if obj != None:
-            group_list[group] = obj
+   if groups != '':
+      for group in groups.split(','):
+         if action == 'add':
+            obj = add_group(config_store, group)
+            if obj != None:
+               group_list[group] = obj
+         elif action == 'delete':
+            obj = get_group(config_store, group)
+            if obj != None:
+               id = obj.getIndex()
+               result = config_store.RemoveGroup(id)
+               if result.status != 0:
+                  print 'Error: Failed to remove group "%s" (%d, %s)' % (group, result.status, result.text)
+         elif action == 'list':
+            list_group_info(config_store, group)
+         elif action == 'edit':
+            obj = get_group(config_store, group)
+            if obj != None:
+               group_list[group] = obj
 
    # Now modify the params/features/etc
 
@@ -876,11 +903,15 @@ def main(argv=None):
 
    # Modify the features, if needed
    for feat in feat_list.keys():
-      modify_feature(feat_list[param], feat, action)
+      modify_feature(feat_list[feat], feat, action)
+
+   # Modify the nodes, if needed
+   for node in node_list.keys():
+      modify_node(node_list[node], node, action)
 
    # Modify the groups, if needed
    for group in group_list.keys():
-      modify_group(group_list[param], group, action)
+      modify_group(group_list[group], group, action)
 
 if __name__ == '__main__':
     sys.exit(main())

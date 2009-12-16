@@ -42,7 +42,7 @@ def main(argv=None):
       broker_ip = 'localhost'
    else:
       parser.readfp(open(config))
-      broker_ip - parser.get('External Nodes', 'qmf_broker')
+      broker_ip = parser.get('External Nodes', 'qmf_broker')
 
    session = Session()
    try:

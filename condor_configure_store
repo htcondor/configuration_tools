@@ -451,7 +451,7 @@ def modify_node(obj, name, action):
 def list_feature_info(sess, store, feature):
    print 'Feature "%s":' % feature
    feat_obj = get_feature(sess, store, feature)
-   if feat_obj != None and feat_obj != '':
+   if feat_obj != None and feat_obj != []:
       value = feat_obj.getIndex()
       print 'Id: %s' % value
 
@@ -502,7 +502,7 @@ def list_feature_info(sess, store, feature):
 def list_param_info(sess, store, name):
    print 'Parameter "%s":' % name
    param_obj = get_param(sess, store, feature)
-   if param_obj != None and param_obj != '':
+   if param_obj != None and param_obj != []:
       result = param_obj.GetName()
       if result.status != 0:
          print 'Error: Failed to retrieve parameter\'s Name (%d, %s)' % (result.status, result.txt)
@@ -581,7 +581,7 @@ def list_param_info(sess, store, name):
 def list_group_info(sess, store, group):
    print 'Group "%s":' % group
    group_obj = get_group(sess, store, feature)
-   if group_obj != None and group_obj != '':
+   if group_obj != None and group_obj != []:
       value = group_obj.getIndex()
       print 'Id: %s' % value
 
@@ -623,7 +623,7 @@ def list_group_info(sess, store, group):
 def list_node_info(sess, store, name):
    print 'Name: %s' % name
    node_obj = get_node(sess, store, feature)
-   if node_obj != None and node_obj != '':
+   if node_obj != None and node_obj != []:
       result = node_obj.GetPool()
       if result.status != 0:
          print 'Error: Failed to retrieve pool (%d, %s)' % (result.status, result.txt)
@@ -809,7 +809,7 @@ def main(argv=None):
       for node in nodes.split(','):
          if action == 'add':
             obj = add_node(session, config_store, node)
-            if obj != None:
+            if obj != None and obj != []:
               node_list[node] = obj
          elif action == 'delete':
             result = config_store.RemoveNode(node)
@@ -820,16 +820,15 @@ def main(argv=None):
             list_node_info(session, config_store, node)
          elif action == 'edit':
             obj = get_node(session, config_store, node)
-            if obj != None and obj != '':
+            if obj != None and obj != []:
                node_list[node] = obj
 
    # Process the parameters
    if params != '':
       for param in params.split(','):
          if action == 'add':
-            print config_store
             obj = add_param(session, config_store, param)
-            if obj != None:
+            if obj != None and obj != []:
                param_list[param] = obj
          elif action == 'delete':
             result = config_store.RemoveParam(param)
@@ -840,7 +839,7 @@ def main(argv=None):
          elif action == 'edit':
             split = param.split('=')
             obj = get_param(session, config_store, split[0])
-            if obj != None and obj != '':
+            if obj != None and obj != []:
                result = obj.SetValue(split[1])
                if result.status != 0:
                   print 'Error: Failed to modify value of parameter "%s" to "%s" (%d, %s)' % (split[0], split[1], result.status, result.text)
@@ -851,11 +850,11 @@ def main(argv=None):
       for feat in features.split(','):
          if action == 'add':
             obj = add_feature(session, config_store, feat)
-            if obj != None:
+            if obj != None and obj != []:
                feat_list[feat] = obj
          elif action == 'delete':
             obj = get_feature(session, config_store, feat)
-            if obj != None and obj != '':
+            if obj != None and obj != []:
                id = obj.getIndex()
                result = config_store.RemoveFeature(id)
                if result.status != 0:
@@ -864,7 +863,7 @@ def main(argv=None):
             list_feature_info(session, config_store, feat)
          elif action == 'edit':
             obj = get_feature(session, config_store, feat)
-            if obj != None and obj != '':
+            if obj != None and obj != []:
                feat_list[feat] = obj
 
    # Process the groups
@@ -872,11 +871,11 @@ def main(argv=None):
       for group in groups.split(','):
          if action == 'add':
             obj = add_group(session, config_store, group)
-            if obj != None:
+            if obj != None and obj != []:
                group_list[group] = obj
          elif action == 'delete':
             obj = get_group(session, config_store, group)
-            if obj != None and obj != '':
+            if obj != None and obj != []:
                id = obj.getIndex()
                result = config_store.RemoveGroup(id)
                if result.status != 0:
@@ -885,7 +884,7 @@ def main(argv=None):
             list_group_info(session, config_store, group)
          elif action == 'edit':
             obj = get_group(session, config_store, group)
-            if obj != None and obj != '':
+            if obj != None and obj != []:
                group_list[group] = obj
 
    # Now modify the params/features/etc

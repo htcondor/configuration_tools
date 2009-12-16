@@ -52,7 +52,7 @@ def add_feature(sess, store, name):
    if result.status != 0:
       print 'Error: Failed to add feature "%s" (%d, %s)' % (name, result.status, result.txt)
       return(None)
-   return(result.outArgs['obj'])
+   return(sess.getObjects(_objectId=result.outArgs['obj']))
 
 
 def get_feature(sess, store, name):
@@ -184,7 +184,7 @@ def add_param(sess, store, name):
       print 'Error: Failed to add parameter "%s" (%d, %s)' % (split[0], result.status, result.txt)
       return(None)
    else:
-      obj = result.outArgs['obj']
+      obj = sess.getObjects(_objectId=result.outArgs['obj'])
       if len(split) > 1:
          result = obj.SetValue(split[1])
          if result.status != 0:
@@ -351,7 +351,7 @@ def add_group(sess, store, name):
    if result.status != 0:
       print 'Error: Failed to add group "%s" (%d, %s)' % (name, result.status, result.txt)
       return(None)
-   return(result.outArgs['obj'])
+   return(sess.getObjects(_objectId=result.outArgs['obj']))
 
 
 def get_group(sess, store, name):
@@ -416,7 +416,7 @@ def add_node(sess, store, name):
    if result.status != 0:
       print 'Error: Failed to add node "%s" (%d, %s)' % (name, result.status, result.txt)
       return(None)
-   return(result.outArgs['obj'])
+   return(sess.getObjects(_objectId=result.outArgs['obj']))
 
 
 def get_node(sess, store, name):

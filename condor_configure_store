@@ -72,12 +72,14 @@ def modify_feature(obj, name, action):
    if action == 'edit':
       answer = raw_input('Modify the parameters included in feature "%s" [y/N] ?' % name)
       if answer.lower() == 'y':
-         result = obj.GetParams()
+#         result = obj.GetParams()
+         result = obj.GetParamsAsString()
          if result.status != 0:
             print 'Error: Failed to retrieve current parameter list for feature "%s" (%d, %s)' % (name, result.status, result.txt)
          else:
             print 'Current configured parameters:'
-            val = results.outArgs('list')
+#            val = results.outArgs('list')
+            val = eval(results.outArgs('list'))
             list = ''
             for key in val.keys():
                list += '%s=%s,' % (key, params[key])
@@ -90,95 +92,98 @@ def modify_feature(obj, name, action):
          if len(param) != 2:
             continue
          list[param[0].lstrip().rstrip()] = param[1].lstrip().rstrip()
-      result = obj.ModifyParams('replace', list, {})
-      if result.status != 0:
-         print 'Error: Failed to modify parameters of feature "%s" (%d, %s)' % (name, result.status, result.txt)
-
-   if action == 'edit':
-      answer = raw_input('Modify the features included in feature "%s" [y/N] ?' % name)
-      if answer.lower() == 'y':
-         result = obj.GetFeatures()
+#      result = obj.ModifyParams('replace', list, {})
+      result = obj.ClearParams()
+      for param in list.keys():
+         result = obj.AddParamMapping(param, list[param])
          if result.status != 0:
-            print 'Error: Failed to retrieve current feature list for feature "%s" (%d, %s)' % (name, result.status, result.txt)
-         else:
-            print 'Current configured features:'
-            val = results.outArgs('list')
-            list = ''
-            for key in val.keys():
-               list += '%s=%s,' % (key, params[key])
-            print list[:-1]
-   if answer.lower() == 'y':
-      input = raw_input('Feature names this feature will include (feature=priority,feature=priority,etc): ')
-      for pair in input.split(','):
-         param = pair.split('=')
-         if len(param) != 2:
-            continue
-         list[param[0].lstrip().rstrip()] = param[1].lstrip().rstrip()
-      result = obj.ModifyFeatures('replace', list, {})
-      if result.status != 0:
-         print 'Error: Failed to modify included features for feature "%s" (%d, %s)' % (name, result.status, result.txt)
+            print 'Error: Failed to modify parameters of feature "%s" (%d, %s)' % (name, result.status, result.txt)
 
-   if action == 'edit':
-      answer = raw_input('Modify the features that feature "%s" conflicts with [y/N] ?' % name)
-      if answer.lower() == 'y':
-         result = obj.GetConflicts()
-         if result.status != 0:
-            print 'Error: Failed to retrieve current list of conflicts for feature "%s" (%d, %s)' % (name, result.status, result.txt)
-         else:
-            print 'Current configured feature conflicts:'
-            val = results.outArgs('list')
-            list = ''
-            for key in val.keys():
-               list += '%s,' % key
-            print list[:-1]
-   if answer.lower() == 'y':
-      input = raw_input('Comma separated list of feature names this feature conflicts with: ')
-      list = process_comma_sep_list(input)
-      result = obj.ModifyConflicts('replace', list, {})
-      if result.status != 0:
-         print 'Error: Failed to modify conflicts of feature "%s" (%d, %s)' % (name, result.status, result.txt)
-
-   if action == 'edit':
-      answer = raw_input('Modify the features that feature "%s" depends on [y/N] ?' % name)
-      if answer.lower() == 'y':
-         result = obj.GetDepends()
-         if result.status != 0:
-            print 'Error: Failed to retrieve current list of dependencies for feature "%s" (%d, %s)' % (name, result.status, result.txt)
-         else:
-            print 'Current configured feature dependencies:'
-            val = results.outArgs('list')
-            list = ''
-            for key in val.keys():
-               list += '%s=%s,' % (key, params[key])
-            print list[:-1]
-   if answer.lower() == 'y':
-      input = raw_input('Feature names this feature depends on (feature=priority,feature=priority,etc): ')
-      for pair in input.split(','):
-         param = pair.split('=')
-         list[param[0].lstrip().rstrip()] = param[1].lstrip().rstrip()
-      result = obj.ModifyDepends('replace', list, {})
-      if result.status != 0:
-         print 'Error: Failed to modify depends of feature "%s" (%d, %s)' % (name, result.status, result.txt)
-
-   if action == 'edit':
-      answer = raw_input('Modify the list of subsystems that feature "%s" uses [y/N] ?' % name)
-      if answer.lower() == 'y':
-         result = obj.GetSubsys()
-         if result.status != 0:
-            print 'Error: Failed to retrieve current list of subsystems for feature "%s" (%d, %s)' % (name, result.status, result.txt)
-         else:
-            print 'Current configured subsystems:'
-            val = results.outArgs('list')
-            list = ''
-            for key in val.keys():
-               list += '%s,' % key
-            print list[:-1]
-   if answer.lower() == 'y':
-      input = raw_input('Comma separated list of subsystems this feature uses): ')
-      list = process_comma_sep_list(input)
-      result = obj.ModifySubsys('replace', list, {})
-      if result.status != 0:
-         print 'Error: Failed to modify subsystem list of feature "%s" (%d, %s)' % (name, result.status, result.txt)
+#   if action == 'edit':
+#      answer = raw_input('Modify the features included in feature "%s" [y/N] ?' % name)
+#      if answer.lower() == 'y':
+#         result = obj.GetFeatures()
+#         if result.status != 0:
+#            print 'Error: Failed to retrieve current feature list for feature "%s" (%d, %s)' % (name, result.status, result.txt)
+#         else:
+#            print 'Current configured features:'
+#            val = results.outArgs('list')
+##            list = ''
+#            for key in val.keys():
+#               list += '%s=%s,' % (key, params[key])
+#            print list[:-1]
+#   if answer.lower() == 'y':
+#      input = raw_input('Feature names this feature will include (feature=priority,feature=priority,etc): ')
+#      for pair in input.split(','):
+#         param = pair.split('=')
+#         if len(param) != 2:
+#            continue
+#         list[param[0].lstrip().rstrip()] = param[1].lstrip().rstrip()
+#      result = obj.ModifyFeatures('replace', list, {})
+#      if result.status != 0:
+#         print 'Error: Failed to modify included features for feature "%s" (%d, %s)' % (name, result.status, result.txt)
+#
+#   if action == 'edit':
+#      answer = raw_input('Modify the features that feature "%s" conflicts with [y/N] ?' % name)
+#      if answer.lower() == 'y':
+#         result = obj.GetConflicts()
+#         if result.status != 0:
+#            print 'Error: Failed to retrieve current list of conflicts for feature "%s" (%d, %s)' % (name, result.status, result.txt)
+#         else:
+#            print 'Current configured feature conflicts:'
+#            val = results.outArgs('list')
+#            list = ''
+#            for key in val.keys():
+#               list += '%s,' % key
+#            print list[:-1]
+#   if answer.lower() == 'y':
+#      input = raw_input('Comma separated list of feature names this feature conflicts with: ')
+#      list = process_comma_sep_list(input)
+#      result = obj.ModifyConflicts('replace', list, {})
+#      if result.status != 0:
+#         print 'Error: Failed to modify conflicts of feature "%s" (%d, %s)' % (name, result.status, result.txt)
+#
+#   if action == 'edit':
+#      answer = raw_input('Modify the features that feature "%s" depends on [y/N] ?' % name)
+#      if answer.lower() == 'y':
+#         result = obj.GetDepends()
+#         if result.status != 0:
+#            print 'Error: Failed to retrieve current list of dependencies for feature "%s" (%d, %s)' % (name, result.status, result.txt)
+#         else:
+#            print 'Current configured feature dependencies:'
+#            val = results.outArgs('list')
+#            list = ''
+#            for key in val.keys():
+#               list += '%s=%s,' % (key, params[key])
+#            print list[:-1]
+#   if answer.lower() == 'y':
+#      input = raw_input('Feature names this feature depends on (feature=priority,feature=priority,etc): ')
+#      for pair in input.split(','):
+#         param = pair.split('=')
+#         list[param[0].lstrip().rstrip()] = param[1].lstrip().rstrip()
+#      result = obj.ModifyDepends('replace', list, {})
+#      if result.status != 0:
+#         print 'Error: Failed to modify depends of feature "%s" (%d, %s)' % (name, result.status, result.txt)
+#
+#   if action == 'edit':
+#      answer = raw_input('Modify the list of subsystems that feature "%s" uses [y/N] ?' % name)
+#      if answer.lower() == 'y':
+#         result = obj.GetSubsys()
+#         if result.status != 0:
+#            print 'Error: Failed to retrieve current list of subsystems for feature "%s" (%d, %s)' % (name, result.status, result.txt)
+#         else:
+#            print 'Current configured subsystems:'
+#            val = results.outArgs('list')
+#            list = ''
+#            for key in val.keys():
+#               list += '%s,' % key
+#            print list[:-1]
+#   if answer.lower() == 'y':
+#      input = raw_input('Comma separated list of subsystems this feature uses): ')
+#      list = process_comma_sep_list(input)
+#      result = obj.ModifySubsys('replace', list, {})
+#      if result.status != 0:
+#         print 'Error: Failed to modify subsystem list of feature "%s" (%d, %s)' % (name, result.status, result.txt)
 
 
 def add_param(sess, store, name):
@@ -360,9 +365,10 @@ def add_group(sess, store, name):
 
 
 def get_group(sess, store, name):
-   result = store.GetGroup({'Name': name})
+#   result = store.GetGroup({'Name': name})
+   result = store.GetGroupByName(name)
    if result.status != 0:
-      print 'Error: Failed to find group "%s" (%d, %s)' % (name, result.status, restult.txt)
+      print 'Error: Failed to find group "%s" (%d, %s)' % (name, result.status, result.txt)
       return(None)
    else:
       return(sess.getObjects(_objectId=result.outArgs['obj']))
@@ -371,20 +377,20 @@ def get_group(sess, store, name):
 def modify_group(obj, name, action):
    print 'Modifying group "%s"' % name
    answer = 'y'
-   if action == 'edit':
-      answer = raw_input('Modify the node membership of group "%s" [y/N] ?' % name)
-      if answer.lower() == 'y':
-         result = obj.GetMembership()
-         if result.status != 0:
-            print 'Error: Failed to retrieve current node membership for group "%s" (%d, %s)' % (name, result.status, result.txt)
-         else:
-            print 'Current node membership:'
-            val = results.outArgs('list')
-            pre_edit_list = ''
-            for key in val.keys():
-               pre_edit_list += '%s,' % key
-            pre_edit_list = pre_edit_list[:-1]
-            print pre_edit_list
+#   if action == 'edit':
+#      answer = raw_input('Modify the node membership of group "%s" [y/N] ?' % name)
+#      if answer.lower() == 'y':
+#         result = obj.GetMembership()
+#         if result.status != 0:
+#            print 'Error: Failed to retrieve current node membership for group "%s" (%d, %s)' % (name, result.status, result.txt)
+#         else:
+#            print 'Current node membership:'
+#            val = results.outArgs('list')
+#            pre_edit_list = ''
+#            for key in val.keys():
+#               pre_edit_list += '%s,' % key
+#            pre_edit_list = pre_edit_list[:-1]
+#            print pre_edit_list
    if answer.lower() == 'y':
       input = raw_input('Names of nodes included in this group (comma separated): ')
       definition = process_comma_sep_list(input)
@@ -397,7 +403,8 @@ def modify_group(obj, name, action):
                continue
             else:
                node_obj = result.outArgs['obj']
-               result = node_obj.ModifyMemberships('add', {name:True}, {})
+#               result = node_obj.ModifyMemberships('add', {name:True}, {})
+               result = node_obj.AddMembership(name)
                if result.status != 0:
                   print 'Error: Failed to add node "%s" to group "%s" (%d, %s)' % (node, name, result.status, result.txt)
       for node in pre_edit_list.split(','):
@@ -409,7 +416,8 @@ def modify_group(obj, name, action):
                continue
             else:
                node_obj = result.outArgs['obj']
-               result = node_obj.ModifyMemberships('remove', {name:True}, {})
+#               result = node_obj.ModifyMemberships('remove', {name:True}, {})
+               result = node_obj.RemoveMembership(name)
                if result.status != 0:
                   print 'Error: Failed to remove node "%s" to group "%s" (%d, %s)' % (node, name, result.status, result.txt)
 
@@ -468,41 +476,43 @@ def list_feature_info(sess, store, feature):
          value = result.outArgs['name']
          print 'Name: %s' % value
 
-      result = feat_obj.GetFeatures()
-      if result.status != 0:
-         print 'Error: Failed to retrieve included Features (%d, %s)' % (result.status, result.txt)
-      else:
-         value = result.outArgs['list']
-         print 'Included Features (featureId, priority):'
-         for key in value.keys():
-            print '%s, %s' % (key, value[key])
+#      result = feat_obj.GetFeatures()
+#      if result.status != 0:
+#         print 'Error: Failed to retrieve included Features (%d, %s)' % (result.status, result.txt)
+#      else:
+#         value = result.outArgs['list']
+#         print 'Included Features (featureId, priority):'
+#         for key in value.keys():
+#            print '%s, %s' % (key, value[key])
 
-      result = feat_obj.GetParams()
+#      result = feat_obj.GetParams()
+      result = feat_obj.GetParamsAsString()
       if result.status != 0:
          print 'Error: Failed to retrieve included Parameters (%d, %s)' % (result.status, result.txt)
       else:
-         value = result.outArgs['list']
+#         value = result.outArgs['list']
+         value = eval(result.outArgs['params'])
          print 'Included Parameters:'
          for key in value.keys():
             print '%s = %s' % (key, value[key])
 
-      result = feat_obj.GetConflicts()
-      if result.status != 0:
-         print 'Error: Failed to retrieve feature Conflicts (%d, %s)' % (result.status, result.txt)
-      else:
-         value = result.outArgs['list']
-         print 'Conflicts (featureId, priority):'
-         for key in value.keys():
-            print '%s, %s' % (key, value[key])
-
-      result = feat_obj.GetDepends()
-      if result.status != 0:
-         print 'Error: Failed to retrieve feature Dependencies (%d, %s)' % (result.status, result.txt)
-      else:
-         value = result.outArgs['list']
-         print 'Dependencies (featureId, priority):'
-         for key in value.keys():
-            print '%s, %s' % (key, value[key])
+#      result = feat_obj.GetConflicts()
+#      if result.status != 0:
+#         print 'Error: Failed to retrieve feature Conflicts (%d, %s)' % (result.status, result.txt)
+#      else:
+#         value = result.outArgs['list']
+#         print 'Conflicts (featureId, priority):'
+#         for key in value.keys():
+#            print '%s, %s' % (key, value[key])
+#
+#      result = feat_obj.GetDepends()
+#      if result.status != 0:
+#         print 'Error: Failed to retrieve feature Dependencies (%d, %s)' % (result.status, result.txt)
+#      else:
+#         value = result.outArgs['list']
+#         print 'Dependencies (featureId, priority):'
+#         for key in value.keys():
+#            print '%s, %s' % (key, value[key])
 
 
 def list_param_info(sess, store, name):
@@ -562,23 +572,23 @@ def list_param_info(sess, store, name):
          value = result.outArgs['needsRestart']
          print 'RequiresRestart: %s' % value
 
-      result = param_obj.GetDepends()
-      if result.status != 0:
-         print 'Error: Failed to retrieve parameter\'s Dependencies (%d, %s)' % (result.status, result.txt)
-      else:
-         value = result.outArgs['depends']
-         print 'Dependencies (featureId, priority):'
-         for key in value.keys():
-            print '%s, %s' % (key, value[key])
-
-      result = param_obj.GetConflicts()
-      if result.status != 0:
-         print 'Error: Failed to retrieve parameter\'s Conflicts (%d, %s)' % (result.status, result.txt)
-      else:
-         value = result.outArgs['conflicts']
-         print 'Conflicts (featureId, priority):'
-         for key in value.keys():
-            print '%s, %s' % (key, value[key])
+#      result = param_obj.GetDepends()
+#      if result.status != 0:
+#         print 'Error: Failed to retrieve parameter\'s Dependencies (%d, %s)' % (result.status, result.txt)
+#      else:
+#         value = result.outArgs['depends']
+#         print 'Dependencies (featureId, priority):'
+#         for key in value.keys():
+#            print '%s, %s' % (key, value[key])
+#
+#      result = param_obj.GetConflicts()
+#      if result.status != 0:
+#         print 'Error: Failed to retrieve parameter\'s Conflicts (%d, %s)' % (result.status, result.txt)
+#      else:
+#         value = result.outArgs['conflicts']
+#         print 'Conflicts (featureId, priority):'
+#         for key in value.keys():
+#            print '%s, %s' % (key, value[key])
 
 
 def list_group_info(sess, store, group):
@@ -596,29 +606,33 @@ def list_group_info(sess, store, group):
          value = result.outArgs['name']
          print 'Name: %s' % value
 
-      result = group_obj.GetMembership()
-      if result.status != 0:
-         print 'Error: Failed to retrieve group membership (%d, %s)' % (result.status, result.txt)
-      else:
-         value = result.outArgs['list']
-         print 'Members (hostname, priority):'
-         for key in value.keys():
-            print '%s, %s' % (key, value[key])
+#      result = group_obj.GetMembership()
+#      if result.status != 0:
+#         print 'Error: Failed to retrieve group membership (%d, %s)' % (result.status, result.txt)
+#      else:
+#         value = result.outArgs['list']
+#         print 'Members (hostname, priority):'
+#         for key in value.keys():
+#            print '%s, %s' % (key, value[key])
 
-      result = group_obj.GetFeatureSet()
+#      result = group_obj.GetFeatureSet()
+      result = group_obj.GetFeaturesAsString()
       if result.status != 0:
          print 'Error: Failed to retrieve group features (%d, %s)' % (result.status, result.txt)
       else:
-         value = result.outArgs['features']
+#         value = result.outArgs['features']
+         value = eval(result.outArgs['features'])
          print 'Features (name, priority):'
          for key in value.keys():
             print '%s, %s' % (key, value[key])
 
-      result = group_obj.GetParams()
+#      result = group_obj.GetParams()
+      result = group_obj.GetParamsAsString()
       if result.status != 0:
          print 'Error: Failed to retrieve group parameters (%d, %s)' % (result.status, result.txt)
       else:
-         value = result.outArgs['params']
+#         value = result.outArgs['params']
+         value = eval(result.outArgs['params'])
          print 'Parameters:'
          for key in value.keys():
             print '%s = %s' % (key, value[key])
@@ -643,21 +657,25 @@ def list_node_info(sess, store, name):
          value = result.outArgs['time']
          print 'Last Check-in Time: %d' % value
 
-      result = node_obj.GetMemberships()
+#      result = node_obj.GetMemberships()
+      result = node_obj.GetMembershipsAsString()
       if result.status != 0:
          print 'Error: Failed to retrieve group memberships (%d, %s)' % (result.status, result.txt)
       else:
-         value = result.outArgs['groups']
+#         value = result.outArgs['groups']
+         value = eval(result.outArgs['groups'])
          print 'Group Memberships:'
          for key in value.keys():
             print '%s' % key
 
-      result = node_obj.GetConfig()
+#      result = node_obj.GetConfig()
+      result = node_obj.GetConfigAsString()
       if result.status != 0:
          print 'Error: Failed to retrieve configuration (%d, %s)' % (result.status, result.txt)
       else:
          print 'Configuration:'
-         value = result.outArgs['config']
+#         value = result.outArgs['config']
+         value = eval(result.outArgs['config_hash'])
          for key in value.keys():
             print '%s = %s' % (key, value[key])
 
@@ -752,7 +770,8 @@ def main(argv=None):
 
    # If the list action is given without features or parameters, then list
    # the details of all features and parameters in the store
-   if action == 'list' and features == '' and params == '':
+   if action == 'list' and features == '' and params == '' and \
+      nodes == '' and groups == '':
       # List all nodes
       store_nodes = []
       store_nodes = session.getObjects(_class='Node', _package='mrg.grid.config')
@@ -796,7 +815,7 @@ def main(argv=None):
       else:
          for feat in store_feats:
             id = feat.getIndex()
-            result = feat.GetFeatureName()
+            result = feat.GetName()
             if result.status != 0:
                print 'Error: Unable to retrieve feature name for feature id "%s"' % id
             else:

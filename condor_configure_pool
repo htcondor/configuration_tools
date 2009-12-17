@@ -61,7 +61,6 @@ def print_help(name, sess):
 
 def get_group(sess, store, name):
 #   result = store.GetGroup({'Name': name})
-   print 'Group name: %s' % name
    result = store.GetGroupByName(name)
    if result.status != 0:
       print 'Error: Unable to get group info from data store (%d, %s)' % (result.status, result.text)
@@ -275,7 +274,7 @@ def main(argv=None):
                print 'Error: Unable to the identity group for node "%s" (%d, %s)' % (node, result.status, result.text)
             else:
                idgroup_ref = session.getObjects(_objectId=result.outArgs['group'])
-               if ref == []:
+               if idgroup_ref == []:
                   print 'Error: Unable to find identity group with id "%s" (%d, %s)' % (result.outArgs['obj'], result.status, result.text)
                else:
                   result = idgroup_ref[0].GetName()

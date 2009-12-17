@@ -59,7 +59,7 @@ def add_feature(sess, store, name):
 def get_feature(sess, store, name):
    result = store.GetFeature(name)
    if result.status != 0:
-      print 'Error: Failed to find feature "%s" (%d, %s)' % (name, result.status, restult.txt)
+      print 'Error: Failed to find feature "%s" (%d, %s)' % (name, result.status, result.txt)
       return(None)
    else:
       return(sess.getObjects(_objectId=result.outArgs['obj']))
@@ -205,7 +205,7 @@ def add_param(sess, store, name):
 def get_param(sess, store, name):
    result = store.GetParam(name)
    if result.status != 0:
-      print 'Error: Failed to find parameter "%s" (%d, %s)' % (name, result.status, restult.txt)
+      print 'Error: Failed to find parameter "%s" (%d, %s)' % (name, result.status, result.txt)
       return(None)
    else:
       return(sess.getObjects(_objectId=result.outArgs['obj']))
@@ -435,7 +435,7 @@ def add_node(sess, store, name):
 def get_node(sess, store, name):
    result = store.GetNode(name)
    if result.status != 0:
-      print 'Error: Failed to find node "%s" (%d, %s)' % (name, result.status, restult.txt)
+      print 'Error: Failed to find node "%s" (%d, %s)' % (name, result.status, result.txt)
       return(None)
    else:
       return(sess.getObjects(_objectId=result.outArgs['obj']))
@@ -865,10 +865,11 @@ def main(argv=None):
             split = param.split('=')
             obj = get_param(session, config_store, split[0])
             if obj != None and obj != []:
-               result = obj[0].SetValue(split[1])
-               if result.status != 0:
-                  print 'Error: Failed to modify value of parameter "%s" to "%s" (%d, %s)' % (split[0], split[1], result.status, result.text)
                param_list[split[0]] = obj[0]
+#               result = obj[0].SetValue(split[1])
+#               if result.status != 0:
+#                  print 'Error: Failed to modify value of parameter "%s" to "%s" (%d, %s)' % (split[0], split[1], result.status, result.text)
+#               param_list[split[0]] = obj[0]
 
    # Process the features
    if features != '':

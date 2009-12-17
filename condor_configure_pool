@@ -59,21 +59,26 @@ def print_help(name, sess):
       else:
          print 'Unable to retrieve list of features'
 
-def get_group(store, name):
+def get_group(sess, store, name):
    result = store.GetGroup({'Name': name})
    if result.status != 0:
       print 'Error: Unable to get group info from data store (%d, %s)' % (result.status, result.text)
       return None
    else:
-      return result.outArgs['obj']
+      return sess.getObjects(_objectId=result.outArgs['obj'])
 
-def print_feature_info(store, feature_name):
+def print_feature_info(sess, store, feature_name):
    result = store.GetFeature(feature_name)
    if result.status != 0:
       print 'Error: Failed to retrieve configration for feature "%s" (%d, %s)' % (feature_name, result.status, result.text)
    else:
       # Retrieve the Feature ID
-      feature_obj = result.outArgs['obj']
+      obj = sess.getObjects(_objectId=result.outArgs['obj'])
+      if obj == []:
+         print 'Error: Failed to retrieve group object with id "%s"' % result.outArgs['obj']
+         return
+
+      feature_obj = obj[0]
       id = feature_obj.getIndex()
       print 'Feature ID: %d' % id
 
@@ -253,12 +258,16 @@ def main(argv=None):
          print 'Error: Unable to get node "%s" from data store (%d, %s)' % (node, result.status, result.text)
          return(1)
       else:
-         obj = session.getObjects(_objectId=result.outArgs['obj'])[0]
-         result = obj.GetIdentityGroup()
-         if result.status != 0:
-            print 'Error: Unable to the identity group for node "%s" (%d, %s)' % (node, result.status, result.text)
+         ref = session.getObjects(_objectId=result.outArgs['obj'])
+         if ref == []:
+            print 'Error: Unable to find node object with id "%s" (%d, %s)' % (node, result.status, result.text)
          else:
-            name = result.outArgs['group']
+            obj = ref[0]
+            result = obj.GetIdentityGroup()
+            if result.status != 0:
+               print 'Error: Unable to the identity group for node "%s" (%d, %s)' % (node, result.status, result.text)
+            else:
+               name = result.outArgs['group']
 
    # Perform list opertions
    if action == 'list':
@@ -273,9 +282,10 @@ def main(argv=None):
             print obj.getIndex()
       elif name != '' and features == '':
          # Get the group object from the store
-         group_obj = get_group(config_store, name)
-         if group_obj == None:
+         obj = get_group(session, config_store, name)
+         if obj == None or obj == []:
             return(1)
+         group_obj = obj[0]
 
          print 'Configuration for %s:' % name
 
@@ -325,12 +335,10 @@ def main(argv=None):
       print_help(argv[0], session)
    else:
       # Query the store to get the group
-      result = config_store.GetGroup({'Name': name})
-      if result.status != 0:
-         # This group doesn't exist
-         print 'Error: Failed to retrieve group "%s".  Store returned %d: %s' % (name, result.status, result.text)
+      obj = get_group(session, config_store, name)
+      if obj == None or obj == []:
          return(1)
-      group_obj = session.getObjects(_objectId=result.outArgs['obj'])[0]
+      group_obj = obj[0]
 
       # Generate the list of features to act upon
       for feature in features.split(','):

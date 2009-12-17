@@ -370,7 +370,6 @@ def main(argv=None):
          req_params = {}
 #         result = group_obj.ModifyFeatureSet(action, feature_list)
          for feature in feature_list.keys():
-            print "Adding feature '%s' to groupid '%s'" % (feature, group_obj)
             if action == 'add':
                result = group_obj.AddFeature(feature)
             else:
@@ -403,19 +402,19 @@ def main(argv=None):
                      return(1)
          print 'Configuration applied'
 
-         if raw_input('\nSave this configuration [y/N] ? ').lower() == 'y':
-            config_name = raw_input('  Configuration Name: ')
-            result = config_store.SaveConfiguration(config_name)
-            if result.status != 0:
-               print 'Error: Problem saving configuration in store (%d, %s)' % (result.status, result.text)
-            else: 
-               print 'Configuration saved with ID "%s"' % result.outArgs['configId']
-               if raw_input('\nActivate this configuration [y/N] ? ').lower() == 'y':
-                  result = config_store.ActivateConfiguration(config_name)
-                  if result.status != 0:
-                     print 'Error: Problem activating configuration (%d, %s)' % (result.status, result.text)
-                  else: 
-                     print 'Configuration activated'
+#         if raw_input('\nSave this configuration [y/N] ? ').lower() == 'y':
+#            config_name = raw_input('  Configuration Name: ')
+#            result = config_store.SaveConfiguration(config_name)
+#            if result.status != 0:
+#               print 'Error: Problem saving configuration in store (%d, %s)' % (result.status, result.text)
+#            else: 
+#               print 'Configuration saved with ID "%s"' % result.outArgs['configId']
+#               if raw_input('\nActivate this configuration [y/N] ? ').lower() == 'y':
+#                  result = config_store.ActivateConfiguration(config_name)
+#                  if result.status != 0:
+#                     print 'Error: Problem activating configuration (%d, %s)' % (result.status, result.text)
+#                  else: 
+#                     print 'Configuration activated'
       else:
          print 'Configuration not applied'
 

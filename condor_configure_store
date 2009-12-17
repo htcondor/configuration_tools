@@ -676,7 +676,6 @@ def list_node_info(sess, store, name):
          print 'Configuration:'
 #         value = result.outArgs['config']
          value = eval(result.outArgs['config_hash'])
-         print value
          for key in value.keys():
             print '%s = %s' % (key, value[key])
 

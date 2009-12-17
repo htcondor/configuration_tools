@@ -88,9 +88,9 @@ def modify_feature(obj, name, action):
       for pair in input.split(','):
          param = pair.split('=')
          if len(param) != 2:
-            print 'Invalid value.  Skipping "%s"' % pair
             continue
          list[param[0].lstrip().rstrip()] = param[1].lstrip().rstrip()
+         print list
       result = obj.ModifyParams('replace', list, {})
       if result.status != 0:
          print 'Error: Failed to modify parameters of feature "%s" (%d, %s)' % (name, result.status, result.txt)
@@ -112,6 +112,8 @@ def modify_feature(obj, name, action):
       input = raw_input('Feature names this feature will include (feature=priority,feature=priority,etc): ')
       for pair in input.split(','):
          param = pair.split('=')
+         if len(param) != 2:
+            continue
          list[param[0].lstrip().rstrip()] = param[1].lstrip().rstrip()
       result = obj.ModifyFeatures('replace', list, {})
       if result.status != 0:
@@ -818,7 +820,7 @@ def main(argv=None):
          elif action == 'delete':
             result = config_store.RemoveNode(node)
             if result.status != 0:
-               print 'Error: Failed to remove node "%s" (%d, %s)' % (feat, result.status, result.text)
+               print 'Error: Failed to remove node "%s" (%d, %s)' % (node, result.status, result.text)
                continue
          elif action == 'list':
             list_node_info(session, config_store, node)

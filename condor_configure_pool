@@ -47,7 +47,7 @@ def print_help(name, sess):
    print '                for those features and/or parameters for that name'
    print '\navailable features:'
    if sess != []:
-      features = sess.getObjects(_class='feature', _package='mrg.grid.config')
+      features = sess.getObjects(_class='Feature', _package='mrg.grid.config')
       if features != []:
          for feat in features:
             id = feat.getIndex()
@@ -211,6 +211,9 @@ def main(argv=None):
       if option in ('-p', '--params'):
          for param_pair in arg.split(','):
             param = param_pair.split('=')
+            if len(param) != 2:
+               print 'Invalid input "%s".  Skipping' % param_pair
+               continue
             param_list[param[0]] = param[1]
 
    # Connect to the configuration store
@@ -229,7 +232,7 @@ def main(argv=None):
       return(1)
 
    # Retreive the config store object
-   config_store = session.getObjects(_class='store', _package='mrg.grid.config')
+   config_store = session.getObjects(_class='Store', _package='mrg.grid.config')
    if config_store == []:
       print 'Unable to contact Configuration Store'
    else:
@@ -250,7 +253,7 @@ def main(argv=None):
          print 'Error: Unable to get node "%s" from data store (%d, %s)' % (node, result.status, result.text)
          return(1)
       else:
-         obj = result.outArgs['obj']
+         obj = session.getObjects(_objectId=result.outArgs['obj'])[0]
          result = obj.GetIdentityGroup()
          if result.status != 0:
             print 'Error: Unable to the identity group for node "%s" (%d, %s)' % (node, result.status, result.text)
@@ -261,7 +264,7 @@ def main(argv=None):
    if action == 'list':
       if name == '' and features == '':
          node_list = []
-         node_list = session.getObjects(_class='node', _package='mrg.grid.config')
+         node_list = session.getObjects(_class='Node', _package='mrg.grid.config')
          if node_list == []:
             return(1)
 
@@ -327,7 +330,7 @@ def main(argv=None):
          # This group doesn't exist
          print 'Error: Failed to retrieve group "%s".  Store returned %d: %s' % (name, result.status, result.text)
          return(1)
-      group_obj = result.outArgs['obj']
+      group_obj = session.getObjects(_objectId=result.outArgs['obj'])[0]
 
       # Generate the list of features to act upon
       for feature in features.split(','):

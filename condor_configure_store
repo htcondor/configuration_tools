@@ -90,7 +90,6 @@ def modify_feature(obj, name, action):
          if len(param) != 2:
             continue
          list[param[0].lstrip().rstrip()] = param[1].lstrip().rstrip()
-         print list
       result = obj.ModifyParams('replace', list, {})
       if result.status != 0:
          print 'Error: Failed to modify parameters of feature "%s" (%d, %s)' % (name, result.status, result.txt)

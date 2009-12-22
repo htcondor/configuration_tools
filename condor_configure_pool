@@ -317,7 +317,7 @@ def main(argv=None):
          else:
             print 'Features Configured:'
 #            for feature in result.outArgs['features'].keys():
-            for feature in eval(result.outArgs['features'].keys()):
+            for feature in eval(result.outArgs['features']).keys():
                print feature
 
          # Get parameters specific to this group

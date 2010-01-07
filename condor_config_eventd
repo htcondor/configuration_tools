@@ -20,7 +20,6 @@ import signal
 import time
 import socket
 from qmf.console import Session, Console
-from popen2 import *
 from jobhooks.functions import *
 
 
@@ -34,7 +33,7 @@ class EventConsole(Console):
 
 
    def event(self, broker, event):
-      if event.getClassKey().getClassName() == 'restartevent':
+      if event.getClassKey().getClassName() == 'RestartEvent':
          args = event.getArguments()
          affected_hosts = args['AffectedNodes'].split(',')
          if self.node.getIndex() in affected_hosts:
@@ -44,13 +43,14 @@ class EventConsole(Console):
             else:
                cmd = 'condor_reconfig'
 
-            for subsys in args['Targets'].values().split(','):
+            targets = args['Targets'].values()[0]
+            for subsys in targets.split(','):
                if subsys == 'carod':
                   (retval, out, err) = run_cmd('condor_restart', '-subsystem %s' % subsys)
                else:
                   (retval, out, err) = run_cmd(cmd, '-subsystem %s' % subsys)
                if retval != 0:
-                  syslog.syslog(syslog.LOG_ERR, 'Error: Failed to send command to subsystem "%s"' % subsys)
+                  syslog.syslog(syslog.LOG_ERR, 'Error: Failed to send command to subsystem "%s" (stdout: %s, stderr: %s)' % (subsys, out, err))
 
 
    def get_config(self):
@@ -84,7 +84,7 @@ class Service:
 
    def init(self):
       self.console = EventConsole()
-      self.session = Session(self.console, manageConnections=True, rcvObjects=False, rcvHeartbeats=False, rcvEvents=True)
+      self.session = Session(self.console, manageConnections=False, rcvObjects=False, rcvHeartbeats=False, rcvEvents=True)
 
 
    def config(self):
@@ -111,7 +111,7 @@ class Service:
          self.broker_port = 5672
 
       try:
-         val = read_condor_config('QMF_CONFIG', 'CHECK_INTERVAL')
+         val = read_condor_config('QMF_CONFIG', ['CHECK_INTERVAL'])
          self.interval = val['check_interval']
       except config_err, error:
          syslog.syslog(syslog.LOG_INFO, '%s. Node configuration evaluation disabled' % error.msg)
@@ -123,12 +123,23 @@ class Service:
          syslog.syslog(syslog.LOG_ERR, 'Error: Unable to connect to broker "%s"' % self.broker_ip)
          return(False)
 
-      self.store = self.session.getObjects(_class='store', _package='mrg.grid.config')
+      obj = self.session.getObjects(_class='Store', _package='mrg.grid.config')
+      if obj == []:
+         syslog.syslog(syslog.LOG_ERR, 'Failed to contact configuration store.  Exiting')
+         return(False)
+
+      self.store = obj[0]
       result = self.store.GetNode(os.uname()[1])
       if result.status != 0:
-         syslog.syslog('Error(%d, %s): Unable to get node information' % (result.status, result.txt))
+         syslog.syslog('Error(%d, %s): Store does not know about this node' % (result.status, result.txt))
+         return(False)
       else:
-         self.node_obj = result.outArgs['obj']
+         obj = self.session.getObjects(_objectId=result.outArgs['obj'])
+         if obj == []:
+            syslog.syslog('Error: Unable to get node information object')
+            return(False)
+         else:
+            self.node_obj = obj[0]
       self.console.config(self.node_obj)
 
       # Setup the alarm for evaluation

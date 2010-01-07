@@ -1,6 +1,6 @@
 %define rel 22
 
-Summary: Condor Remote Configuration Client Tools
+Summary: Condor Remote Configuration Client
 Name: condor-remote-configuration
 Version: 1.0
 Release: %{rel}%{?dist}
@@ -10,49 +10,42 @@ URL: http://www.redhat.com/mrg
 Source0: %{name}-%{version}-%{rel}.tar.gz
 BuildRoot: %(mktemp -ud %{_tmppath}/%{name}-%{version}-%{release}-XXXXXX)
 BuildArch: noarch
-Requires: puppet >= 0.24.6
-Requires: facter >= 1.5.2-2
+Requires: condor
+Requires: python >= 2.4
+Requires: python-qpid
+Requires: python-condor-job-hooks-common
 
 %description
 The Condor Remote Configuration package provides a means to quickly and easily
-configure machines running Condor by providing sensible defaults for different
-features.  The condor nodes will need to have puppet installed for this
-package to work.
+configure machines running Condor by providing tools to define configurations
+and apply them to nodes.
 
-This package provides the tools needed for clients
+This package provides the tools needed for managed clients
 
 %if 0%{?rhel} != 4
-%package server
-Summary: Condor Remote Configuration Server Tools
+%package tools
+Summary: Condor Remote Configuration Tools
 Group: Applications/System
-Requires: puppet-server >= 0.24.6
-Requires: facter >= 1.5.2-2
 Requires: python >= 2.4
+Requires: python-qpid
+Obsoletes: condor-remote-configuration-server
 
 %description server
 The Condor Remote Configuration package provides a means to quickly and easily
-configure machines running Condor by providing sensible defaults for different
-features.  The condor nodes will need to have puppet installed for this
-package to work.
+configure machines running Condor by providing tools to define configurations
+and apply them to nodes.
 
-This package provides tools and configuration files for the configuration
-server.
+This package provides tools to configure nodes and the configuration store
 %endif
 
 %prep
 %setup -q
 
 %install
-mkdir -p %{buildroot}/%_sysconfdir
 mkdir -p %{buildroot}/%_sbindir
-mkdir -p %{buildroot}/%_sysconfdir/puppet/modules
-mkdir -p %{buildroot}/%_sysconfdir/puppet/modules/condor/files/config
 %if 0%{?rhel} != 4
-cp -rf module/* %{buildroot}/%_sysconfdir/puppet/modules
 cp -f condor_configure_pool %{buildroot}/%_sbindir
 cp -f condor_configure_store %{buildroot}/%_sbindir
-cp -f condor_node %{buildroot}/%_sbindir
-cp -f config/remote-configuration.conf %{buildroot}/%_sysconfdir
 %endif
 cp -f condor_config_eventd %{buildroot}/%_sbindir
 
@@ -65,17 +58,10 @@ cp -f condor_config_eventd %{buildroot}/%_sbindir
 %if 0%{?rhel} != 4
 %files server
 %defattr(-,root,root,-)
-%doc LICENSE-2.0.txt config/puppet.conf.master
-%defattr(0444,root,root,-)
-%config(noreplace) %_sysconfdir/puppet/modules/condor/manifests/init.pp
-%config(noreplace) %_sysconfdir/puppet/modules/condor/templates/sesame.conf
-%config(noreplace) %_sysconfdir/puppet/modules/condor/templates/condor_vm_universe
+%doc LICENSE-2.0.txt
 %defattr(0755,root,root,-)
-%dir %_sysconfdir/puppet/modules/condor/files/config
-%_sysconfdir/remote-configuration.conf
 %_sbindir/condor_configure_store
 %_sbindir/condor_configure_pool
-%_sbindir/condor_node
 %endif
 
 %changelog

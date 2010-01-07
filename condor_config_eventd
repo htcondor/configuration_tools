@@ -20,34 +20,55 @@ import signal
 import time
 import socket
 from qmf.console import Session, Console
-from subprocess import *
+from popen2 import *
+from jobhooks.functions import *
 
-
-class config_err(Exception):
-   def __init__(self, *str):
-      self.msg = str
 
 class EventConsole(Console):
-   def __init__(self, name):
-      self.hostname = name
+   def __init__(self):
+      self.node = []
+
+
+   def config(self, obj):
+      self.node = obj
+
 
    def event(self, broker, event):
       if event.getClassKey().getClassName() == 'restartevent':
          args = event.getArguments()
          affected_hosts = args['AffectedNodes'].split(',')
-         if self.hostname in affected_hosts:
-            run_puppet()
+         if self.node.getIndex() in affected_hosts:
+            self.get_config()
             if args['Restart'] == True:
                cmd = 'condor_restart'
             else:
                cmd = 'condor_reconfig'
-            for host in affected_hosts:
-               for subsys in args['targets'].values().split(','):
-                  if subsys == 'carod':
-                     obj = Popen(['condor_restart', '-name %s -subsystem %s' % (host, subsys)], stdout=PIPE, stderr=PIPE)
-                  else:
-                     obj = Popen([cmd, '-name %s -subsystem %s' % (host, subsys)], stdout=PIPE, stderr=PIPE)
-                  obj.communicate()
+
+            for subsys in args['Targets'].values().split(','):
+               if subsys == 'carod':
+                  (retval, out, err) = run_cmd('condor_restart', '-subsystem %s' % subsys)
+               else:
+                  (retval, out, err) = run_cmd(cmd, '-subsystem %s' % subsys)
+               if retval != 0:
+                  syslog.syslog(syslog.LOG_ERR, 'Error: Failed to send command to subsystem "%s"' % subsys)
+
+
+   def get_config(self):
+      # Retrieve the node's configuration
+      result = self.node.GetConfig()
+      if result.status != 0:
+         # Problem getting the configuration, so do nothing
+         syslog.syslog(syslog.LOG_ERR, 'Error: Failed to retrieve configuration from the store (%d, %s)' % (result.status, result.text))
+         return
+      else:
+         config = result.outArgs['config']
+
+      # Write the config to a file on disk
+      config_file = open('/var/lib/condor/config_dir/qmf_condor_config', 'w')
+      for key in config.keys():
+         config_file.write('%s = %s\n' % key, config[key])
+      config_file.close()
+
 
 class Service:
    def __init__(self):
@@ -57,40 +78,41 @@ class Service:
       self.console = None
       self.session = None
       self.store = []
-      self.reponsible_nodes = ''
       self.interval = 0
+      self.node_obj = []
+
 
    def init(self):
-      self.console = EventConsole(os.uname()[1])
+      self.console = EventConsole()
       self.session = Session(self.console, manageConnections=True, rcvObjects=False, rcvHeartbeats=False, rcvEvents=True)
-      self.store = self.session.getObjects(_class='store', _package='mrg.grid.config')
+
 
    def config(self):
       if self.broker != None:
          self.session.delBroker(self.broker)
          self.broker = None
 
+      if self.store != []:
+         self.store = []
+
       try:
-         self.broker_ip = get_condor_val('QMF_BROKER', 'HOST')
+         val = read_condor_config('QMF_BROKER', ['HOST'])
+         self.broker_ip = val['host']
       except config_err, error:
          # Broker host not defined, so exit
          syslog.syslog(syslog.LOG_ERR, 'Error: %s.  Exiting' % error.msg)
          return(False)
 
       try:
-         self.broker_port = get_condor_val('QMF_BROKER', 'PORT')
+         val = read_condor_config('QMF_BROKER', ['PORT'])
+         self.broker_port = val['port']
       except config_err, error:
-         syslog.syslog(syslog.LOG_INFO, '%s. Using default' % error.msg)
+         syslog.syslog(syslog.LOG_INFO, '%s. Using default (5672)' % error.msg)
          self.broker_port = 5672
 
       try:
-         self.responsible_nodes = get_condor_val('QMF_CONFIG', 'WATCH_NODES')
-      except config_err, error:
-         syslog.syslog(syslog.LOG_INFO, '%s. Using default "%s"' % (error.msg, os.uname()[1]))
-         self.responsible_nodes = os.uname()[1]
-
-      try:
-         self.interval = get_condor_val('QMF_CONFIG', 'CHECK_INTERVAL')
+         val = read_condor_config('QMF_CONFIG', 'CHECK_INTERVAL')
+         self.interval = val['check_interval']
       except config_err, error:
          syslog.syslog(syslog.LOG_INFO, '%s. Node configuration evaluation disabled' % error.msg)
          self.interval = 0
@@ -101,6 +123,14 @@ class Service:
          syslog.syslog(syslog.LOG_ERR, 'Error: Unable to connect to broker "%s"' % self.broker_ip)
          return(False)
 
+      self.store = self.session.getObjects(_class='store', _package='mrg.grid.config')
+      result = self.store.GetNode(os.uname()[1])
+      if result.status != 0:
+         syslog.syslog('Error(%d, %s): Unable to get node information' % (result.status, result.txt))
+      else:
+         self.node_obj = result.outArgs['obj']
+      self.console.config(self.node_obj)
+
       # Setup the alarm for evaluation
       signal.alarm(0)
       if self.interval > 0:
@@ -108,73 +138,46 @@ class Service:
 
       return(True)
 
+
    def shutdown(self):
       if self.broker != None:
          self.session.delBroker(self.broker)
          self.broker = None
 
+
    def get_interval(self):
       return self.interval
 
+
    def check_config_ver(self):
-      if self.store == []:
+      if self.node_obj == []:
          return(1)
 
-      all_nodes = self.session.getObjects(_class='node', _package='mrg.grid.config')
-      for node in all_nodes:
-         name = node.getIndex()
-         if name in self.responsible_nodes:
-            result = Popen(['condor_status', '-f "\%s\n" MyAddress %s' % name], stdout=PIPE, stderr=PIPE)
-            value = result.communicate()[0]
-            if result.returncode != 0:
-               syslog.syslog('Error: Unable to find address of master daemon for "%s"' % name)
-               continue
-            else:
-               ip = value[0]
+      try:
+         val = read_condor_config('QMF_CONFIG' ['VERSION'])
+         version = val['version']
+         self.node_obj.CheckConfigVersion(version)
+      except config_err, error:
+         syslog.syslog(syslog.LOG_ERR, 'Error: %s.  Unable to retrieve version of configuration currently running' % error.msg)
+         return(1)
 
-         result = Popen(['condor_config_val', '-master -address "%s" QMF_CONFIG_VERSION' % ip], stdout=PIPE, stderr=PIPE)
-         version = result.communicate()[0]
-         if result.returncode != 0:
-            syslog.syslog('Error: Unable to retrieve version of configuration "%s" is currently running' % name)
-            continue
-
-         result = self.store.GetNode(name)
-         if result.status != 0:
-            syslog.syslog('Error(%d, %s): Unable to get node information for "%s"' % (result.status, result.txt, name))
-         else:
-            obj = result.outArgs['obj']
-            obj.CheckConfigVersion(version)
 
 def reconfig(signum, frame):
    service.config()
-   signal.alarm(service.get_interval())
+#   signal.alarm(service.get_interval())
+
 
 def exit_signal_handler(signum, frame):
    service.shutdown()
    del service
    sys.exit(0)
 
+
 def config_check():
    service.check_config_ver()
 
-def run_puppet():
-   result = Popen(['puppetd', '--onetime --no-daemonize'], stdout=PIPE, stderr=PIPE)
-   result.communicate()
-
-def get_condor_val(subsys, param):
-   # Try older underscore notation
-   obj = Popen(['condor_config_val', '%s_%s' % (subsys, param)], stdout=PIPE, stderr=PIPE)
-   value = obj.communicate()[0]
-   if obj.returncode != 0:
-      # Try using dot notation
-      obj = Popen(['condor_config_val', '%s.%s' % (subsys, param)], stdout=PIPE, stderr=PIPE)
-      value = obj.communicate()[0]
-      if obj.returncode != 0:
-         raise config_err('%s_%s is not defined' % (subsys, param))
-   return value
 
 service = Service()
-
 def main(argv=None):
    if argv is None:
       argv = sys.argv

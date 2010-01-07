@@ -23,14 +23,9 @@ SOURCES/${SOURCE}:
 	mkdir -p SOURCES
 	rm -rf ${DIR}
 	mkdir ${DIR}
-	mkdir ${DIR}/config
 	cp -f condor_configure_pool ${DIR}
 	cp -f condor_configure_store ${DIR}
 	cp -f condor_config_eventd ${DIR}
-	cp -f condor_node ${DIR}
-	cp -f LICENSE-2.0.txt ${DIR}
-	cp -rf module ${DIR}
-	cp -f config/* ${DIR}/config
 	cp -f LICENSE-2.0.txt ${DIR}
 	tar -cf ${SOURCE} ${DIR}
 	mv "${SOURCE}" SOURCES

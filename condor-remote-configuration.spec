@@ -30,7 +30,7 @@ Requires: python >= 2.4
 Requires: python-qpid
 Obsoletes: condor-remote-configuration-server
 
-%description server
+%description tools
 The Condor Remote Configuration package provides a means to quickly and easily
 configure machines running Condor by providing tools to define configurations
 and apply them to nodes.
@@ -56,7 +56,7 @@ cp -f condor_config_eventd %{buildroot}/%_sbindir
 %_sbindir/condor_config_eventd
 
 %if 0%{?rhel} != 4
-%files server
+%files tools
 %defattr(-,root,root,-)
 %doc LICENSE-2.0.txt
 %defattr(0755,root,root,-)

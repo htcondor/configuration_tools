@@ -399,25 +399,20 @@ def modify_group(obj, name, action):
       for node in definition.keys():
          node = node.rstrip().lstrip()
          if node not in pre_edit_list.split(','):
-            result = store.GetNode(node)
-            if result.status != 0:
-               print 'Error: Failed to retrieve information for node "%s" (%d, %s)' % (node, result.status, result.txt)
-               continue
-            else:
-               node_obj = result.outArgs['obj']
+            obj = get_node(session, config_store, node)
+            if obj != None and obj != []:
+               node_obj = obj[0]
 #               result = node_obj.ModifyMemberships('add', {name:True}, {})
                result = node_obj.AddMembership(name)
                if result.status != 0:
                   print 'Error: Failed to add node "%s" to group "%s" (%d, %s)' % (node, name, result.status, result.txt)
+
       for node in pre_edit_list.split(','):
          node = node.rstrip().lstrip()
          if node not in definition.keys():
-            result = store.GetNode(node)
-            if result.status != 0:
-               print 'Error: Failed to retrieve information for node "%s" (%d, %s)' % (node, result.status, result.txt)
-               continue
-            else:
-               node_obj = result.outArgs['obj']
+            obj = get_node(session, config_store, node)
+            if obj != None and obj != []:
+               node_obj = obj[0]
 #               result = node_obj.ModifyMemberships('remove', {name:True}, {})
                result = node_obj.RemoveMembership(name)
                if result.status != 0:

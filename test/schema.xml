@@ -1,0 +1,11 @@
+<schema package="mrg.grid.config">
+   <eventArguments>
+      <arg name="AffectedNodes" type="lstr"/>
+      <arg name="Restart" type="bool"/>
+      <arg name="Targets" type="map"
+           desc="A map(Application, Subsystem) of the applications or their
+                 subsystems that need to have the specified action performed"/>
+   </eventArguments>
+
+   <event name="RestartEvent" sev="alert" args="AffectedNodes,Restart,Targets"/>
+</schema>

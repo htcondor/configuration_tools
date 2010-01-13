@@ -84,24 +84,21 @@ def print_feature_info(sess, store, feature_name):
       print 'Feature ID: %d' % id
 
       # Retrieve the parameter list
-      result = feature_obj.GetParamsAsString()
+      result = feature_obj.GetParams()
       if result.status != 0:
          print 'Error: Failed to retrieve feature parameters for feature "%s" (%d, %s)' % (feature_name, result.status, result.text)
       else:
-#         params = result.outArgs['list']
-         params = eval(result.outArgs['params'])
+         params = result.outArgs['list']
          print 'Feature Parameters:'
          for param in params.keys():
             print '%s = %s' % (param, params[param])
 
       # Retrieve any features this feature includes upon
-#      result = feature_obj.GetFeatures()
-      result = feature_obj.GetFeaturesAsString()
+      result = feature_obj.GetFeatures()
       if result.status != 0:
          print 'Error: Failed to retrieve included features for feature "%s" (%d, %s)' % (feature_name, result.status, result.text)
       else:
-#         inc_features = result.outArgs['list']
-         inc_features = eval(result.outArgs['features'])
+         inc_features = result.outArgs['list']
          print 'Included Features (name: priority):'
          for feat in inc_features.keys():
            print '%s: %s' % (feat, inc_features[feat])
@@ -301,33 +298,30 @@ def main(argv=None):
          print 'Configuration for %s:' % name
 
          # Get the list of nodes included in this group
-#         result = group_obj.GetMembership()
-#         if result.status != 0:
-#            print 'Error: Failed to retrieve included nodes for group %s (%d, %s)' % (name, result.status, result.text)
-#         else:
-#            print 'Nodes included:'
-#            for group_node in result.outArgs['list'].keys():
-#               print group_node
+         result = group_obj.GetMembership()
+         if result.status != 0:
+            print 'Error: Failed to retrieve included nodes for group %s (%d, %s)' % (name, result.status, result.text)
+         else:
+            print 'Nodes included:'
+            for group_node in result.outArgs['list'].keys():
+               print group_node
 
          # Get the features configured for this group
-#         result = group_obj.GetFeatureSet()
-         result = group_obj.GetFeaturesAsString()
+         result = group_obj.GetFeatures()
          if result.status != 0:
             print 'Error: Failed to retrieve included features for group %s (%d, %s)' % (name, result.status, result.text)
          else:
             print 'Features Configured:'
-#            for feature in result.outArgs['features'].keys():
-            for feature in eval(result.outArgs['features']).keys():
+            for feature in result.outArgs['features'].keys():
                print feature
 
          # Get parameters specific to this group
-         result = group_obj.GetParamsAsString()
+         result = group_obj.GetParams()
          if result.status != 0:
             print 'Error: Failed to retrieve included parameters for group %s (%d, %s)' % (name, result.status, result.text)
          else:
             print 'Attributes Configured:'
-#            params = result.outArgs['customParams']
-            params = eval(result.outArgs['params'])
+            params = result.outArgs['params']
             for key in params.keys():
                print '%s = %s' % (key, params[key])
       elif features != '':
@@ -367,18 +361,12 @@ def main(argv=None):
 
       if raw_input('\nApply these changes [y/N] ? ').lower() == 'y':
          req_params = {}
-#         result = group_obj.ModifyFeatureSet(action, feature_list)
-         for feature in feature_list.keys():
-            if action == 'add':
-               result = group_obj.AddFeature(feature)
-            else:
-               result = group_obj.RemoveFeature(feature)
-            if result.status != 0:
-               print 'Error: Problem modifying features (%d, %s)' % (result.status, result.text)
-               return(1)
-            else:
-#               req_params = result.outArgs['params']
-               req_params = {}
+         result = group_obj.ModifyFeatureSet(action, feature_list)
+         if result.status != 0:
+            print 'Error: Problem modifying features (%d, %s)' % (result.status, result.text)
+            return(1)
+         else:
+            req_params = result.outArgs['params']
 
          if req_params != {}:
             print 'The following parameters must be set for this configuration to be valid:'
@@ -389,16 +377,10 @@ def main(argv=None):
                param_list[param] = value
                   
          if param_list != {}:
-#               result = group_obj.ModifyParams(action, param_list)
-               for param in param_list.keys():
-                  if action == 'add':
-                     result = group_obj.AddParamMapping(param, param_list[param])
-                  else:
-                     result = group_obj.RemoveParamMapping(param)
-
-                  if result.status != 0:
-                     print 'Error: Problem modifying parameters (%d, %s)' % (result.status, result.text)
-                     return(1)
+            result = group_obj.ModifyParams(action, param_list)
+            if result.status != 0:
+               print 'Error: Problem modifying parameters (%d, %s)' % (result.status, result.text)
+               return(1)
          print 'Configuration applied'
 
 #         if raw_input('\nSave this configuration [y/N] ? ').lower() == 'y':

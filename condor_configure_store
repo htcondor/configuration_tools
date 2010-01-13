@@ -18,6 +18,8 @@ import sys
 import re
 import signal
 from qmf.console import Session
+from remoteconfig.config_utils import *
+
 
 def exit_signal_handler(signum, frame):
    sys.exit(0)
@@ -57,16 +59,12 @@ def add_feature(sess, store, name):
    if result.status != 0:
       print 'Error: Failed to add feature "%s" (%d, %s)' % (name, result.status, result.txt)
       return(None)
-   return(sess.getObjects(_objectId=result.outArgs['obj']))
-
-
-def get_feature(sess, store, name):
-   result = store.GetFeature(name)
-   if result.status != 0:
-      print 'Error: Failed to find feature "%s" (%d, %s)' % (name, result.status, result.txt)
-      return(None)
    else:
-      return(sess.getObjects(_objectId=result.outArgs['obj']))
+      obj = sess.getObjects(_objectId=result.outArgs['obj'])
+      if obj != []:
+         return(obj[0])
+      else:
+         return(None)
 
 
 def modify_feature(obj, name, action):
@@ -193,16 +191,11 @@ def add_param(sess, store, name):
       print 'Error: Failed to add parameter "%s" (%d, %s)' % (name, result.status, result.txt)
       return(None)
    else:
-      return(sess.getObjects(_objectId=result.outArgs['obj']))
-
-
-def get_param(sess, store, name):
-   result = store.GetParam(name)
-   if result.status != 0:
-      print 'Error: Failed to find parameter "%s" (%d, %s)' % (name, result.status, result.txt)
-      return(None)
-   else:
-      return(sess.getObjects(_objectId=result.outArgs['obj']))
+      obj = sess.getObjects(_objectId=result.outArgs['obj'])
+      if obj != []:
+         return(obj[0])
+      else:
+         return(None)
 
 
 def modify_param(obj, name, action):
@@ -355,17 +348,12 @@ def add_group(sess, store, name):
    if result.status != 0:
       print 'Error: Failed to add group "%s" (%d, %s)' % (name, result.status, result.txt)
       return(None)
-   return(sess.getObjects(_objectId=result.outArgs['obj']))
-
-
-def get_group(sess, store, name):
-#   result = store.GetGroup({'Name': name})
-   result = store.GetGroupByName(name)
-   if result.status != 0:
-      print 'Error: Failed to find group "%s" (%d, %s)' % (name, result.status, result.txt)
-      return(None)
    else:
-      return(sess.getObjects(_objectId=result.outArgs['obj']))
+      obj = sess.getObjects(_objectId=result.outArgs['obj'])
+      if obj != []:
+         return(obj[0])
+      else:
+         return(None)
 
 
 def modify_group(obj, name, action):
@@ -392,8 +380,8 @@ def modify_group(obj, name, action):
          node = node.rstrip().lstrip()
          if node not in pre_edit_list.split(','):
             obj = get_node(session, config_store, node)
-            if obj != None and obj != []:
-               node_obj = obj[0]
+            if obj != None:
+               node_obj = obj
                result = node_obj.ModifyMemberships('add', {name:True}, {})
                if result.status != 0:
                   print 'Error: Failed to add node "%s" to group "%s" (%d, %s)' % (node, name, result.status, result.txt)
@@ -402,8 +390,8 @@ def modify_group(obj, name, action):
          node = node.rstrip().lstrip()
          if node not in definition.keys():
             obj = get_node(session, config_store, node)
-            if obj != None and obj != []:
-               node_obj = obj[0]
+            if obj != None:
+               node_obj = obj
                result = node_obj.ModifyMemberships('remove', {name:True}, {})
                if result.status != 0:
                   print 'Error: Failed to remove node "%s" to group "%s" (%d, %s)' % (node, name, result.status, result.txt)
@@ -416,16 +404,12 @@ def add_node(sess, store, name):
    if result.status != 0:
       print 'Error: Failed to add node "%s" (%d, %s)' % (name, result.status, result.txt)
       return(None)
-   return(sess.getObjects(_objectId=result.outArgs['obj']))
-
-
-def get_node(sess, store, name):
-   result = store.GetNode(name)
-   if result.status != 0:
-      print 'Error: Failed to find node "%s" (%d, %s)' % (name, result.status, result.txt)
-      return(None)
    else:
-      return(sess.getObjects(_objectId=result.outArgs['obj']))
+      obj = sess.getObjects(_objectId=result.outArgs['obj'])
+      if obj != []:
+         return(obj[0])
+      else:
+         return(None)
 
 
 def modify_node(obj, name, action):
@@ -446,208 +430,6 @@ def modify_node(obj, name, action):
       result = obj.SetPool(value)
       if result.status != 0:
          print 'Error: Failed to set pool for node "%s" to "%s" (%d, %s)' % (name, value, result.status, result.txt)
-
-
-def list_feature_info(sess, store, feature):
-   print 'Feature "%s":' % feature
-   feat_obj = get_feature(sess, store, feature)
-   if feat_obj != None and feat_obj != []:
-      feat_obj = feat_obj[0]
-      value = feat_obj.getIndex()
-      print 'Id: %s' % value
-
-      result = feat_obj.GetName()
-      if result.status != 0:
-         print 'Error: Failed to retrieve Feature Name (%d, %s)' % (result.status, result.txt)
-      else:
-         value = result.outArgs['name']
-         print 'Name: %s' % value
-
-      result = feat_obj.GetFeatures()
-      if result.status != 0:
-         print 'Error: Failed to retrieve included Features (%d, %s)' % (result.status, result.txt)
-      else:
-         value = result.outArgs['list']
-         print 'Included Features (featureId, priority):'
-         for key in value.keys():
-            print '%s, %s' % (key, value[key])
-
-      result = feat_obj.GetParams()
-      if result.status != 0:
-         print 'Error: Failed to retrieve included Parameters (%d, %s)' % (result.status, result.txt)
-      else:
-         value = result.outArgs['list']
-         print 'Included Parameters:'
-         for key in value.keys():
-            print '%s = %s' % (key, value[key])
-
-      result = feat_obj.GetConflicts()
-      if result.status != 0:
-         print 'Error: Failed to retrieve feature Conflicts (%d, %s)' % (result.status, result.txt)
-      else:
-         value = result.outArgs['list']
-         print 'Conflicts:'
-         for key in value.keys():
-            print '%s, %s' % (key, value[key])
-
-      result = feat_obj.GetDepends()
-      if result.status != 0:
-         print 'Error: Failed to retrieve feature Dependencies (%d, %s)' % (result.status, result.txt)
-      else:
-         value = result.outArgs['list']
-         print 'Dependencies (featureId, priority):'
-         for key in value.keys():
-            print '%s, %s' % (key, value[key])
-
-
-def list_param_info(sess, store, name):
-   print 'Parameter "%s":' % name
-   param_obj = get_param(sess, store, name)
-   if param_obj != None and param_obj != []:
-      param_obj = param_obj[0]
-      value = param_obj.getIndex()
-      print 'Name: %s' % value
-
-      result = param_obj.GetType()
-      if result.status != 0:
-         print 'Error: Failed to retrieve parameter\'s Type (%d, %s)' % (result.status, result.txt)
-      else:
-         value = result.outArgs['type']
-         print 'Type: %s' % value
-
-      result = param_obj.GetDefault()
-      if result.status != 0:
-         print 'Error: Failed to retrieve parameter\'s Default value (%d, %s)' % (result.status, result.txt)
-      else:
-         value = result.outArgs['default']
-         print 'Default: %s' % value
-
-      result = param_obj.GetDescription()
-      if result.status != 0:
-         print 'Error: Failed to retrieve parameter\'s Description (%d, %s)' % (result.status, result.txt)
-      else:
-         value = result.outArgs['description']
-         print 'Description: %s' % value
-
-      result = param_obj.GetDefaultMustChange()
-      if result.status != 0:
-         print 'Error: Failed to retrieve parameter\'s MustChange (%d, %s)' % (result.status, result.txt)
-      else:
-         value = result.outArgs['mustChange']
-         print 'MustChange: %s' % value
-
-      result = param_obj.GetVisibilityLevel()
-      if result.status != 0:
-         print 'Error: Failed to retrieve parameter\'s Visibility Level (%d, %s)' % (result.status, result.txt)
-      else:
-         value = result.outArgs['level']
-         print 'VisibilityLevel: %s' % value
-
-      result = param_obj.GetRequiresRestart()
-      if result.status != 0:
-         print 'Error: Failed to retrieve parameter\'s Requires Restart (%d, %s)' % (result.status, result.txt)
-      else:
-         value = result.outArgs['needsRestart']
-         print 'RequiresRestart: %s' % value
-
-      result = param_obj.GetDepends()
-      if result.status != 0:
-         print 'Error: Failed to retrieve parameter\'s Dependencies (%d, %s)' % (result.status, result.txt)
-      else:
-         value = result.outArgs['depends']
-         print 'Dependencies:'
-         for key in value.keys():
-            print '  %s' % key
-
-      result = param_obj.GetConflicts()
-      if result.status != 0:
-         print 'Error: Failed to retrieve parameter\'s Conflicts (%d, %s)' % (result.status, result.txt)
-      else:
-         value = result.outArgs['conflicts']
-         print 'Conflicts:'
-         for key in value.keys():
-            print '  %s' % key
-
-
-def list_group_info(sess, store, group):
-   print 'Group "%s":' % group
-   group_obj = get_group(sess, store, group)
-   if group_obj != None and group_obj != []:
-      group_obj = group_obj[0]
-      value = group_obj.getIndex()
-      print 'Id: %s' % value
-
-      result = group_obj.GetName()
-      if result.status != 0:
-         print 'Error: Failed to retrieve group name (%d, %s)' % (result.status, result.txt)
-      else:
-         value = result.outArgs['name']
-         print 'Name: %s' % value
-
-      result = group_obj.GetMembership()
-      if result.status != 0:
-         print 'Error: Failed to retrieve group membership (%d, %s)' % (result.status, result.txt)
-      else:
-         value = result.outArgs['list']
-         print 'Members (priority, hostname):'
-         for key in value.keys():
-            print '%s, %s' % (key, value[key])
-
-      result = group_obj.GetFeatures()
-      if result.status != 0:
-         print 'Error: Failed to retrieve group features (%d, %s)' % (result.status, result.txt)
-      else:
-         value = result.outArgs['features']
-         print 'Features (name, priority):'
-         for key in value.keys():
-            print '%s, %s' % (key, value[key])
-
-      result = group_obj.GetParams()
-      if result.status != 0:
-         print 'Error: Failed to retrieve group parameters (%d, %s)' % (result.status, result.txt)
-      else:
-         value = result.outArgs['params']
-         print 'Parameters:'
-         for key in value.keys():
-            print '%s = %s' % (key, value[key])
-
-
-def list_node_info(sess, store, name):
-   print 'Name: %s' % name
-   node_obj = get_node(sess, store, name)
-   if node_obj != None and node_obj != []:
-      node_obj = node_obj[0]
-      result = node_obj.GetPool()
-      if result.status != 0:
-         print 'Error: Failed to retrieve pool (%d, %s)' % (result.status, result.txt)
-      else:
-         value = result.outArgs['pool']
-         print 'Pool: %s' % value
-
-      result = node_obj.GetLastCheckinTime()
-      if result.status != 0:
-         print 'Error: Failed to retrieve LastCheckinTime (%d, %s)' % (result.status, result.txt)
-      else:
-         value = result.outArgs['time']
-         print 'Last Check-in Time: %d' % value
-
-      result = node_obj.GetMemberships()
-      if result.status != 0:
-         print 'Error: Failed to retrieve group memberships (%d, %s)' % (result.status, result.txt)
-      else:
-         value = result.outArgs['groups']
-         print 'Group Memberships:'
-         for key in value.keys():
-            print key
-
-      result = node_obj.GetConfig()
-      if result.status != 0:
-         print 'Error: Failed to retrieve configuration (%d, %s)' % (result.status, result.txt)
-      else:
-         print 'Configuration:'
-         value = result.outArgs['config']
-         for key in value.keys():
-            print '%s = %s' % (key, value[key])
 
 
 def main(argv=None):
@@ -811,8 +593,8 @@ def main(argv=None):
       for node in nodes.split(','):
          if action == 'add':
             obj = add_node(session, config_store, node)
-            if obj != None and obj != []:
-              node_list[node] = obj[0]
+            if obj != None:
+              node_list[node] = obj
          elif action == 'delete':
             result = config_store.RemoveNode(node)
             if result.status != 0:
@@ -822,16 +604,16 @@ def main(argv=None):
             list_node_info(session, config_store, node)
          elif action == 'edit':
             obj = get_node(session, config_store, node)
-            if obj != None and obj != []:
-               node_list[node] = obj[0]
+            if obj != None:
+               node_list[node] = obj
 
    # Process the parameters
    if params != '':
       for param in params.split(','):
          if action == 'add':
             obj = add_param(session, config_store, param)
-            if obj != None and obj != []:
-               param_list[param] = obj[0]
+            if obj != None:
+               param_list[param] = obj
          elif action == 'delete':
             result = config_store.RemoveParam(param)
             if result.status != 0:
@@ -840,20 +622,20 @@ def main(argv=None):
             list_param_info(session, config_store, param)
          elif action == 'edit':
             obj = get_param(session, config_store, param)
-            if obj != None and obj != []:
-               param_list[param] = obj[0]
+            if obj != None:
+               param_list[param] = obj
 
    # Process the features
    if features != '':
       for feat in features.split(','):
          if action == 'add':
             obj = add_feature(session, config_store, feat)
-            if obj != None and obj != []:
-               feat_list[feat] = obj[0]
+            if obj != None:
+               feat_list[feat] = obj
          elif action == 'delete':
             obj = get_feature(session, config_store, feat)
-            if obj != None and obj != []:
-               id = obj[0].getIndex()
+            if obj != None:
+               id = obj.getIndex()
                result = config_store.RemoveFeature(id)
                if result.status != 0:
                   print 'Error: Failed to remove feature "%s" (%d, %s)' % (feat, result.status, result.text)
@@ -861,20 +643,20 @@ def main(argv=None):
             list_feature_info(session, config_store, feat)
          elif action == 'edit':
             obj = get_feature(session, config_store, feat)
-            if obj != None and obj != []:
-               feat_list[feat] = obj[0]
+            if obj != None:
+               feat_list[feat] = obj
 
    # Process the groups
    if groups != '':
       for group in groups.split(','):
          if action == 'add':
             obj = add_group(session, config_store, group)
-            if obj != None and obj != []:
-               group_list[group] = obj[0]
+            if obj != None:
+               group_list[group] = obj
          elif action == 'delete':
             obj = get_group(session, config_store, group)
-            if obj != None and obj != []:
-               id = obj[0].getIndex()
+            if obj != None:
+               id = obj.getIndex()
                result = config_store.RemoveGroup(id)
                if result.status != 0:
                   print 'Error: Failed to remove group "%s" (%d, %s)' % (group, result.status, result.text)
@@ -882,8 +664,8 @@ def main(argv=None):
             list_group_info(session, config_store, group)
          elif action == 'edit':
             obj = get_group(session, config_store, group)
-            if obj != None and obj != []:
-               group_list[group] = obj[0]
+            if obj != None:
+               group_list[group] = obj
 
    # Now modify the params/features/etc
 

@@ -19,14 +19,19 @@ import sys
 import re
 import signal
 from qmf.console import Session
+from remoteconfig.config_utils import *
+
 
 feature_list = {}
+group_obj = []
+
 
 def exit_signal_handler(signum, frame):
    result = group_obj.RemoveFeatures(feature_list)
    if result.status != 0:
       print 'Error: Problem removing features (%d, %s)' % (result.status, result.text)
    sys.exit(0)
+
 
 def print_help(name, sess):
    print 'usage: %s [-h|--help] -b|--broker <broker> [-p|--port <port>] [-g|--group|-n|--node name] action [-f|--features feature[,feature,...]] [-p|--params param=1,param2=string,...] ' % os.path.basename(name)
@@ -59,69 +64,6 @@ def print_help(name, sess):
       else:
          print 'Unable to retrieve list of features'
 
-def get_group(sess, store, name):
-#   result = store.GetGroup({'Name': name})
-   result = store.GetGroupByName(name)
-   if result.status != 0:
-      print 'Error: Unable to get group info from data store (%d, %s)' % (result.status, result.text)
-      return None
-   else:
-      return sess.getObjects(_objectId=result.outArgs['obj'])
-
-def print_feature_info(sess, store, feature_name):
-   result = store.GetFeature(feature_name)
-   if result.status != 0:
-      print 'Error: Failed to retrieve configration for feature "%s" (%d, %s)' % (feature_name, result.status, result.text)
-   else:
-      # Retrieve the Feature ID
-      obj = sess.getObjects(_objectId=result.outArgs['obj'])
-      if obj == []:
-         print 'Error: Failed to retrieve group object with id "%s"' % result.outArgs['obj']
-         return
-
-      feature_obj = obj[0]
-      id = feature_obj.getIndex()
-      print 'Feature ID: %d' % id
-
-      # Retrieve the parameter list
-      result = feature_obj.GetParams()
-      if result.status != 0:
-         print 'Error: Failed to retrieve feature parameters for feature "%s" (%d, %s)' % (feature_name, result.status, result.text)
-      else:
-         params = result.outArgs['list']
-         print 'Feature Parameters:'
-         for param in params.keys():
-            print '%s = %s' % (param, params[param])
-
-      # Retrieve any features this feature includes upon
-      result = feature_obj.GetFeatures()
-      if result.status != 0:
-         print 'Error: Failed to retrieve included features for feature "%s" (%d, %s)' % (feature_name, result.status, result.text)
-      else:
-         inc_features = result.outArgs['list']
-         print 'Included Features (name: priority):'
-         for feat in inc_features.keys():
-           print '%s: %s' % (feat, inc_features[feat])
-
-      # Retrieve any features this feature conflicts with
-      result = feature_obj.GetConflicts()
-      if result.status != 0:
-         print 'Error: Failed to retrieve feature conflicts for feature "%s" (%d, %s)' % (feature_name, result.status, result.text)
-      else:
-         conflicts = result.outArgs['list']
-         print 'Conflicting Features:'
-         for conf in conflicts.keys():
-            print '%s' % conf
-
-      # Retrieve any features this feature depends on
-      result = feature_obj.GetDepends()
-      if result.status != 0:
-         print 'Error: Failed to retrieve feature dependencies for feature "%s" (%d, %s)' % (feature_name, result.status, result.text)
-      else:
-         depends = result.outArgs['list']
-         print 'Feature Depedencies (name: priority):'
-         for dep in depends.keys():
-           print '%s: %s' % (dep, depends[dep])
 
 def configure_node_schedulers(params):
    response = 'y'
@@ -140,6 +82,7 @@ def configure_node_schedulers(params):
          params['HOSTALLOW_WRITE_DAEMON'] = addl_scheds
          params['HOSTALLOW_READ_DAEMON'] = addl_scheds
 
+
 def configure_qmf_broker(params):
    response = 'y'
 
@@ -152,7 +95,6 @@ def configure_qmf_broker(params):
       if value != '':
          params['QMF_BROKER_PORT'] = value
 
-group_obj = []
 
 def main(argv=None):
    if argv is None:
@@ -328,7 +270,7 @@ def main(argv=None):
          # Provide the configuration for the features
          for feat in features.split(','):
             print 'Configuration for feature %s:' % feat
-            print_feature_info(config_store, feat)
+            list_feature_info(session, config_store, feat)
             
       return(0)
 

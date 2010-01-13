@@ -1,3 +1,4 @@
+%{!?python_sitelib: %define python_sitelib %(%{__python} -c "from distutils.sysconfig import get_python_lib; print get_python_lib()")}
 %define rel 22
 
 Summary: Condor Remote Configuration Client
@@ -11,9 +12,10 @@ Source0: %{name}-%{version}-%{rel}.tar.gz
 BuildRoot: %(mktemp -ud %{_tmppath}/%{name}-%{version}-%{release}-XXXXXX)
 BuildArch: noarch
 Requires: condor
-Requires: python >= 2.4
+Requires: python >= 2.3
 Requires: python-qpid
 Requires: python-condor-job-hooks-common
+Requires: python-%{name}-common
 
 %description
 The Condor Remote Configuration package provides a means to quickly and easily
@@ -28,6 +30,7 @@ Summary: Condor Remote Configuration Tools
 Group: Applications/System
 Requires: python >= 2.4
 Requires: python-qpid
+Requires: python-%{name}-common
 Obsoletes: condor-remote-configuration-server
 
 %description tools
@@ -38,16 +41,28 @@ and apply them to nodes.
 This package provides tools to configure nodes and the configuration store
 %endif
 
+%package -n python-%{name}-common
+Summary: Common functions for condor remote configuration
+Group: Applications/System
+Requires: python >= 2.3
+
+%description -n python-%{name}-common
+Common function used by MRG condor remote configuration
+
 %prep
 %setup -q
 
 %install
+rm -rf %{buildroot}
+mkdir -p %{buildroot}/%{python_sitelib}/remoteconfig
 mkdir -p %{buildroot}/%_sbindir
 %if 0%{?rhel} != 4
 cp -f condor_configure_pool %{buildroot}/%_sbindir
 cp -f condor_configure_store %{buildroot}/%_sbindir
 %endif
 cp -f condor_config_eventd %{buildroot}/%_sbindir
+cp -f config_utils.py %{buildroot}/%{python_sitelib}/remoteconfig
+touch %{buildroot}/%{python_sitelib}/remoteconfig/__init__.py
 
 %files
 %defattr(-,root,root,-)
@@ -63,6 +78,12 @@ cp -f condor_config_eventd %{buildroot}/%_sbindir
 %_sbindir/condor_configure_store
 %_sbindir/condor_configure_pool
 %endif
+
+%files -n python-%{name}-common
+%defattr(-,root,root,-)
+%doc LICENSE-2.0.txt
+%{python_sitelib}/remoteconfig/config_utils.py*
+%{python_sitelib}/remoteconfig/__init__.py*
 
 %changelog
 * Thu Oct 15 2009  <rrati@redhat> - 1.0-22

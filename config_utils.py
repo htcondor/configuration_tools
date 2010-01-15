@@ -51,6 +51,19 @@ def get_node(sess, store, name):
          return(None)
 
 
+def get_subsys(sess, store, name):
+   result = store.GetSubsys(name)
+   if result.status != 0:
+      print 'Error: Failed to find subsystem "%s" (%d, %s)' % (name, result.status, result.txt)
+      return(None)
+   else:
+      obj = sess.getObjects(_objectId=result.outArgs['obj'])
+      if obj != []:
+         return(obj[0])
+      else:
+         return(None)
+
+
 def list_feature_info(sess, store, feature):
    print 'Feature "%s":' % feature
    feat_obj = get_feature(sess, store, feature)
@@ -69,37 +82,46 @@ def list_feature_info(sess, store, feature):
       if result.status != 0:
          print 'Error: Failed to retrieve included Parameters (%d, %s)' % (result.status, result.txt)
       else:
-         value = result.outArgs['list']
+         value = result.outArgs['params']
          print 'Included Parameters:'
          for key in value.keys():
-            print '%s = %s' % (key, value[key])
+            print '  %s = %s' % (key, value[key])
 
       result = feat_obj.GetFeatures()
       if result.status != 0:
          print 'Error: Failed to retrieve included Features (%d, %s)' % (result.status, result.txt)
       else:
-         value = result.outArgs['list']
-         print 'Included Features (featureId, priority):'
+         value = result.outArgs['features']
+         print 'Included Features (order, featureName):'
          for key in value.keys():
-            print '%s, %s' % (key, value[key])
+            print '  %s, %s' % (key, value[key])
 
       result = feat_obj.GetConflicts()
       if result.status != 0:
          print 'Error: Failed to retrieve feature Conflicts (%d, %s)' % (result.status, result.txt)
       else:
-         value = result.outArgs['list']
+         value = result.outArgs['conflicts']
          print 'Conflicts:'
          for key in value.keys():
-            print '%s, %s' % (key, value[key])
+            print '  %s' % key
 
       result = feat_obj.GetDepends()
       if result.status != 0:
          print 'Error: Failed to retrieve feature Dependencies (%d, %s)' % (result.status, result.txt)
       else:
-         value = result.outArgs['list']
-         print 'Dependencies (featureId, priority):'
+         value = result.outArgs['depends']
+         print 'Dependencies (order, featureName):'
          for key in value.keys():
-            print '%s, %s' % (key, value[key])
+            print '  %s, %s' % (key, value[key])
+
+      result = feat_obj.GetSubsys()
+      if result.status != 0:
+         print 'Error: Failed to retrieve Subsystems (%d, %s)' % (result.status, result.txt)
+      else:
+         value = result.outArgs['subsystems']
+         print 'Subsystems:'
+         for key in value.keys():
+            print '  %s' % key
 
 
 def list_param_info(sess, store, name):
@@ -188,10 +210,10 @@ def list_group_info(sess, store, group):
       if result.status != 0:
          print 'Error: Failed to retrieve group membership (%d, %s)' % (result.status, result.txt)
       else:
-         value = result.outArgs['list']
+         value = result.outArgs['nodes']
          print 'Members (priority, hostname):'
          for key in value.keys():
-            print '%s, %s' % (key, value[key])
+            print '  %s, %s' % (key, value[key])
 
       result = group_obj.GetFeatures()
       if result.status != 0:
@@ -200,7 +222,7 @@ def list_group_info(sess, store, group):
          value = result.outArgs['features']
          print 'Features (name, priority):'
          for key in value.keys():
-            print '%s, %s' % (key, value[key])
+            print '  %s, %s' % (key, value[key])
 
       result = group_obj.GetParams()
       if result.status != 0:
@@ -209,11 +231,11 @@ def list_group_info(sess, store, group):
          value = result.outArgs['params']
          print 'Parameters:'
          for key in value.keys():
-            print '%s = %s' % (key, value[key])
+            print '  %s = %s' % (key, value[key])
 
 
 def list_node_info(sess, store, name):
-   print 'Name: %s' % name
+   print 'Node "%s":' % name
    node_obj = get_node(sess, store, name)
    if node_obj != None:
       result = node_obj.GetPool()
@@ -237,7 +259,7 @@ def list_node_info(sess, store, name):
          value = result.outArgs['groups']
          print 'Group Memberships:'
          for key in value.keys():
-            print key
+            print '  %s' % key
 
       result = node_obj.GetConfig()
       if result.status != 0:
@@ -246,4 +268,18 @@ def list_node_info(sess, store, name):
          print 'Configuration:'
          value = result.outArgs['config']
          for key in value.keys():
-            print '%s = %s' % (key, value[key])
+            print '  %s = %s' % (key, value[key])
+
+
+def list_subsys_info(sess, store, name):
+   print 'Subsystem "%s":' % name
+   subsys_obj = get_subsys(sess, store, name)
+   if subsys_obj != None:
+      result = subsys_obj.GetParams()
+      if result.status != 0:
+         print 'Error: Failed to retrieve included Parameters (%d, %s)' % (result.status, result.txt)
+      else:
+         value = result.outArgs['params']
+         print 'Included Parameters:'
+         for key in value.keys():
+            print '  %s = %s' % (key, value[key])

@@ -72,15 +72,15 @@ def configure_node_schedulers(params):
       def_sched = raw_input('Enter the name of the default scheduler: ')
       if def_sched != '':
          if raw_input('Is this a High Available Scheduler [y/N] ? ').lower() == 'y':
-            params['SCHEDD_NAME'] = def_sched
+            params['SCHEDD_NAME'] = def_sched.split()
          else:
-            params['SCHEDD_HOST'] = def_sched
+            params['SCHEDD_HOST'] = def_sched.split()
       addl_scheds = raw_input('Enter a comma separated list of additional schedulers that will accept job submissions: ')
       if addl_scheds != '':
-         params['HOSTALLOW_WRITE_STARTD'] = addl_scheds
-         params['HOSTALLOW_READ_STARTD'] = addl_scheds
-         params['HOSTALLOW_WRITE_DAEMON'] = addl_scheds
-         params['HOSTALLOW_READ_DAEMON'] = addl_scheds
+         params['HOSTALLOW_WRITE_STARTD'] = addl_scheds.split()
+         params['HOSTALLOW_READ_STARTD'] = addl_scheds.split()
+         params['HOSTALLOW_WRITE_DAEMON'] = addl_scheds.split()
+         params['HOSTALLOW_READ_DAEMON'] = addl_scheds.split()
 
 
 def configure_qmf_broker(params):
@@ -90,10 +90,10 @@ def configure_qmf_broker(params):
    if response.lower() == 'y':
       # Remove previous configuration it if exists
       value = raw_input('Enter the hostname of the AMQP broker this group will use to communicate with the Management Console: ')
-      params['QMF_BROKER_HOST'] = value
-      value = raw_input('Enter the port the AMQP broker listens on (Default: 5672): ')
+      params['QMF_BROKER_HOST'] = value.split()
+      value = raw_input('Enter the port the AMQP broker listens on: ')
       if value != '':
-         params['QMF_BROKER_PORT'] = value
+         params['QMF_BROKER_PORT'] = value.split()
 
 
 def main(argv=None):
@@ -232,10 +232,9 @@ def main(argv=None):
             print obj.getIndex()
       elif name != '' and features == '':
          # Get the group object from the store
-         obj = get_group(session, config_store, name)
-         if obj == None or obj == []:
+         group_obj = get_group(session, config_store, name)
+         if group_obj == None:
             return(1)
-         group_obj = obj[0]
 
          print 'Configuration for %s:' % name
 
@@ -285,14 +284,13 @@ def main(argv=None):
       print_help(argv[0], session)
    else:
       # Query the store to get the group
-      obj = get_group(session, config_store, name)
-      if obj == None or obj == []:
+      group_obj = get_group(session, config_store, name)
+      if group_obj == None:
          return(1)
-      group_obj = obj[0]
 
       # Generate the list of features to act upon
       for feature in features.split(','):
-         feature_list[feature] = 0
+         feature_list[feature] = '0'
          
       # Configure which schedulers the node can submit to
       configure_node_schedulers(param_list)
@@ -303,7 +301,7 @@ def main(argv=None):
 
       if raw_input('\nApply these changes [y/N] ? ').lower() == 'y':
          req_params = {}
-         result = group_obj.ModifyFeatureSet(action, feature_list)
+         result = group_obj.ModifyFeatures(action, feature_list, {})
          if result.status != 0:
             print 'Error: Problem modifying features (%d, %s)' % (result.status, result.text)
             return(1)
@@ -319,7 +317,7 @@ def main(argv=None):
                param_list[param] = value
                   
          if param_list != {}:
-            result = group_obj.ModifyParams(action, param_list)
+            result = group_obj.ModifyParams(action, param_list, {})
             if result.status != 0:
                print 'Error: Problem modifying parameters (%d, %s)' % (result.status, result.text)
                return(1)

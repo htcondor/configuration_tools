@@ -26,7 +26,7 @@ def exit_signal_handler(signum, frame):
 
 
 def print_help(name):
-   print 'usage: %s [-h|--help] -b|--broker <broker> [-p|--port <port>] action [-f|--features feature[,feature,...]] [-p|--params param[=1],param2[=string],...] [-n|--nodes hostname,hostname] [-g|--groups group[,group]]' % os.path.basename(name)
+   print 'usage: %s [-h|--help] -b|--broker <broker> [-p|--port <port>] action [-f|--features feature[,feature,...]] [-p|--params param[=1],param2[=string],...] [-n|--nodes hostname,hostname] [-g|--groups group[,group]] [-s|--subsys subsystem[,subsystem]]' % os.path.basename(name)
    print '  <broker> - The ip/hostname of the broker used by the configuration store'
    print '  <port> - The port of the broker used by the configuration store'
    print '  -h - Print help'
@@ -46,9 +46,9 @@ def process_comma_sep_list(list):
       for pair in list.split(','):
          split = pair.split('=')
          if len(split) > 1:
-            params[split[0].lstrip().rstrip()] = split[1].lstrip().rstrip()
+            params[split[0].strip()] = split[1].strip()
          else:
-            params[split[0].lstrip().rstrip()] = True
+            params[split[0].strip()] = True
    return params
 
 
@@ -79,7 +79,7 @@ def modify_feature(obj, name, action):
             print 'Error: Failed to retrieve current parameter list for feature "%s" (%d, %s)' % (name, result.status, result.txt)
          else:
             print 'Current configured parameters:'
-            val = result.outArgs['list']
+            val = result.outArgs['params']
             list = ''
             for key in val.keys():
                list += '%s=%s,' % (key, val[key])
@@ -90,9 +90,9 @@ def modify_feature(obj, name, action):
       for pair in input.split(','):
          param = pair.split('=')
          if len(param) != 2:
-            list[param[0].lstrip().rstrip()] = None
+            list[param[0].strip()] = False
          else:
-            list[param[0].lstrip().rstrip()] = param[1].lstrip().rstrip()
+            list[param[0].strip()] = param[1].strip()
       result = obj.ModifyParams('replace', list, {})
       if result.status != 0:
           print 'Error: Failed to modify parameters of feature "%s" (%d, %s)' % (name, result.status, result.txt)
@@ -105,20 +105,29 @@ def modify_feature(obj, name, action):
             print 'Error: Failed to retrieve current feature list for feature "%s" (%d, %s)' % (name, result.status, result.txt)
          else:
             print 'Current configured features:'
-            val = result.outArgs['list']
+            val = result.outArgs['features']
             list = ''
             for key in val.keys():
-               list += '%s=%s,' % (key, params[key])
+               list += '%s=%s,' % (val[key], key)
             print list[:-1]
    if answer.lower() == 'y':
-      input = raw_input('Feature names this feature will include (feature=priority,feature=priority,etc): ')
-      list = {}
-      for pair in input.split(','):
-         param = pair.split('=')
-         if len(param) != 2:
-            list[param[0].lstrip().rstrip()] = 0
-         else:
-            list[param[0].lstrip().rstrip()] = param[1].lstrip().rstrip()
+      valid_input = False
+      while valid_input == False:
+         input = raw_input('Feature names this feature will include (feature=priority,feature=priority,etc): ')
+         list = {}
+         valid_input = True
+         for pair in input.split(','):
+            param = pair.split('=')
+            if len(param) < 2:
+               print 'Error: Invalid input.  "%s" must be assigned a priority' % param[0].strip()
+               valid_input = False
+               break
+            elif param[1] in list:
+               print 'Error: Two features have the same priority of "%s"' % param[1].strip()
+               valid_input = False
+               break
+            else:
+               list[param[1].strip()] = param[0].strip()
       result = obj.ModifyFeatures('replace', list, {})
       if result.status != 0:
          print 'Error: Failed to modify included features for feature "%s" (%d, %s)' % (name, result.status, result.txt)
@@ -131,7 +140,7 @@ def modify_feature(obj, name, action):
             print 'Error: Failed to retrieve current list of conflicts for feature "%s" (%d, %s)' % (name, result.status, result.txt)
          else:
             print 'Current configured feature conflicts:'
-            val = result.outArgs['list']
+            val = result.outArgs['conflicts']
             list = ''
             for key in val.keys():
                list += '%s,' % key
@@ -151,14 +160,29 @@ def modify_feature(obj, name, action):
             print 'Error: Failed to retrieve current list of dependencies for feature "%s" (%d, %s)' % (name, result.status, result.txt)
          else:
             print 'Current configured feature dependencies:'
-            val = result.outArgs['list']
+            val = result.outArgs['depends']
             list = ''
             for key in val.keys():
-               list += '%s=%s,' % (key, params[key])
+               list += '%s=%s,' % (key, val[key])
             print list[:-1]
    if answer.lower() == 'y':
-      input = raw_input('Feature names this feature depends on (feature=priority,feature=priority,etc): ')
-      list = process_comma_sep_list(input)
+      valid_input = False
+      while valid_input == False:
+         input = raw_input('Feature names this feature depends on (feature=priority,feature=priority,etc): ')
+         list = {}
+         valid_input = True
+         for pair in input.split(','):
+            param = pair.split('=')
+            if len(param) < 2:
+               print 'Error: Invalid input.  "%s" must be assigned a priority' % param[0].strip()
+               valid_input = False
+               break
+            elif param[1] in list:
+               print 'Error: Two features have the same priority of "%s"' % param[1].strip()
+               valid_input = False
+               break
+            else:
+               list[param[1].strip()] = param[0].strip()
       result = obj.ModifyDepends('replace', list, {})
       if result.status != 0:
          print 'Error: Failed to modify depends of feature "%s" (%d, %s)' % (name, result.status, result.txt)
@@ -171,7 +195,7 @@ def modify_feature(obj, name, action):
             print 'Error: Failed to retrieve current list of subsystems for feature "%s" (%d, %s)' % (name, result.status, result.txt)
          else:
             print 'Current configured subsystems:'
-            val = result.outArgs['list']
+            val = result.outArgs['subsystems']
             list = ''
             for key in val.keys():
                list += '%s,' % key
@@ -367,7 +391,7 @@ def modify_group(obj, name, action):
             print 'Error: Failed to retrieve current node membership for group "%s" (%d, %s)' % (name, result.status, result.txt)
          else:
             print 'Current node membership:'
-            val = result.outArgs['list']
+            val = result.outArgs['nodes']
             pre_edit_list = ''
             for key in val.keys():
                pre_edit_list += '%s,' % key
@@ -377,7 +401,7 @@ def modify_group(obj, name, action):
       input = raw_input('Names of nodes included in this group (comma separated): ')
       definition = process_comma_sep_list(input)
       for node in definition.keys():
-         node = node.rstrip().lstrip()
+         node = node.strip()
          if node not in pre_edit_list.split(','):
             obj = get_node(session, config_store, node)
             if obj != None:
@@ -387,7 +411,7 @@ def modify_group(obj, name, action):
                   print 'Error: Failed to add node "%s" to group "%s" (%d, %s)' % (node, name, result.status, result.txt)
 
       for node in pre_edit_list.split(','):
-         node = node.rstrip().lstrip()
+         node = node.strip()
          if node not in definition.keys():
             obj = get_node(session, config_store, node)
             if obj != None:
@@ -432,6 +456,26 @@ def modify_node(obj, name, action):
          print 'Error: Failed to set pool for node "%s" to "%s" (%d, %s)' % (name, value, result.status, result.txt)
 
 
+def add_subsys(sess, store, name):
+   print 'Adding subsystem "%s"' % name
+   result = store.AddSubsys(name)
+   if result.status != 0:
+      print 'Error: Failed to add subsystem "%s" (%d, %s)' % (name, result.status, result.txt)
+      return(None)
+   else:
+      obj = sess.getObjects(_objectId=result.outArgs['obj'])
+      if obj != []:
+         return(obj[0])
+      else:
+         return(None)
+
+
+def modify_subsys(obj, name, action):
+   # Get the specifics of the subsystem
+   answer = 'y'
+   print 'Modifying subsystem "%s"' % name
+
+
 def main(argv=None):
    if argv is None:
       argv = sys.argv
@@ -443,20 +487,22 @@ def main(argv=None):
    groups = ''
    nodes = ''
    params = ''
+   subsys = ''
    config_store = []
    feat_list = {}
    param_list = {}
    group_list = {}
    node_list = {}
+   subsys_list = {}
 
    # Set signal handlers
    signal.signal(signal.SIGINT, exit_signal_handler)
    signal.signal(signal.SIGTERM, exit_signal_handler)
 
    long_opts = ['add', 'broker=', 'delete', 'edit', 'features=', 'groups=',
-                'help', 'list', 'nodes=', 'params=', 'port=']
+                'help', 'list', 'nodes=', 'params=', 'port=', 'subsys=']
    try:
-      opts, args = getopt.getopt(argv[1:], 'ab:def:g:hln:p:o:', long_opts)
+      opts, args = getopt.getopt(argv[1:], 'ab:def:g:hln:p:o:s:', long_opts)
    except getopt.GetoptError, error:
       print str(error)
       return(1)
@@ -497,6 +543,8 @@ def main(argv=None):
          params = arg
       if option in ('-o', '--port'):
          port = arg
+      if option in ('-s', '--subsys'):
+         subsys = arg
 
    if broker_ip == '':
       print 'No broker specified.  Exiting'
@@ -523,14 +571,14 @@ def main(argv=None):
    # If the list action is given without features or parameters, then list
    # the details of all features and parameters in the store
    if action == 'list' and features == '' and params == '' and \
-      nodes == '' and groups == '':
+      nodes == '' and groups == '' and subsys == '':
       # List all nodes
       store_nodes = []
       store_nodes = session.getObjects(_class='Node', _package='mrg.grid.config')
       if store_nodes == []:
-         print 'There are no nodes configured in the store'
+         print '\nThere are no nodes configured in the store'
       else:
-         print 'Nodes configured in the store:'
+         print '\nNodes configured in the store:'
          for node in store_nodes:
             name = node.getIndex()
             list_node_info(session, config_store, name)
@@ -540,9 +588,9 @@ def main(argv=None):
       store_groups = []
       store_groups = session.getObjects(_class='Group', _package='mrg.grid.config')
       if store_groups == []:
-         print 'There are no groups configured in the store'
+         print '\nThere are no groups configured in the store'
       else:
-         print 'Groups configured in the store'
+         print '\nGroups configured in the store'
          for group in store_groups:
             id = group.getIndex()
             result = group.GetName()
@@ -557,9 +605,9 @@ def main(argv=None):
       store_params = []
       store_params = session.getObjects(_class='Parameter', _package='mrg.grid.config')
       if store_params == []:
-         print 'There are no parameters configured in the store'
+         print '\nThere are no parameters configured in the store'
       else:
-         print 'Parameters configured in the store'
+         print '\nParameters configured in the store'
          for param in store_params:
             id = param.getIndex()
             list_param_info(session, config_store, id)
@@ -569,9 +617,9 @@ def main(argv=None):
       store_feats = []
       store_feats = session.getObjects(_class='Feature', _package='mrg.grid.config')
       if store_feats == []:
-         print 'There are no features configured in the store'
+         print '\nThere are no features configured in the store'
       else:
-         print 'Features configured in the store'
+         print '\nFeatures configured in the store'
          for feat in store_feats:
             id = feat.getIndex()
             result = feat.GetName()
@@ -581,6 +629,18 @@ def main(argv=None):
                name = result.outArgs['name']
                list_feature_info(session, config_store, name)
                print''
+
+      # List all subsystems
+      store_subsys = []
+      store_subsys = session.getObjects(_class='Subsystem', _package='mrg.grid.config')
+      if store_subsys == []:
+         print '\nThere are no subsystems configured in the store'
+      else:
+         print '\nSubsystems configured in the store'
+         for sub in store_subsys:
+            id = sub.getIndex()
+            list_subsys_info(session, config_store, id)
+            print ''
 
       return(0)
 
@@ -667,6 +727,24 @@ def main(argv=None):
             if obj != None:
                group_list[group] = obj
 
+   # Process the subsystems
+   if subsys != '':
+      for sub in subsys.split(','):
+         if action == 'add':
+            obj = add_subsys(session, config_store, sub)
+            if obj != None:
+               subsys_list[sub] = obj
+         elif action == 'delete':
+            result = config_store.RemoveSubsys(sub)
+            if result.status != 0:
+               print 'Error: Failed to remove subsystem "%s" (%d, %s)' % (sub, result.status, result.text)
+         elif action == 'list':
+            list_subsys_info(session, config_store, sub)
+         elif action == 'edit':
+            obj = get_subsys(session, config_store, sub)
+            if obj != None:
+               subsys_list[sub] = obj
+
    # Now modify the params/features/etc
 
    # Modify the parameters, if needed
@@ -684,6 +762,10 @@ def main(argv=None):
    # Modify the groups, if needed
    for group in group_list.keys():
       modify_group(group_list[group], group, action)
+
+   # Modify the subsystems, if needed
+   for sub in subsys_list.keys():
+      modify_subsys(subsys_list[sub], sub, action)
 
 if __name__ == '__main__':
     sys.exit(main())

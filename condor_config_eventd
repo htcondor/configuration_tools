@@ -64,7 +64,8 @@ class EventConsole(Console):
          config = result.outArgs['config']
 
       # Write the config to a file on disk
-      config_file = open('/var/lib/condor/config/qmf_condor_config', 'w')
+      loc = read_condor_config('CONDOR_CONFIG', 'DIR')
+      config_file = open('%s/qmf_condor_config' % loc['DIR'], 'w')
       for key in config.keys():
          config_file.write('%s = %s\n' % key, config[key])
       config_file.close()

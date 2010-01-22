@@ -19,7 +19,7 @@ import sys
 import re
 import signal
 from qmf.console import Session
-from remoteconfig.config_utils import *
+from condorqmfconfig.config_utils import *
 
 
 feature_list = {}
@@ -27,42 +27,31 @@ group_obj = []
 
 
 def exit_signal_handler(signum, frame):
-   result = group_obj.RemoveFeatures(feature_list)
-   if result.status != 0:
-      print 'Error: Problem removing features (%d, %s)' % (result.status, result.text)
+   if group_obj != []:
+      result = group_obj.RemoveFeatures(feature_list)
+      if result.status != 0:
+         print 'Error: Problem removing features (%d, %s)' % (result.status, result.text)
    sys.exit(0)
 
 
 def print_help(name, sess):
-   print 'usage: %s [-h|--help] -b|--broker <broker> [-p|--port <port>] [-g|--group|-n|--node name] action [-f|--features feature[,feature,...]] [-p|--params param=1,param2=string,...] ' % os.path.basename(name)
-   print '  <broker> - The ip/hostname of the broker used by the configuration store'
-   print '  <port> - The port of the broker used by the configuration store'
+   print 'usage: %s [-h|--help] -b|--broker <broker> [-p|--port <port>] [--load-snapshot|--remove-snapshot <snapshot>] [-g|--group|-n|--node name] action [-f|--features feature[,feature,...]] [-p|--params param=1,param2=string,...]' % os.path.basename(name)
+   print '  <broker>   - The ip/hostname of the broker used by the configuration store'
+   print '  <port>     - The port of the broker used by the configuration store'
+   print '  <snapshot> - The name of the snapshot'
    print '  -g - The name of the group to configure'
    print '  -n - The name of the specific node to configure'
    print '  -h - Print help'
    print '\naction:'
-   print '  -a|--add    - Add the feature(s) to the group/node'
-   print '  -d|--delete - Remove the feature(s) from the group/node'
-   print '  -l|--list   - List configurations.  If provided without a specific'
-   print '                name, prints the list of nodes being managed.  If'
-   print '                a name is provided, print the list of features'
-   print '                and parameters for the provided name.  If provided'
-   print '                with one or more features or parameters in addition'
-   print '                to a name, then print the specific configurations'
-   print '                for those features and/or parameters for that name'
-   print '\navailable features:'
-   if sess != []:
-      features = sess.getObjects(_class='Feature', _package='mrg.grid.config')
-      if features != []:
-         for feat in features:
-            id = feat.getIndex()
-            result = feat.GetName()
-            if result.status != 0:
-               print 'Error: Unable to retrieve feature name for feature id "%s"' % id
-            else:
-               print '%-21s\b' % result.outArgs['name']
-      else:
-         print 'Unable to retrieve list of features'
+   print '  -a|--add             - Add to  the group/node'
+   print '  -d|--delete          - Remove from the group/node'
+   print '  -l|--list            - List the specific node/group/feature/param'
+   print '                         configuration'
+   print '  --list-all-features  - List all features in the store'
+   print '  --list-all-groups    - List all groups in the store'
+   print '  --list-all-nodes     - List all nodes in the store'
+   print '  --list-all-params    - List all params in the store'
+   print '  --list-all-snapshots - List all snapshots in the store'
 
 
 def configure_node_schedulers(params):
@@ -91,9 +80,18 @@ def configure_qmf_broker(params):
       # Remove previous configuration it if exists
       value = raw_input('Enter the hostname of the AMQP broker this group will use to communicate with the Management Console: ')
       params['QMF_BROKER_HOST'] = value.split()
-      value = raw_input('Enter the port the AMQP broker listens on: ')
-      if value != '':
-         params['QMF_BROKER_PORT'] = value.split()
+
+      valid = False
+      while valid == False:
+         valid = True
+         value = raw_input('Enter the port the AMQP broker listens on: ')
+         if value != '':
+            try:
+               junk = int(value)
+               params['QMF_BROKER_PORT'] = value.split()
+            except ValueError:
+               print 'Error: "%s" is not a valid value' % value
+               valid = False
 
 
 def main(argv=None):
@@ -110,6 +108,7 @@ def main(argv=None):
    group_config = {}
    config_store = []
    session = []
+   list_alls = []
    need_print_help = False
 
    # Set signal handlers
@@ -117,9 +116,13 @@ def main(argv=None):
    signal.signal(signal.SIGTERM, exit_signal_handler)
 
    long_opts = ['add', 'broker=', 'delete', 'features=', 'group=', 'help',
-                'list', 'node=', 'params=', 'port=']
+                'list', 'list-all-features', 'list-all-groups',
+                'list-all-nodes', 'list-all-params', 'list-all-snapshots',
+                'load-snapshot=', 'node=', 'params=', 'port=',
+                'remove-snapshot']
+
    try:
-      opts, args = getopt.getopt(argv[1:], 'ab:df:g:hln:p:o:', long_opts)
+      opts, args = getopt.gnu_getopt(argv[1:], 'ab:df:g:hln:p:o:', long_opts)
    except getopt.GetoptError, error:
       print str(error)
       return(1)
@@ -151,6 +154,29 @@ def main(argv=None):
             print 'Only 1 action may be specified'
             return(1)
          action = 'list'
+      if option in ('--list-all-features', '--list-all-groups',
+                    '--list-all-nodes', '--list-all-params',
+                    '--list-all-snapshots'):
+         if action != '' and action != 'list-all':
+            print 'Only 1 action may be specified'
+            return(1)
+         action = 'list-all'
+         if option == '--list-all-features':
+            list_alls += ['Feature']
+         elif option == '--list-all-groups':
+            list_alls += ['Group']
+         elif option == '--list-all-nodes':
+            list_alls += ['Node']
+         elif option == '--list-all-params':
+            list_alls += ['Parameter']
+         elif option == '--list-all-snapshots':
+            list_alls += ['Snapshot']
+      if option  == '--load-snapshot':
+         if action != '':
+            print 'Only 1 action may be specified'
+            return(1)
+         action = 'load-snapshot'
+         snapshot_name = arg
       if option in ('-n', '--node'):
          if name != '':
             print 'Can only configure 1 node or group at a time'
@@ -161,10 +187,16 @@ def main(argv=None):
       if option in ('-p', '--params'):
          for param_pair in arg.split(','):
             param = param_pair.split('=')
-            if len(param) != 2:
-               print 'Invalid input "%s".  Skipping' % param_pair
-               continue
-            param_list[param[0]] = param[1]
+            if len(param) < 2:
+               param_list[param[0]] = False
+            else:
+               param_list[param[0]] = param[1]
+      if option in ('--remove-snapshot'):
+         if action != '':
+            print 'Only 1 action may be specified'
+            return(1)
+         action = 'remove-snapshot'
+         snapshot_name = arg
 
    # Connect to the configuration store
    if broker_ip == '':
@@ -195,6 +227,43 @@ def main(argv=None):
    if config_store == []:
       return(1)
 
+   # Process the list-alls, if there are any.
+   if action == 'list-all':
+      for type in list_alls:
+         objs = session.getObjects(_class=type, _package='mrg.grid.config')
+         print '\n%ss:' % type
+         if type == 'Feature' or type == 'Group':
+            if objs == []:
+               print '  There are no %ss in the store' % type
+            else:
+               for obj in objs:
+                  result = obj.GetName()
+                  if result.status == 0:
+                     name = result.outArgs['name']
+                     if '+++' != name[0:3]:
+                        print '  %s' % name
+         if  type == 'Node' or type == 'Parameter' or type == 'Snapshot':
+            if objs == []:
+               print '  There are no %ss in the store' % type
+            else:
+               for obj in objs:
+                  print '  %s' % obj.getIndex()
+      return(0)
+
+   # Process snapshots
+   if action == 'load-snapshot':
+      result = config_store.LoadSnapshot(snapshot_name)
+      if result.status != 0:
+         print 'Error: Failed to load snapshot "%s" (%d %s)' % (snapshot_name, result.status, result.text)
+         return(1)
+      return(0)
+   elif action == 'remove-snapshot':
+      result = config_store.RemoveSnapshot(snapshot_name)
+      if result.status != 0:
+         print 'Error: Failed to remove snapshot "%s" (%d %s)' % (snapshot_name, result.status, result.text)
+         return(1)
+      return(0)
+
    # If configuring a single node, grab that node's identity group and
    # act upon that
    if node != '':
@@ -221,55 +290,19 @@ def main(argv=None):
 
    # Perform list opertions
    if action == 'list':
-      if name == '' and features == '':
-         node_list = []
-         node_list = session.getObjects(_class='Node', _package='mrg.grid.config')
-         if node_list == []:
-            return(1)
-
-         print 'Nodes being managed:'
-         for obj in node_list:
-            print obj.getIndex()
-      elif name != '' and features == '':
-         # Get the group object from the store
-         group_obj = get_group(session, config_store, name)
-         if group_obj == None:
-            return(1)
-
-         print 'Configuration for %s:' % name
-
-         # Get the list of nodes included in this group
-         result = group_obj.GetMembership()
-         if result.status != 0:
-            print 'Error: Failed to retrieve included nodes for group %s (%d, %s)' % (name, result.status, result.text)
+      if name != '':
+         # Provide the configuration for the group/node
+         if node != '':
+            list_node_info(session, config_store, node)
          else:
-            print 'Nodes included:'
-            for group_node in result.outArgs['list'].keys():
-               print group_node
-
-         # Get the features configured for this group
-         result = group_obj.GetFeatures()
-         if result.status != 0:
-            print 'Error: Failed to retrieve included features for group %s (%d, %s)' % (name, result.status, result.text)
-         else:
-            print 'Features Configured:'
-            for feature in result.outArgs['features'].keys():
-               print feature
-
-         # Get parameters specific to this group
-         result = group_obj.GetParams()
-         if result.status != 0:
-            print 'Error: Failed to retrieve included parameters for group %s (%d, %s)' % (name, result.status, result.text)
-         else:
-            print 'Attributes Configured:'
-            params = result.outArgs['params']
-            for key in params.keys():
-               print '%s = %s' % (key, params[key])
-      elif features != '':
+            list_group_info(session, config_store, name)
+      if features != '':
          # Provide the configuration for the features
          for feat in features.split(','):
             print 'Configuration for feature %s:' % feat
             list_feature_info(session, config_store, feat)
+      for param in param_list.keys():
+         list_param_info(session, config_store, param)
             
       return(0)
 
@@ -289,8 +322,9 @@ def main(argv=None):
          return(1)
 
       # Generate the list of features to act upon
-      for feature in features.split(','):
-         feature_list[feature] = '0'
+      if features != '':
+         for feature in features.split(','):
+            feature_list[feature] = '0'
          
       # Configure which schedulers the node can submit to
       configure_node_schedulers(param_list)
@@ -300,21 +334,22 @@ def main(argv=None):
       configure_qmf_broker(param_list)
 
       if raw_input('\nApply these changes [y/N] ? ').lower() == 'y':
-         req_params = {}
-         result = group_obj.ModifyFeatures(action, feature_list, {})
-         if result.status != 0:
-            print 'Error: Problem modifying features (%d, %s)' % (result.status, result.text)
-            return(1)
-         else:
-            req_params = result.outArgs['params']
-
-         if req_params != {}:
-            print 'The following parameters must be set for this configuration to be valid:'
-            for param in req_params.keys():
-               print '\nAttribute Name: %s' % param
-               print 'Reason: %s' % req_params[param]
-               value = raw_input('Value: ')
-               param_list[param] = value
+         if feature_list != {}:
+            req_params = {}
+            result = group_obj.ModifyFeatures(action, feature_list, {})
+            if result.status != 0:
+               print 'Error: Problem modifying features (%d, %s)' % (result.status, result.text)
+               return(1)
+#            else:
+#               req_params = result.outArgs['params']
+#
+#            if req_params != {}:
+#               print 'The following parameters must be set for this configuration to be valid:'
+#               for param in req_params.keys():
+#                  print '\nAttribute Name: %s' % param
+#                  print 'Reason: %s' % req_params[param]
+#                  value = raw_input('Value: ')
+#                  param_list[param] = value
                   
          if param_list != {}:
             result = group_obj.ModifyParams(action, param_list, {})
@@ -323,19 +358,28 @@ def main(argv=None):
                return(1)
          print 'Configuration applied'
 
-#         if raw_input('\nSave this configuration [y/N] ? ').lower() == 'y':
-#            config_name = raw_input('  Configuration Name: ')
-#            result = config_store.SaveConfiguration(config_name)
-#            if result.status != 0:
-#               print 'Error: Problem saving configuration in store (%d, %s)' % (result.status, result.text)
-#            else: 
-#               print 'Configuration saved with ID "%s"' % result.outArgs['configId']
-#               if raw_input('\nActivate this configuration [y/N] ? ').lower() == 'y':
-#                  result = config_store.ActivateConfiguration(config_name)
-#                  if result.status != 0:
-#                     print 'Error: Problem activating configuration (%d, %s)' % (result.status, result.text)
-#                  else: 
-#                     print 'Configuration activated'
+         if raw_input('\nSave this configuration [y/N] ? ').lower() == 'y':
+            config_name = raw_input('  Configuration Name: ')
+            result = config_store.MakeSnapshot(config_name)
+            if result.status != 0:
+               print 'Error: Problem saving configuration in store (%d, %s)' % (result.status, result.text)
+            else: 
+               print 'Configuration saved'
+
+         if raw_input('\nActivate the changes [y/N] ? ').lower() == 'y':
+            result = config_store.ActivateConfiguration()
+            if result.status != 0:
+               print 'Error: Unable to active changes (%d, %s)' % (result.status, result.text)
+               requirements = result.outArgs['params']
+               print 'These nodes need non-default values to be set for the following parameters:'
+               for node in requirements.keys():
+                  print 'Node: %s' % node
+                  print 'Parameters:'
+                  for param in requirements[node].split(','):
+                     print '  %s' % param
+               return(1)
+         else: 
+            print 'Configuration activated'
       else:
          print 'Configuration not applied'
 

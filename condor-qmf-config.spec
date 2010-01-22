@@ -1,32 +1,41 @@
 %{!?python_sitelib: %define python_sitelib %(%{__python} -c "from distutils.sysconfig import get_python_lib; print get_python_lib()")}
-%define rel 22
+%define rel 0.1
 
-Summary: Condor Remote Configuration Client
-Name: condor-remote-configuration
-Version: 1.0
+Name: condor-qmf-config
+Summary: Condor configuration over QMF
+Version: 2.0
 Release: %{rel}%{?dist}
 License: ASL 2.0
-Group: Applications/System
 URL: http://www.redhat.com/mrg
 Source0: %{name}-%{version}-%{rel}.tar.gz
 BuildRoot: %(mktemp -ud %{_tmppath}/%{name}-%{version}-%{release}-XXXXXX)
 BuildArch: noarch
+
+%description
+The Condor QMF Config package provides a means to quickly and easily
+configure machines running Condor by providing tools to define configurations
+and apply them to nodes over QMF.
+
+%package client
+Summary: Condor QMF Configuration Client
+Group: Applications/System
 Requires: condor
 Requires: python >= 2.3
 Requires: python-qpid
 Requires: python-condor-job-hooks-common
 Requires: python-%{name}-common
+Obsoletes: condor-remote-configuration
 
-%description
-The Condor Remote Configuration package provides a means to quickly and easily
+%description client
+The Condor QMF Configuration package provides a means to quickly and easily
 configure machines running Condor by providing tools to define configurations
-and apply them to nodes.
+and apply them to nodes over QMF.
 
 This package provides the tools needed for managed clients
 
 %if 0%{?rhel} != 4
 %package tools
-Summary: Condor Remote Configuration Tools
+Summary: Condor QMF Configuration Tools
 Group: Applications/System
 Requires: python >= 2.4
 Requires: python-qpid
@@ -34,41 +43,46 @@ Requires: python-%{name}-common
 Obsoletes: condor-remote-configuration-server
 
 %description tools
-The Condor Remote Configuration package provides a means to quickly and easily
+The Condor QMF Configuration package provides a means to quickly and easily
 configure machines running Condor by providing tools to define configurations
-and apply them to nodes.
+and apply them to nodes over QMF.
 
-This package provides tools to configure nodes and the configuration store
+This package provides tools to configure condor pools and the
+configuration store
 %endif
 
 %package -n python-%{name}-common
-Summary: Common functions for condor remote configuration
+Summary: Common functions for condor qmf configuration
 Group: Applications/System
 Requires: python >= 2.3
 
 %description -n python-%{name}-common
-Common function used by MRG condor remote configuration
+Common function used by MRG condor qmf configuration
 
 %prep
 %setup -q
 
 %install
 rm -rf %{buildroot}
-mkdir -p %{buildroot}/%{python_sitelib}/remoteconfig
+mkdir -p %{buildroot}/%{python_sitelib}/condorqmfconfig
 mkdir -p %{buildroot}/%_sbindir
+mkdir -p %{buildroot}/%_var/lib/condor/config
 %if 0%{?rhel} != 4
 cp -f condor_configure_pool %{buildroot}/%_sbindir
 cp -f condor_configure_store %{buildroot}/%_sbindir
 %endif
 cp -f condor_config_eventd %{buildroot}/%_sbindir
-cp -f config_utils.py %{buildroot}/%{python_sitelib}/remoteconfig
-touch %{buildroot}/%{python_sitelib}/remoteconfig/__init__.py
+cp -f qmf_config_eventd %{buildroot}/%_var/lib/condor/config
+cp -f config_utils.py %{buildroot}/%{python_sitelib}/condorqmfconfig
+touch %{buildroot}/%{python_sitelib}/condorqmfconfig/__init__.py
 
-%files
+%files client
 %defattr(-,root,root,-)
 %doc LICENSE-2.0.txt
 %defattr(0755,root,root,-)
 %_sbindir/condor_config_eventd
+%defattr(0644,condor,condor,-)
+%_var/lib/condor/config/qmf_config_eventd
 
 %if 0%{?rhel} != 4
 %files tools
@@ -82,8 +96,8 @@ touch %{buildroot}/%{python_sitelib}/remoteconfig/__init__.py
 %files -n python-%{name}-common
 %defattr(-,root,root,-)
 %doc LICENSE-2.0.txt
-%{python_sitelib}/remoteconfig/config_utils.py*
-%{python_sitelib}/remoteconfig/__init__.py*
+%{python_sitelib}/condorqmfconfig/config_utils.py*
+%{python_sitelib}/condorqmfconfig/__init__.py*
 
 %changelog
 * Thu Oct 15 2009  <rrati@redhat> - 1.0-22

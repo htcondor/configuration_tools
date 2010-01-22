@@ -1,0 +1,2 @@
+QMF_CONFIG_EVENTD=/usr/bin/condor_config_eventd
+DAEMON_LIST = $(DAEMON_LIST), QMF_CONFIG_EVENTD

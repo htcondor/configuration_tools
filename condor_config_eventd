@@ -64,7 +64,7 @@ class EventConsole(Console):
          config = result.outArgs['config']
 
       # Write the config to a file on disk
-      config_file = open('/var/lib/condor/config_dir/qmf_condor_config', 'w')
+      config_file = open('/var/lib/condor/config/qmf_condor_config', 'w')
       for key in config.keys():
          config_file.write('%s = %s\n' % key, config[key])
       config_file.close()
@@ -141,6 +141,7 @@ class Service:
          else:
             self.node_obj = obj[0]
       self.console.config(self.node_obj)
+      self.check_config_ver()
 
       # Setup the alarm for evaluation
       signal.alarm(0)
@@ -167,10 +168,10 @@ class Service:
       try:
          val = read_condor_config('QMF_CONFIG' ['VERSION'])
          version = val['version']
-         self.node_obj.CheckConfigVersion(version)
       except config_err, error:
-         syslog.syslog(syslog.LOG_ERR, 'Error: %s.  Unable to retrieve version of configuration currently running' % error.msg)
-         return(1)
+         # Never been configured before, so send a bank version
+         version = ''
+      self.node_obj.CheckConfigVersion(version)
 
 
 def reconfig(signum, frame):

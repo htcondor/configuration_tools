@@ -1,6 +1,5 @@
 def get_group(sess, store, name):
-#   result = store.GetGroup({'Name': name})
-   result = store.GetGroupByName(name)
+   result = store.GetGroup({'Name': name})
    if result.status != 0:
       print 'Error: Failed to find group "%s" (%d, %s)' % (name, result.status, result.txt)
       return(None)
@@ -92,9 +91,9 @@ def list_feature_info(sess, store, feature):
          print 'Error: Failed to retrieve included Features (%d, %s)' % (result.status, result.txt)
       else:
          value = result.outArgs['features']
-         print 'Included Features (order, featureName):'
+         print 'Included Features (order: featureName):'
          for key in value.keys():
-            print '  %s, %s' % (key, value[key])
+            print '  %s: %s' % (key, value[key])
 
       result = feat_obj.GetConflicts()
       if result.status != 0:
@@ -110,9 +109,9 @@ def list_feature_info(sess, store, feature):
          print 'Error: Failed to retrieve feature Dependencies (%d, %s)' % (result.status, result.txt)
       else:
          value = result.outArgs['depends']
-         print 'Dependencies (order, featureName):'
+         print 'Dependencies (order: featureName):'
          for key in value.keys():
-            print '  %s, %s' % (key, value[key])
+            print '  %s: %s' % (key, value[key])
 
       result = feat_obj.GetSubsys()
       if result.status != 0:
@@ -193,11 +192,11 @@ def list_param_info(sess, store, name):
 
 
 def list_group_info(sess, store, group):
-   print 'Group "%s":' % group
    group_obj = get_group(sess, store, group)
+   print 'Group "%s":' % group
    if group_obj != None:
       value = group_obj.getIndex()
-      print 'Feature ID: %s' % value
+      print 'Group ID: %s' % value
 
       result = group_obj.GetName()
       if result.status != 0:
@@ -211,18 +210,18 @@ def list_group_info(sess, store, group):
          print 'Error: Failed to retrieve group membership (%d, %s)' % (result.status, result.txt)
       else:
          value = result.outArgs['nodes']
-         print 'Members (priority, hostname):'
-         for key in value.keys():
-            print '  %s, %s' % (key, value[key])
+         print 'Members:'
+         for key in value.values():
+            print '  %s' % key
 
       result = group_obj.GetFeatures()
       if result.status != 0:
          print 'Error: Failed to retrieve group features (%d, %s)' % (result.status, result.txt)
       else:
          value = result.outArgs['features']
-         print 'Features (name, priority):'
+         print 'Features (priority: name):'
          for key in value.keys():
-            print '  %s, %s' % (key, value[key])
+            print '  %s: %s' % (key, value[key])
 
       result = group_obj.GetParams()
       if result.status != 0:
@@ -238,13 +237,6 @@ def list_node_info(sess, store, name):
    print 'Node "%s":' % name
    node_obj = get_node(sess, store, name)
    if node_obj != None:
-      result = node_obj.GetPool()
-      if result.status != 0:
-         print 'Error: Failed to retrieve pool (%d, %s)' % (result.status, result.txt)
-      else:
-         value = result.outArgs['pool']
-         print 'Pool: %s' % value
-
       result = node_obj.GetLastCheckinTime()
       if result.status != 0:
          print 'Error: Failed to retrieve LastCheckinTime (%d, %s)' % (result.status, result.txt)
@@ -258,7 +250,7 @@ def list_node_info(sess, store, name):
       else:
          value = result.outArgs['groups']
          print 'Group Memberships:'
-         for key in value.keys():
+         for key in value.values():
             print '  %s' % key
 
       result = node_obj.GetConfig()
@@ -282,4 +274,4 @@ def list_subsys_info(sess, store, name):
          value = result.outArgs['params']
          print 'Included Parameters:'
          for key in value.keys():
-            print '  %s = %s' % (key, value[key])
+            print '  %s' % key

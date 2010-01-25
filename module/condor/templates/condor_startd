@@ -1,7 +1,7 @@
-HOSTALLOW_WRITE_STARTD    = <%= schedd_list %>, $(HOSTALLOW_WRITE), $(FLOCK_FROM)
-HOSTALLOW_READ_STARTD     = <%= schedd_list %>, $(HOSTALLOW_READ), $(FLOCK_FROM)
-HOSTALLOW_WRITE_DAEMON    = <%= schedd_list %>
-HOSTALLOW_READ_DAEMON     = <%= schedd_list %>
+ALLOW_WRITE_STARTD    = <%= schedd_list %>, $(ALLOW_WRITE), $(FLOCK_FROM)
+ALLOW_READ_STARTD     = <%= schedd_list %>, $(ALLOW_READ), $(FLOCK_FROM)
+ALLOW_WRITE_DAEMON    = <%= schedd_list %>
+ALLOW_READ_DAEMON     = <%= schedd_list %>
 
 ##--------------------------------------------------------------------
 ##  Settings that control the daemon's debugging output:

@@ -1,4 +1,4 @@
-%define rel 22
+%define rel 23
 
 Summary: Condor Remote Configuration Client Tools
 Name: condor-remote-configuration
@@ -102,6 +102,10 @@ cp -f condor_node %{buildroot}/%_sbindir
 %endif
 
 %changelog
+* Tue Oct 27 2009  <rrati@redhat> - 1.0-23
+- Changed XEN_* params to VM_* params (BZ530635)
+- Changed HOSTALLOW_* params to ALLOW_* params (BZ530571)
+
 * Thu Oct 15 2009  <rrati@redhat> - 1.0-22
 - Removed triggerd entries from startd configuration
 

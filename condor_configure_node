@@ -278,14 +278,14 @@ def configure_vm_universe(conf, action, fields):
 
    if action == 'add':
       print '\nConfiguration for VM universe\n'
-      conf.append('vm_type = %s\n' % raw_input('Type of Virtual Machines to run on this node (xen or kvm): '))
+      conf.append('vm_type = %s\n' % raw_input('Type of Virtual Machines to run on this node (xen or kvm): ').lower())
       conf.append('vm_max_mem = %s\n' % raw_input('Maximum memory the VM universe can use (in Mbytes): '))
       response = raw_input('Enable networking in the VM universe [y/N] ? ')
       if response.lower() == 'y':
-         conf.append('vm_network_enable = TRUE\n')
+         conf.append('vm_network_enable = True\n')
          conf.append('vm_network_type = %s\n' % raw_input('Networking type (nat or bridge): '))
       else:
-         conf.append('vm_network_enable = FALSE\n')
+         conf.append('vm_network_enable = False\n')
 
 def configure_node_schedulers(feats, conf, action):
    response = 'y'

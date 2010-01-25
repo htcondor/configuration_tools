@@ -52,20 +52,20 @@ HAD_USE_PRIMARY = true
 ##  machine(s) where whoever is the condor administrator(s) works
 ##  (assuming you trust all the users who log into that/those
 ##  machine(s), since this is machine-wide access you're granting).
-HOSTALLOW_ADMINISTRATOR = $(HOSTALLOW_ADMINISTRATOR), $(COLLECTOR_HOST) 
+ALLOW_ADMINISTRATOR = $(ALLOW_ADMINISTRATOR), $(COLLECTOR_HOST) 
 
 ##  Negotiator access.  Machines listed here are trusted central
 ##  managers.  You should normally not have to change this.
-HOSTALLOW_NEGOTIATOR = $(HOSTALLOW_NEGOTIATOR), $(COLLECTOR_HOST)
+ALLOW_NEGOTIATOR = $(ALLOW_NEGOTIATOR), $(COLLECTOR_HOST)
 
 ##  Now, with flocking we need to let the SCHEDD trust the other
 ##  negotiators we are flocking with as well.  You should normally
 ##  not have to change this either.
-HOSTALLOW_NEGOTIATOR_SCHEDD = $(FLOCK_NEGOTIATOR_HOSTS), $(COLLECTOR_HOST)
+ALLOW_NEGOTIATOR_SCHEDD = $(FLOCK_NEGOTIATOR_HOSTS), $(COLLECTOR_HOST)
 
 ##  Daemon access.  Machines listed here are trusted central
 ##  managers
-#HOSTALLOW_DAEMON = $(HOSTALLOW_DAEMON), $(COLLECTOR_HOST)
+#ALLOW_DAEMON = $(ALLOW_DAEMON), $(COLLECTOR_HOST)
 
 ## The location of executable files
 HAD = $(SBIN)/condor_had

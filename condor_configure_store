@@ -47,23 +47,23 @@ def print_help(name):
 
 
 
-def process_comma_sep_list(list):
-   pairs = {}
-   if list != '':
-      for entry in list.split(','):
-         if entry != '':
-            split = entry.split('=')
-            if len(split) > 1:
-               pairs[split[0].strip()] = split[1].strip()
-            else:
-               pairs[split[0].strip()] = True
-   return pairs
+#def process_comma_sep_list(list):
+#   pairs = {}
+#   if list != '':
+#      for entry in list.split(','):
+#         if entry != '':
+#            split = entry.split('=')
+#            if len(split) > 1:
+#               pairs[split[0].strip()] = split[1].strip()
+#            else:
+#               pairs[split[0].strip()] = True
+#   return pairs
 
 
 def process_priority_list(list):
    valid = True
    pairs = {}
-   for pair in list.split(','):
+   for pair in list:
       if pair != '':
          split = pair.split('=')
          if len(split) < 2:
@@ -109,17 +109,18 @@ def modify_feature(obj, name, action):
             val = result.outArgs['params']
             list = ''
             for key in val.keys():
-               list += '%s=%s,' % (key, val[key])
-            print list[:-1]
+               print '%s=%s' % (key, val[key])
    if answer.lower() == 'y':
-      input = raw_input('List of parameters (param=value,param=value,etc): ')
+      print 'List of parameters (blank line ends input):'
       list = {}
-      for pair in input.split(','):
-         param = pair.split('=')
+      input = raw_input('param=value: ')
+      while input != '':
+         param = input.split('=')
          if len(param) != 2:
             list[param[0].strip()] = False
          else:
             list[param[0].strip()] = param[1].strip()
+         input = raw_input('param=value: ')
       result = obj.ModifyParams('replace', list, {})
       if result.status != 0:
           print 'Error: Failed to modify parameters of feature "%s" (%d, %s)' % (name, result.status, result.txt)
@@ -135,13 +136,17 @@ def modify_feature(obj, name, action):
             val = result.outArgs['features']
             list = ''
             for key in val.keys():
-               list += '%s=%s,' % (val[key], key)
-            print list[:-1]
+               print '%s=%s' % (val[key], key)
    if answer.lower() == 'y':
       valid_input = False
       while valid_input == False:
-         input = raw_input('Feature names this feature will include (feature=priority,feature=priority,etc): ')
-         (valid_input, list) = process_priority_list(input)
+         print 'Feature names this feature will include (blank line ends input):'
+         input = raw_input('feature=priority: ')
+         pri_list = []
+         while input != '':
+            pri_list += ['%s' % input]
+            input = raw_input('feature=priority: ')
+         (valid_input, list) = process_priority_list(pri_list)
       result = obj.ModifyFeatures('replace', list, {})
       if result.status != 0:
          print 'Error: Failed to modify included features for feature "%s" (%d, %s)' % (name, result.status, result.txt)
@@ -157,11 +162,14 @@ def modify_feature(obj, name, action):
             val = result.outArgs['conflicts']
             list = ''
             for key in val.keys():
-               list += '%s,' % key
-            print list[:-1]
+               print '%s' % key
    if answer.lower() == 'y':
-      input = raw_input('Comma separated list of feature names this feature conflicts with: ')
-      list = process_comma_sep_list(input)
+      print 'List of feature names this feature conflicts with (blank line ends input):'
+      input = raw_input('conflict: ')
+      list = {}
+      while input != '':
+         list[input.strip()] = True
+         input = raw_input('conflict: ')
       result = obj.ModifyConflicts('replace', list, {})
       if result.status != 0:
          print 'Error: Failed to modify conflicts of feature "%s" (%d, %s)' % (name, result.status, result.txt)
@@ -177,13 +185,17 @@ def modify_feature(obj, name, action):
             val = result.outArgs['depends']
             list = ''
             for key in val.keys():
-               list += '%s=%s,' % (key, val[key])
-            print list[:-1]
+               print '%s=%s' % (val[key], key)
    if answer.lower() == 'y':
       valid_input = False
       while valid_input == False:
-         input = raw_input('Feature names this feature depends on (feature=priority,feature=priority,etc): ')
-         (valid_input, list) = process_priority_list(input)
+         print('Feature names this feature depends on (blank line ends input):')
+         input = raw_input('feature=priority: ')
+         pri_list = []
+         while input != '':
+            pri_list += ['%s' % input]
+            input = raw_input('feature=priority: ')
+         (valid_input, list) = process_priority_list(pri_list)
       result = obj.ModifyDepends('replace', list, {})
       if result.status != 0:
          print 'Error: Failed to modify depends of feature "%s" (%d, %s)' % (name, result.status, result.txt)
@@ -199,11 +211,14 @@ def modify_feature(obj, name, action):
             val = result.outArgs['subsystems']
             list = ''
             for key in val.keys():
-               list += '%s,' % key
-            print list[:-1]
+               print '%s' % key
    if answer.lower() == 'y':
-      input = raw_input('Comma separated list of subsystems this feature uses: ')
-      list = process_comma_sep_list(input)
+      print('List of subsystems this feature uses (blank line ends input): ')
+      input = raw_input('subsystem: ')
+      list = {}
+      while input != '':
+         list[input.strip()] = True
+         input = raw_input('subsystem: ')
       result = obj.ModifySubsys('replace', list)
       if result.status != 0:
          print 'Error: Failed to modify subsystem list of feature "%s" (%d, %s)' % (name, result.status, result.txt)
@@ -345,11 +360,14 @@ def modify_param(obj, name, action):
             val = result.outArgs['depends']
             list = ''
             for key in val.keys():
-               list += '%s,' % key
-            print list[:-1]
+               print '%s' % key
    if answer.lower() == 'y':
-      value = raw_input('Comma separated list of parameter names that "%s" depends on: ' % name)
-      list = process_comma_sep_list(value)
+      print 'List of parameter names that "%s" depends on (blank line ends input):' % name
+      input = raw_input('dependency: ')
+      list = {}
+      while input != '':
+         list[input.strip()] = True
+         input = raw_input('dependency: ')
       result = obj.ModifyDepends('replace', list, {})
       if result.status != 0:
          print 'Error: Failed to modify depenecies of parameter "%s" (%d, %s)' % (name, result.status, result.txt)
@@ -365,11 +383,14 @@ def modify_param(obj, name, action):
             val = result.outArgs['conflicts']
             list = ''
             for key in val.keys():
-               list += '%s,' % key
-            print list[:-1]
+               print '%s' % key
    if answer.lower() == 'y':
-      value = raw_input('Comma separated list of parameter names that "%s" conflicts with: ' % name)
-      list = process_comma_sep_list(value)
+      print 'List of parameter names that "%s" conflicts with (blank line ends input): ' % name
+      input = raw_input('conflict: ')
+      list = {}
+      while input != '':
+         list[input.strip()] = True
+         input = raw_input('conflict: ')
       result = obj.ModifyConflicts('replace', list, {})
       if result.status != 0:
          print 'Error: Failed to modify conflicts of parameter "%s" (%d, %s)' % (name, result.status, result.txt)
@@ -403,18 +424,21 @@ def modify_group(obj, name, action, store, sess):
          else:
             print 'Current node membership:'
             val = result.outArgs['nodes']
-            pre_edit_list = ''
+            pre_edit_list = []
             for key in val.keys():
-               pre_edit_list += '%s,' % key
-            pre_edit_list = pre_edit_list[:-1]
-            print pre_edit_list
+               pre_edit_list += ['%s' % val[key]]
+               print val[key]
    if answer.lower() == 'y':
-      input = raw_input('Names of nodes included in this group (comma separated): ')
-      definition = process_comma_sep_list(input)
+      print 'Names of nodes included in this group (blank line ends input):'
+      input = raw_input('included node: ')
+      definition = {}
+      while input != '':
+         definition[input.strip()] = True
+         input = raw_input('included node: ')
       for node in definition.keys():
          node = node.strip()
          should_add = True
-         if pre_edit_list != '' and node in pre_edit_list.split(','):
+         if pre_edit_list != '' and node in pre_edit_list:
             should_add = False
          if should_add == True:
             node_obj = get_node(sess, store, node)
@@ -424,7 +448,7 @@ def modify_group(obj, name, action, store, sess):
                   print 'Error: Failed to add node "%s" to group "%s" (%d, %s)' % (node, name, result.status, result.txt)
 
       if pre_edit_list != '':
-         for node in pre_edit_list.split(','):
+         for node in pre_edit_list:
             node = node.strip()
             if node not in definition.keys():
                node_obj = get_node(sess, store, node)
@@ -478,11 +502,14 @@ def modify_subsys(obj, name, action):
             val = result.outArgs['params']
             list = ''
             for key in val.keys():
-               list += '%s=%s,' % (key, val[key])
-            print list[:-1]
+               print '%s=%s' % (key, val[key])
    if answer.lower() == 'y':
-      input = raw_input('Comma separated list of parameters affecting subsystem "%s": ' % name)
-      list = process_comma_sep_list(input)
+      print 'List of parameters affecting subsystem "%s" (blank line ends input):' % name
+      input = raw_input('parameter: ')
+      list = {}
+      while input != '':
+         list[input.strip()] = True
+         input = raw_input('parameter: ')
       result = obj.ModifyParams('replace', list, {})
       if result.status != 0:
           print 'Error: Failed to modify parameters affecting subsystem "%s" (%d, %s)' % (name, result.status, result.txt)

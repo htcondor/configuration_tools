@@ -35,7 +35,7 @@ def exit_signal_handler(signum, frame):
 
 
 def print_help(name, sess):
-   print 'usage: %s [-h|--help] -b|--broker <broker> [-p|--port <port>] [--load-snapshot|--remove-snapshot <snapshot>] [-g|--group|-n|--node name] action [-f|--features feature[,feature,...]] [-p|--params param=1,param2=string,...]' % os.path.basename(name)
+   print 'usage: %s [-h|--help] -b|--broker <broker> [-p|--port <port>] [--load-snapshot|--remove-snapshot <snapshot>] [-g|--group|-n|--node name] action [-f|--features feature[,feature,...]] [-p|--params param1,param2,...]' % os.path.basename(name)
    print '  <broker>   - The ip/hostname of the broker used by the configuration store'
    print '  <port>     - The port of the broker used by the configuration store'
    print '  <snapshot> - The name of the snapshot'
@@ -186,11 +186,7 @@ def main(argv=None):
          port = arg
       if option in ('-p', '--params'):
          for param_pair in arg.split(','):
-            param = param_pair.split('=')
-            if len(param) < 2:
-               param_list[param[0]] = False
-            else:
-               param_list[param[0]] = param[1]
+            param_list[param[0]] = False
       if option in ('--remove-snapshot'):
          if action != '':
             print 'Only 1 action may be specified'
@@ -326,6 +322,11 @@ def main(argv=None):
          for feature in features.split(','):
             feature_list[feature] = '0'
          
+      # Prompt for param values entered on the command line, if any
+      for param in param_list.keys():
+         input = raw_input('Value for "%s": ' % param)
+         param_list[param] = input.split()
+
       # Configure which schedulers the node can submit to
       configure_node_schedulers(param_list)
 

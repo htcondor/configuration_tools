@@ -102,7 +102,7 @@ def check_ec2e(obj):
    else:
       list = result.outArgs['params']
 
-   if 'NEED_SET_ROUTING_TABLE' not in list.keys() or
+   if 'NEED_SET_ROUTING_TABLE' not in list.keys() or \
       list['NEED_SET_ROUTING_TABLE'].lower() == 'false':
       return False
    else:
@@ -175,7 +175,7 @@ def configure_ec2e(params):
    params['JOB_ROUTER_ENTRIES'] = config
 
 
-def get_ec2_input(info)
+def get_ec2_input(info):
       resp = raw_input('Enter a filename containing an AWS Public Key for this route: ')
       if resp.strip() != '':
          info += ' set_amazonpublickey = "%s";' % resp.strip()
@@ -203,7 +203,7 @@ def check_more_params_needed(name, params):
    if name == 'VM_TYPE' and params[name].lower() == 'xen':
       params['VM_BRIDGE_SCRIPT'] = '/etc/xen/scripts/network-bridge start bridge=xenbr0'
       params['XEN_BOOTLOADER'] = '/usr/bin/pygrub'
-   elif name == 'VM_NETWORKING' and params[name].lower() == 'true'
+   elif name == 'VM_NETWORKING' and params[name].lower() == 'true':
       params['VM_NETWORKING_TYPE'] = 'nat, bridge'
       input = raw_input('VM Networking type (nat or bridge): ')
       params['VM_NETWORKING_DEFAULT_TYPE'] = '%s' % input.split()
@@ -471,21 +471,14 @@ def main(argv=None):
 
       if raw_input('\nApply these changes [y/N] ? ').lower() == 'y':
          if feature_list != {}:
-            req_params = {}
             result = group_obj.ModifyFeatures(action, feature_list, {})
             if result.status != 0:
                print 'Error: Problem modifying features (%d, %s)' % (result.status, result.text)
                return(1)
-#            else:
-#               req_params = result.outArgs['params']
 
             # Check if the EC2Enhanced routes need to be prompted for
             if action != 'remove' and check_ec2e(group_obj) == True:
                configure_ec2e(param_list)
-               try:
-                  req_params.del('JOB_ROUTER_ENTRIES')
-               except:
-                  pass
 
 #            if req_params != {}:
 #               print 'The following parameters must be set for this configuration to be valid:'

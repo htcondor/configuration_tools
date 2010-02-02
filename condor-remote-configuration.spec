@@ -104,7 +104,7 @@ cp -f condor_node %{buildroot}/%_sbindir
 %changelog
 * Tue Oct 27 2009  <rrati@redhat> - 1.0-23
 - Changed XEN_* params to VM_* params (BZ530635)
-- Changed HOSTALLOW_* params to ALLOW_* params (BZ530571)
+- Changed HOSTALLOW_* params to ALLOW_* params (BZ530571) 
 
 * Thu Oct 15 2009  <rrati@redhat> - 1.0-22
 - Removed triggerd entries from startd configuration

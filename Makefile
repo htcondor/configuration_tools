@@ -26,7 +26,7 @@ SOURCES/${SOURCE}:
 	cp -f condor_configure_pool ${DIR}
 	cp -f condor_configure_store ${DIR}
 	cp -f condor_config_eventd ${DIR}
-	cp -f config_utils.py ${DIR}
+	cp -f utils.py ${DIR}
 	cp -f config/* ${DIR}
 	cp -f LICENSE-2.0.txt ${DIR}
 	tar -cf ${SOURCE} ${DIR}

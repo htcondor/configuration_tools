@@ -2,11 +2,11 @@
 %define rel 0.1
 
 Name: condor-qmf-config
-Summary: Condor configuration over QMF
+Summary: Grid configuration over QMF
 Version: 2.0
 Release: %{rel}%{?dist}
 License: ASL 2.0
-URL: http://www.redhat.com/mrg
+URL: http://git.fedorahosted.org/git/grid/configuration-tools.git
 Source0: %{name}-%{version}-%{rel}.tar.gz
 BuildRoot: %(mktemp -ud %{_tmppath}/%{name}-%{version}-%{release}-XXXXXX)
 BuildArch: noarch
@@ -17,7 +17,7 @@ configure machines running Condor by providing tools to define configurations
 and apply them to nodes over QMF.
 
 %package client
-Summary: Condor QMF Configuration Client
+Summary: Grid QMF Configuration Client
 Group: Applications/System
 Requires: condor
 Requires: python >= 2.3
@@ -35,7 +35,7 @@ This package provides the tools needed for managed clients
 
 %if 0%{?rhel} != 4
 %package tools
-Summary: Condor QMF Configuration Tools
+Summary: Grid QMF Configuration Tools
 Group: Applications/System
 Requires: python >= 2.4
 Requires: python-qpid
@@ -51,20 +51,20 @@ This package provides tools to configure condor pools and the
 configuration store
 %endif
 
-%package -n python-%{name}-common
-Summary: Common functions for condor qmf configuration
+%package -n python-qmf-config
+Summary: Functions for interacting with a qmf configuration store
 Group: Applications/System
 Requires: python >= 2.3
 
-%description -n python-%{name}-common
-Common function used by MRG condor qmf configuration
+%description -n python-qmf-config
+Functions for interacting with the condor qmf configuration store
 
 %prep
 %setup -q
 
 %install
 rm -rf %{buildroot}
-mkdir -p %{buildroot}/%{python_sitelib}/condorqmfconfig
+mkdir -p %{buildroot}/%{python_sitelib}/qmfconfig
 mkdir -p %{buildroot}/%_sbindir
 mkdir -p %{buildroot}/%_var/lib/condor/config
 %if 0%{?rhel} != 4
@@ -73,8 +73,8 @@ cp -f condor_configure_store %{buildroot}/%_sbindir
 %endif
 cp -f condor_config_eventd %{buildroot}/%_sbindir
 cp -f qmf_config_eventd %{buildroot}/%_var/lib/condor/config
-cp -f config_utils.py %{buildroot}/%{python_sitelib}/condorqmfconfig
-touch %{buildroot}/%{python_sitelib}/condorqmfconfig/__init__.py
+cp -f utils.py %{buildroot}/%{python_sitelib}/qmfconfig
+touch %{buildroot}/%{python_sitelib}/qmfconfig/__init__.py
 
 %files client
 %defattr(-,root,root,-)
@@ -93,11 +93,11 @@ touch %{buildroot}/%{python_sitelib}/condorqmfconfig/__init__.py
 %_sbindir/condor_configure_pool
 %endif
 
-%files -n python-%{name}-common
+%files -n python-qmf-config
 %defattr(-,root,root,-)
 %doc LICENSE-2.0.txt
-%{python_sitelib}/condorqmfconfig/config_utils.py*
-%{python_sitelib}/condorqmfconfig/__init__.py*
+%{python_sitelib}/qmfconfig/utils.py*
+%{python_sitelib}/qmfconfig/__init__.py*
 
 %changelog
 * Thu Oct 15 2009  <rrati@redhat> - 1.0-22

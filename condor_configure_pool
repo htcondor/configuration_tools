@@ -19,7 +19,7 @@ import sys
 import re
 import signal
 from qmf.console import Session
-from condorqmfconfig.config_utils import *
+from qmfconfig.utils import *
 
 
 feature_list = {}
@@ -92,6 +92,121 @@ def configure_qmf_broker(params):
             except ValueError:
                print 'Error: "%s" is not a valid value' % value
                valid = False
+
+
+def check_ec2e(obj):
+   result = obj.GetParams()
+   if result.status != 0:
+      print 'Error: Unable to determine if EC2Enhanced configuration is needed'
+      return False
+   else:
+      list = result.outArgs['params']
+
+   if 'NEED_SET_ROUTING_TABLE' not in list.keys() or
+      list['NEED_SET_ROUTING_TABLE'].lower() == 'false':
+      return False
+   else:
+      if list['JOB_ROUTER_ENTRIES'] != '':
+         answer = raw_input('Edit the EC2Enhanced Routes [y/N]? ')
+         if answer.lower() == 'y':
+            return True
+         else:
+            return False
+      else:
+         return True
+
+
+def configure_ec2e(params):
+   config = '$(JOB_ROUTER_ENTRIES)'
+   answer = raw_input('Enable EC2 routing to the Small AMI type [y/N] ? ')
+   if answer.lower() == 'y':
+      config += ' [ GridResource = "condor localhost $(COLLECTOR_HOST)";'
+      config += ' Name = "Amazon Small";'
+      config += ' requirements=target.WantAWS is true && (target.Universe is vanilla || target.Universe is 5) && (target.WantArch is "INTEL" || target.WantArch is UNDEFINED) && (target.WantCpus <= 1 || target.WantCpus is UNDEFINED) && (target.WantMemory < 1.7 || target.WantMemory is UNDEFINED) && (target.WantDisk < 160 || target.WantDisk is UNDEFINED);'
+      config += ' set_gridresource = "amazon";'
+      config += ' set_amazoninstancetype = "m1.small";'
+      config += ' set_remote_jobuniverse = 5;'
+      get_ec2_input(config)
+      config += ' ]'
+
+   answer = raw_input('Enable EC2 routing to the High-Compute Medium AMI type [y/N] ? ')
+   if answer.lower() == 'y':
+      config += ' [ GridResource = "condor localhost $(COLLECTOR_HOST)";'
+      config += ' Name = "Amazon High-CPU Medium";'
+      config += ' requirements=target.WantAWS is true && (target.Universe is vanilla || target.Universe is 5) && (target.WantArch is "INTEL" || target.WantArch is UNDEFINED) && ((target.WantCpus > 1 && target.WantCpus <= 5) || (target.WantDisk > 160 && target.WantDisk <= 350));'
+      config += ' set_gridresource = "amazon";'
+      config += ' set_amazoninstancetype = "c1.medium";'
+      config += ' set_remote_jobuniverse = 5;'
+      get_ec2_input(config)
+      config += ' ]'
+
+   answer = raw_input('Enable EC2 routing to the High-Compute Extra Large AMI type [y/N] ? ')
+   if answer.lower() == 'y':
+      config += ' [ GridResource = "condor localhost $(COLLECTOR_HOST)";'
+      config += ' Name = "Amazon High-CPU Extra Large";'
+      config += ' requirements=target.WantAWS is true && (target.Universe is vanilla || target.Universe is 5) && target.WantArch is "X86_64" && target.WantCpus > 8 && target.WantCpus <= 20 && (target.WantMemory <= 7 || target.WantMemory is UNDEFINED) && (target.WantDisk <= 1690 || target.WantDisk is UNDEFINED);'
+      config += ' set_gridresource = "amazon";'
+      config += ' set_amazoninstancetype = "c1.xlarge";'
+      config += ' set_remote_jobuniverse = 5;'
+      get_ec2_input(config)
+      config += ' ]'
+
+   answer = raw_input('Enable EC2 routing to the XLarge AMI type [y/N] ? ')
+   if answer.lower() == 'y':
+      config += ' [ GridResource = "condor localhost $(COLLECTOR_HOST)";'
+      config += ' Name = "Amazon XLarge";'
+      config += ' requirements=target.WantAWS is true && (target.Universe is vanilla || target.Universe is 5) && target.WantArch is "X86_64" && ((target.WantMemory > 7.5 && target.WantMemory <= 15) || (target.WantDisk > 850 && target.WantDisk < 1690) || (target.WantCpus > 4 && target.WantCpus <= 8));'
+      config += ' set_gridresource = "amazon";'
+      config += ' set_amazoninstancetype = "m1.xlarge";'
+      config += ' set_remote_jobuniverse = 5;'
+      get_ec2_input(config)
+      config += ' ]'
+
+   answer = raw_input('Enable EC2 routing to the Large AMI type [y/N] ? ')
+   if answer.lower() == 'y':
+      config += ' [ GridResource = "condor localhost $(COLLECTOR_HOST)";'
+      config += ' Name = "Amazon Large";'
+      config += ' requirements=target.WantAWS is true && (target.Universe is vanilla || target.Universe is 5) && target.WantArch is "X86_64" && (target.WantCpus <= 4 || target.WantCpus is UNDEFINED) && (target.WantMemory <= 7.5 || target.WantMemory is UNDEFINED) && (target.WantDisk <= 850 || target.WantDisk is UNDEFINED);'
+      config += ' set_gridresource = "amazon";'
+      config += ' set_amazoninstancetype = "m1.large";'
+      config += ' set_remote_jobuniverse = 5;'
+      get_ec2_input(config)
+      config += ' ]'
+   params['JOB_ROUTER_ENTRIES'] = config
+
+
+def get_ec2_input(info)
+      resp = raw_input('Enter a filename containing an AWS Public Key for this route: ')
+      if resp.strip() != '':
+         info += ' set_amazonpublickey = "%s";' % resp.strip()
+      resp = raw_input('Enter a filename containing an AWS Private Key for this route: ')
+      if resp.strip() != '':
+         info += ' set_amazonprivatekey = "%s";' % resp.strip()
+      resp = raw_input('Enter a filename containing an AWS Access Key for this route: ')
+      if resp.strip() != '':
+         info += ' set_amazonaccesskey = "%s";' % resp.strip()
+      resp = raw_input('Enter a filename containing an AWS Secret Key for this route: ')
+      if resp.strip() != '':
+         info += ' set_amazonsecretkey = "%s";' % resp.strip()
+      resp = raw_input('Enter a filename containing an RSA Public Key for this route: ')
+      if resp.strip() != '':
+         info += ' set_rsapublickey = "%s";' % resp.strip()
+      resp = raw_input('Enter an S3 Storage Bucket name for this route: ')
+      info += ' set_amazons3bucketname = "%s";' % resp.strip()
+      resp = raw_input('Enter an SQS Queue name for this route: ')
+      info += ' set_amazonsqsqueuename = "%s";' % resp.strip()
+      resp = raw_input('Enter an AMI ID for use with this route: ')
+      info += ' set_amazonamiid = "%s";' % resp.strip()
+
+
+def check_more_params_needed(name, params):
+   if name == 'VM_TYPE' and params[name].lower() == 'xen':
+      params['VM_BRIDGE_SCRIPT'] = '/etc/xen/scripts/network-bridge start bridge=xenbr0'
+      params['XEN_BOOTLOADER'] = '/usr/bin/pygrub'
+   elif name == 'VM_NETWORKING' and params[name].lower() == 'true'
+      params['VM_NETWORKING_TYPE'] = 'nat, bridge'
+      input = raw_input('VM Networking type (nat or bridge): ')
+      params['VM_NETWORKING_DEFAULT_TYPE'] = '%s' % input.split()
 
 
 def main(argv=None):
@@ -210,7 +325,12 @@ def main(argv=None):
       return(1)
 
    # Retreive the config store object
-   config_store = session.getObjects(_class='Store', _package='mrg.grid.config')
+   try:
+      config_store = session.getObjects(_class='Store', _package='mrg.grid.config')
+   except RuntimeError, error:
+      print 'Error: %s' % error
+      return(1)
+
    if config_store == []:
       print 'Unable to contact Configuration Store'
    else:
@@ -226,7 +346,12 @@ def main(argv=None):
    # Process the list-alls, if there are any.
    if action == 'list-all':
       for type in list_alls:
-         objs = session.getObjects(_class=type, _package='mrg.grid.config')
+         try:
+            objs = session.getObjects(_class=type, _package='mrg.grid.config')
+         except RuntimeError, error:
+            print 'Error: %s' % error
+            return(1)
+
          print '\n%ss:' % type
          if type == 'Feature' or type == 'Group':
             if objs == []:
@@ -268,7 +393,12 @@ def main(argv=None):
          print 'Error: Unable to get node "%s" from data store (%d, %s)' % (node, result.status, result.text)
          return(1)
       else:
-         ref = session.getObjects(_objectId=result.outArgs['obj'])
+         try:
+            ref = session.getObjects(_objectId=result.outArgs['obj'])
+         except RuntimeError, error:
+            print 'Error: %s' % error
+            return(1)
+
          if ref == []:
             print 'Error: Unable to find node object with id "%s" (%d, %s)' % (node, result.status, result.text)
          else:
@@ -277,7 +407,12 @@ def main(argv=None):
             if result.status != 0:
                print 'Error: Unable to the identity group for node "%s" (%d, %s)' % (node, result.status, result.text)
             else:
-               idgroup_ref = session.getObjects(_objectId=result.outArgs['group'])
+               try:
+                  idgroup_ref = session.getObjects(_objectId=result.outArgs['group'])
+               except RuntimeError, error:
+                  print 'Error: %s' % error
+                  return(1)
+
                if idgroup_ref == []:
                   print 'Error: Unable to find identity group with id "%s" (%d, %s)' % (result.outArgs['obj'], result.status, result.text)
                else:
@@ -343,14 +478,23 @@ def main(argv=None):
                return(1)
 #            else:
 #               req_params = result.outArgs['params']
-#
+
+            # Check if the EC2Enhanced routes need to be prompted for
+            if action != 'remove' and check_ec2e(group_obj) == True:
+               configure_ec2e(param_list)
+               try:
+                  req_params.del('JOB_ROUTER_ENTRIES')
+               except:
+                  pass
+
 #            if req_params != {}:
 #               print 'The following parameters must be set for this configuration to be valid:'
 #               for param in req_params.keys():
 #                  print '\nAttribute Name: %s' % param
 #                  print 'Reason: %s' % req_params[param]
 #                  value = raw_input('Value: ')
-#                  param_list[param] = value
+#                  param_list[param] = value.strip()
+#                  check_more_params_needed(param, param_list)
                   
          if param_list != {}:
             result = group_obj.ModifyParams(action, param_list, {})

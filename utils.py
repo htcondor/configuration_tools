@@ -1,5 +1,12 @@
 def get_group(sess, store, name):
-   result = store.GetGroup({'Name': name})
+   if name != '':
+      if name == '+++DEFAULT':
+         result = store.GetDefaultGroup()
+      else:
+         result = store.GetGroup({'Name': name})
+   else:
+      return(None)
+
    if result.status != 0:
       print 'Error: Failed to find group "%s" (%d, %s)' % (name, result.status, result.txt)
       return(None)
@@ -17,7 +24,11 @@ def get_group(sess, store, name):
 
 
 def get_feature(sess, store, name):
-   result = store.GetFeature(name)
+   if name != '':
+      result = store.GetFeature(name)
+   else:
+      return(None)
+
    if result.status != 0:
       print 'Error: Failed to find feature "%s" (%d, %s)' % (name, result.status, result.txt)
       return(None)
@@ -35,7 +46,11 @@ def get_feature(sess, store, name):
 
 
 def get_param(sess, store, name):
-   result = store.GetParam(name)
+   if name != '':
+      result = store.GetParam(name)
+   else:
+      return(None)
+
    if result.status != 0:
       print 'Error: Failed to find parameter "%s" (%d, %s)' % (name, result.status, result.txt)
       return(None)
@@ -53,7 +68,11 @@ def get_param(sess, store, name):
 
 
 def get_node(sess, store, name):
-   result = store.GetNode(name)
+   if name != '':
+      result = store.GetNode(name)
+   else:
+      return(None)
+
    if result.status != 0:
       print 'Error: Failed to find node "%s" (%d, %s)' % (name, result.status, result.txt)
       return(None)
@@ -71,7 +90,11 @@ def get_node(sess, store, name):
 
 
 def get_subsys(sess, store, name):
-   result = store.GetSubsys(name)
+   if name != '':
+      result = store.GetSubsys(name)
+   else:
+      return(None)
+
    if result.status != 0:
       print 'Error: Failed to find subsystem "%s" (%d, %s)' % (name, result.status, result.txt)
       return(None)
@@ -89,9 +112,9 @@ def get_subsys(sess, store, name):
 
 
 def list_feature_info(sess, store, feature):
-   print 'Feature "%s":' % feature
    feat_obj = get_feature(sess, store, feature)
    if feat_obj != None:
+      print 'Feature "%s":' % feature
       value = feat_obj.getIndex()
       print 'Feature ID: %s' % value
 
@@ -153,9 +176,9 @@ def list_feature_info(sess, store, feature):
 
 
 def list_param_info(sess, store, name):
-   print 'Parameter "%s":' % name
    param_obj = get_param(sess, store, name)
    if param_obj != None:
+      print 'Parameter "%s":' % name
       value = param_obj.getIndex()
       print 'Name: %s' % value
 
@@ -222,8 +245,11 @@ def list_param_info(sess, store, name):
 
 def list_group_info(sess, store, group):
    group_obj = get_group(sess, store, group)
-   print 'Group "%s":' % group
    if group_obj != None:
+      if group == '+++DEFAULT':
+         group = 'Internal Default Group'
+      print 'Group "%s":' % group
+
       value = group_obj.getIndex()
       print 'Group ID: %s' % value
 
@@ -232,6 +258,8 @@ def list_group_info(sess, store, group):
          print 'Error: Failed to retrieve group name (%d, %s)' % (result.status, result.txt)
       else:
          value = result.outArgs['name']
+         if value == '+++DEFAULT':
+            value = 'Internal Default Group'
          print 'Name: %s' % value
 
       result = group_obj.GetMembership()
@@ -263,9 +291,9 @@ def list_group_info(sess, store, group):
 
 
 def list_node_info(sess, store, name):
-   print 'Node "%s":' % name
    node_obj = get_node(sess, store, name)
    if node_obj != None:
+      print 'Node "%s":' % name
       result = node_obj.GetLastCheckinTime()
       if result.status != 0:
          print 'Error: Failed to retrieve LastCheckinTime (%d, %s)' % (result.status, result.txt)
@@ -293,9 +321,9 @@ def list_node_info(sess, store, name):
 
 
 def list_subsys_info(sess, store, name):
-   print 'Subsystem "%s":' % name
    subsys_obj = get_subsys(sess, store, name)
    if subsys_obj != None:
+      print 'Subsystem "%s":' % name
       result = subsys_obj.GetParams()
       if result.status != 0:
          print 'Error: Failed to retrieve included Parameters (%d, %s)' % (result.status, result.txt)
@@ -307,7 +335,11 @@ def list_subsys_info(sess, store, name):
 
 
 def add_param(sess, store, name):
-   print 'Adding parameter "%s"' % name
+   if name != '':
+      print 'Adding parameter "%s"' % name
+   else:
+      return(None)
+
    result = store.AddParam(name)
    if result.status != 0:
       print 'Error: Failed to add parameter "%s" (%d, %s)' % (name, result.status, result.txt)
@@ -327,7 +359,11 @@ def add_param(sess, store, name):
 
 def add_feature(sess, store, name):
    # Add the feature to the store
-   print 'Adding feature "%s"' % name
+   if name != '':
+      print 'Adding feature "%s"' % name
+   else:
+      return(None)
+
    result = store.AddFeature(name)
    if result.status != 0:
       print 'Error: Failed to add feature "%s" (%d, %s)' % (name, result.status, result.txt)
@@ -346,7 +382,10 @@ def add_feature(sess, store, name):
 
 
 def add_group(sess, store, name):
-   print 'Adding Group "%s"' % name
+   if name != '':
+      print 'Adding Group "%s"' % name
+   else:
+      return(None)
 
    result = store.AddExplicitGroup(name)
    if result.status != 0:
@@ -366,7 +405,10 @@ def add_group(sess, store, name):
 
 
 def add_node(sess, store, name):
-   print 'Adding Node "%s"' % name
+   if name != '':
+      print 'Adding Node "%s"' % name
+   else:
+      return(None)
 
    result = store.AddNode(name)
    if result.status != 0:
@@ -386,7 +428,11 @@ def add_node(sess, store, name):
 
 
 def add_subsys(sess, store, name):
-   print 'Adding subsystem "%s"' % name
+   if name != '':
+      print 'Adding subsystem "%s"' % name
+   else:
+      return(None)
+
    result = store.AddSubsys(name)
    if result.status != 0:
       print 'Error: Failed to add subsystem "%s" (%d, %s)' % (name, result.status, result.txt)
@@ -406,8 +452,12 @@ def add_subsys(sess, store, name):
 
 def modify_feature(obj, name, action):
    # Get the information needed for the feature
+   if name != '':
+      print 'Modifying feature "%s"' % name
+   else:
+      return
+
    answer = 'y'
-   print 'Modifying feature "%s"' % name
    if action == 'edit':
       answer = raw_input('Modify the parameters included in feature "%s" [y/N]? ' % name)
       if answer.lower() == 'y':
@@ -536,8 +586,12 @@ def modify_feature(obj, name, action):
 
 def modify_param(obj, name, action):
    # Get the specifics of the parameter
+   if name != '':
+      print 'Modifying parameter "%s"' % name
+   else:
+      return
+
    answer = 'y'
-   print 'Modifying parameter "%s"' % name
    if action == 'edit':
       answer = raw_input('Modify the type for parameter "%s" [y/N]? ' % name)
       if answer.lower() == 'y':
@@ -693,7 +747,11 @@ def modify_param(obj, name, action):
 
 
 def modify_group(obj, name, action, store, sess):
-   print 'Modifying group "%s"' % name
+   if name != '':
+      print 'Modifying group "%s"' % name
+   else:
+      return
+
    answer = 'y'
    pre_edit_list = ''
    if action == 'edit':
@@ -741,8 +799,12 @@ def modify_group(obj, name, action, store, sess):
 
 def modify_subsys(obj, name, action):
    # Get the specifics of the subsystem
+   if name != '':
+      print 'Modifying subsystem "%s"' % name
+   else:
+      return
+
    answer = 'y'
-   print 'Modifying subsystem "%s"' % name
    if action == 'edit':
       answer = raw_input('Modify the parameters included in subsystem "%s" [y/N]? ' % name)
       if answer.lower() == 'y':

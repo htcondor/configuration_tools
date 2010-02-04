@@ -44,6 +44,8 @@ def print_help(name):
    print '  --list-all-nodes     - List all nodes in the store'
    print '  --list-all-params    - List all params in the store'
    print '  --list-all-snapshots - List all snapshots in the store'
+   print '  --default-group      - Perform actions on the Default Group in'
+   print '                         the store'
 
 
 def main(argv=None):
@@ -70,10 +72,10 @@ def main(argv=None):
    signal.signal(signal.SIGINT, exit_signal_handler)
    signal.signal(signal.SIGTERM, exit_signal_handler)
 
-   long_opts = ['add', 'broker=', 'delete', 'edit', 'features=', 'groups=',
-                'help', 'list', 'list-all-features', 'list-all-groups',
-                'list-all-nodes', 'list-all-params', 'list-all-subsystems',
-                'nodes=', 'params=', 'port=', 'subsys=']
+   long_opts = ['add', 'broker=', 'default-group', 'delete', 'edit',
+                'features=', 'groups=', 'help', 'list', 'list-all-features',
+                'list-all-groups', 'list-all-nodes', 'list-all-params',
+                'list-all-subsystems', 'nodes=', 'params=', 'port=', 'subsys=']
    try:
       opts, args = getopt.getopt(argv[1:], 'ab:def:g:hln:p:o:s:', long_opts)
    except getopt.GetoptError, error:
@@ -88,6 +90,11 @@ def main(argv=None):
          action = 'add'
       if option in ('-b', '--broker'):
          broker_ip = arg
+      if option == '--default-group':
+         if groups == '':
+            groups += '+++DEFAULT,'
+         else:
+            groups += ',+++DEFAULT'
       if option in ('-d', '--delete'):
          if action != '':
             print 'Only 1 action may be specified'
@@ -101,7 +108,7 @@ def main(argv=None):
       if option in ('-f', '--features'):
          features = arg
       if option in ('-g', '--groups'):
-         groups = arg
+         groups += arg
       if option in ('-h', '--help'):
          print_help(argv[0])
          return(0)
@@ -182,6 +189,8 @@ def main(argv=None):
                      name = result.outArgs['name']
                      if '+++' != name[0:3]:
                         print '  %s' % name
+               if type == 'Group':
+                  print '  Internal Default Group'
          if  type == 'Node' or type == 'Parameter' or type == 'Subsystem':
             if objs == []:
                print '  There are no %ss in the store' % type
@@ -197,15 +206,17 @@ def main(argv=None):
    # Process the nodes
    if nodes != '':
       for node in nodes.split(','):
+         node = node.strip()
          if action == 'add':
             obj = add_node(session, config_store, node)
             if obj != None:
               node_list[node] = obj
          elif action == 'delete':
-            result = config_store.RemoveNode(node)
-            if result.status != 0:
-               print 'Error: Failed to remove node "%s" (%d, %s)' % (node, result.status, result.text)
-               continue
+            if node != '':
+               result = config_store.RemoveNode(node)
+               if result.status != 0:
+                  print 'Error: Failed to remove node "%s" (%d, %s)' % (node, result.status, result.text)
+                  continue
          elif action == 'list':
             list_node_info(session, config_store, node)
             print
@@ -213,14 +224,16 @@ def main(argv=None):
    # Process the parameters
    if params != '':
       for param in params.split(','):
+         param = param.strip()
          if action == 'add':
             obj = add_param(session, config_store, param)
             if obj != None:
                param_list[param] = obj
          elif action == 'delete':
-            result = config_store.RemoveParam(param)
-            if result.status != 0:
-               print 'Error: Failed to remove parameter "%s" (%d, %s)' % (param, result.status, result.text)
+            if param.strip() != '':
+               result = config_store.RemoveParam(param)
+               if result.status != 0:
+                  print 'Error: Failed to remove parameter "%s" (%d, %s)' % (param, result.status, result.text)
          elif action == 'list':
             list_param_info(session, config_store, param)
             print
@@ -232,6 +245,7 @@ def main(argv=None):
    # Process the features
    if features != '':
       for feat in features.split(','):
+         feat = feat.strip()
          if action == 'add':
             obj = add_feature(session, config_store, feat)
             if obj != None:
@@ -254,36 +268,48 @@ def main(argv=None):
    # Process the groups
    if groups != '':
       for group in groups.split(','):
+         group = group.strip()
          if action == 'add':
-            obj = add_group(session, config_store, group)
-            if obj != None:
-               group_list[group] = obj
+            if group != '+++DEFAULT':
+               obj = add_group(session, config_store, group)
+               if obj != None:
+                  group_list[group] = obj
+            else:
+               print 'The default group in the configuration store can not be added'
          elif action == 'delete':
-            obj = get_group(session, config_store, group)
-            if obj != None:
-               id = obj.getIndex()
-               result = config_store.RemoveGroup(id)
-               if result.status != 0:
-                  print 'Error: Failed to remove group "%s" (%d, %s)' % (group, result.status, result.text)
+            if group != '+++DEFAULT':
+               obj = get_group(session, config_store, group)
+               if obj != None:
+                  id = obj.getIndex()
+                  result = config_store.RemoveGroup(id)
+                  if result.status != 0:
+                     print 'Error: Failed to remove group "%s" (%d, %s)' % (group, result.status, result.text)
+            else:
+               print 'The default group in the configuration store can not be deleted'
          elif action == 'list':
             list_group_info(session, config_store, group)
             print
          elif action == 'edit':
-            obj = get_group(session, config_store, group)
-            if obj != None:
-               group_list[group] = obj
+            if group != '+++DEFAULT':
+               obj = get_group(session, config_store, group)
+               if obj != None:
+                  group_list[group] = obj
+            else:
+               print 'The nodes included in the default group in the configuration store can not be modified'
 
    # Process the subsystems
    if subsys != '':
       for sub in subsys.split(','):
+         sub = sub.strip()
          if action == 'add':
             obj = add_subsys(session, config_store, sub)
             if obj != None:
                subsys_list[sub] = obj
          elif action == 'delete':
-            result = config_store.RemoveSubsys(sub)
-            if result.status != 0:
-               print 'Error: Failed to remove subsystem "%s" (%d, %s)' % (sub, result.status, result.text)
+            if sub != '':
+               result = config_store.RemoveSubsys(sub)
+               if result.status != 0:
+                  print 'Error: Failed to remove subsystem "%s" (%d, %s)' % (sub, result.status, result.text)
          elif action == 'list':
             list_subsys_info(session, config_store, sub)
             print

@@ -1,10 +1,11 @@
 %{!?python_sitelib: %define python_sitelib %(%{__python} -c "from distutils.sysconfig import get_python_lib; print get_python_lib()")}
-%define rel 0.1
+%define rel 0.1pre1
 
 Name: condor-qmf-config
 Summary: Grid configuration over QMF
 Version: 2.0
 Release: %{rel}%{?dist}
+Group: Applications/System
 License: ASL 2.0
 URL: http://git.fedorahosted.org/git/grid/configuration-tools.git
 Source0: %{name}-%{version}-%{rel}.tar.gz
@@ -23,7 +24,7 @@ Requires: condor
 Requires: python >= 2.3
 Requires: python-qpid
 Requires: python-condor-job-hooks-common
-Requires: python-%{name}-common
+Requires: python-qmf-config
 Obsoletes: condor-remote-configuration
 
 %description client
@@ -39,7 +40,7 @@ Summary: Grid QMF Configuration Tools
 Group: Applications/System
 Requires: python >= 2.4
 Requires: python-qpid
-Requires: python-%{name}-common
+Requires: python-qmf-config
 Obsoletes: condor-remote-configuration-server
 
 %description tools

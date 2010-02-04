@@ -52,6 +52,8 @@ def print_help(name, sess):
    print '  --list-all-nodes     - List all nodes in the store'
    print '  --list-all-params    - List all params in the store'
    print '  --list-all-snapshots - List all snapshots in the store'
+   print '  --default-group      - Perform actions on the Default Group in'
+   print '                         the store'
 
 
 def configure_node_schedulers(params):
@@ -61,15 +63,15 @@ def configure_node_schedulers(params):
       def_sched = raw_input('Enter the name of the default scheduler: ')
       if def_sched != '':
          if raw_input('Is this a High Available Scheduler [y/N] ? ').lower() == 'y':
-            params['SCHEDD_NAME'] = def_sched.split()
+            params['SCHEDD_NAME'] = def_sched.split()[0]
          else:
-            params['SCHEDD_HOST'] = def_sched.split()
+            params['SCHEDD_HOST'] = def_sched.split()[0]
       addl_scheds = raw_input('Enter a comma separated list of additional schedulers that will accept job submissions: ')
       if addl_scheds != '':
-         params['HOSTALLOW_WRITE_STARTD'] = addl_scheds.split()
-         params['HOSTALLOW_READ_STARTD'] = addl_scheds.split()
-         params['HOSTALLOW_WRITE_DAEMON'] = addl_scheds.split()
-         params['HOSTALLOW_READ_DAEMON'] = addl_scheds.split()
+         params['ALLOW_WRITE_STARTD'] = addl_scheds.split()[0]
+         params['ALLOW_READ_STARTD'] = addl_scheds.split()[0]
+         params['ALLOW_WRITE_DAEMON'] = addl_scheds.split()[0]
+         params['ALLOW_READ_DAEMON'] = addl_scheds.split()[0]
 
 
 def configure_qmf_broker(params):
@@ -79,7 +81,7 @@ def configure_qmf_broker(params):
    if response.lower() == 'y':
       # Remove previous configuration it if exists
       value = raw_input('Enter the hostname of the AMQP broker this group will use to communicate with the Management Console: ')
-      params['QMF_BROKER_HOST'] = value.split()
+      params['QMF_BROKER_HOST'] = value.split()[0]
 
       valid = False
       while valid == False:
@@ -88,32 +90,10 @@ def configure_qmf_broker(params):
          if value != '':
             try:
                junk = int(value)
-               params['QMF_BROKER_PORT'] = value.split()
+               params['QMF_BROKER_PORT'] = value.split()[0]
             except ValueError:
                print 'Error: "%s" is not a valid value' % value
                valid = False
-
-
-def check_ec2e(obj):
-   result = obj.GetParams()
-   if result.status != 0:
-      print 'Error: Unable to determine if EC2Enhanced configuration is needed'
-      return False
-   else:
-      list = result.outArgs['params']
-
-   if 'NEED_SET_ROUTING_TABLE' not in list.keys() or \
-      list['NEED_SET_ROUTING_TABLE'].lower() == 'false':
-      return False
-   else:
-      if list['JOB_ROUTER_ENTRIES'] != '':
-         answer = raw_input('Edit the EC2Enhanced Routes [y/N]? ')
-         if answer.lower() == 'y':
-            return True
-         else:
-            return False
-      else:
-         return True
 
 
 def configure_ec2e(params):
@@ -126,7 +106,7 @@ def configure_ec2e(params):
       config += ' set_gridresource = "amazon";'
       config += ' set_amazoninstancetype = "m1.small";'
       config += ' set_remote_jobuniverse = 5;'
-      get_ec2_input(config)
+      get_aws_data(config)
       config += ' ]'
 
    answer = raw_input('Enable EC2 routing to the High-Compute Medium AMI type [y/N] ? ')
@@ -137,7 +117,7 @@ def configure_ec2e(params):
       config += ' set_gridresource = "amazon";'
       config += ' set_amazoninstancetype = "c1.medium";'
       config += ' set_remote_jobuniverse = 5;'
-      get_ec2_input(config)
+      get_aws_data(config)
       config += ' ]'
 
    answer = raw_input('Enable EC2 routing to the High-Compute Extra Large AMI type [y/N] ? ')
@@ -148,7 +128,7 @@ def configure_ec2e(params):
       config += ' set_gridresource = "amazon";'
       config += ' set_amazoninstancetype = "c1.xlarge";'
       config += ' set_remote_jobuniverse = 5;'
-      get_ec2_input(config)
+      get_aws_data(config)
       config += ' ]'
 
    answer = raw_input('Enable EC2 routing to the XLarge AMI type [y/N] ? ')
@@ -159,7 +139,7 @@ def configure_ec2e(params):
       config += ' set_gridresource = "amazon";'
       config += ' set_amazoninstancetype = "m1.xlarge";'
       config += ' set_remote_jobuniverse = 5;'
-      get_ec2_input(config)
+      get_aws_data(config)
       config += ' ]'
 
    answer = raw_input('Enable EC2 routing to the Large AMI type [y/N] ? ')
@@ -170,12 +150,12 @@ def configure_ec2e(params):
       config += ' set_gridresource = "amazon";'
       config += ' set_amazoninstancetype = "m1.large";'
       config += ' set_remote_jobuniverse = 5;'
-      get_ec2_input(config)
+      get_aws_data(config)
       config += ' ]'
    params['JOB_ROUTER_ENTRIES'] = config
 
 
-def get_ec2_input(info):
+def get_aws_data(info):
       resp = raw_input('Enter a filename containing an AWS Public Key for this route: ')
       if resp.strip() != '':
          info += ' set_amazonpublickey = "%s";' % resp.strip()
@@ -199,14 +179,111 @@ def get_ec2_input(info):
       info += ' set_amazonamiid = "%s";' % resp.strip()
 
 
-def check_more_params_needed(name, params):
-   if name == 'VM_TYPE' and params[name].lower() == 'xen':
-      params['VM_BRIDGE_SCRIPT'] = '/etc/xen/scripts/network-bridge start bridge=xenbr0'
-      params['XEN_BOOTLOADER'] = '/usr/bin/pygrub'
-   elif name == 'VM_NETWORKING' and params[name].lower() == 'true':
-      params['VM_NETWORKING_TYPE'] = 'nat, bridge'
-      input = raw_input('VM Networking type (nat or bridge): ')
-      params['VM_NETWORKING_DEFAULT_TYPE'] = '%s' % input.split()
+def check_more_params_needed(obj, params):
+   result = obj.GetConfig()
+   if result.status != 0:
+      print 'Error: Unable to determine if more configuration is needed'
+      return False
+   else:
+      list = result.outArgs['config']
+
+   # Check for EC2 Enhanced
+   if 'NEED_SET_ROUTING_TABLE' in list.keys() and \
+      list['NEED_SET_ROUTING_TABLE'].lower() == 'true':
+      if list['JOB_ROUTER_ENTRIES'] != '':
+         answer = raw_input('Edit the EC2Enhanced Routes [y/N]? ')
+         if answer.lower() == 'y':
+            configure_ec2e(params)
+      else:
+         configure_ec2e(params)
+
+   # Check for VM Universe params
+   if 'VM_TYPE' in list.keys() and list['VM_TYPE'] == '':
+      input = raw_input('Type of Virtual Machines to run on this node (xen or kvm): ')
+      params['VM_TYPE'] = input.split()[0]
+      if input.lower().split()[0] == 'xen':
+         params['VM_BRIDGE_SCRIPT'] = '/etc/xen/scripts/network-bridge start bridge=xenbr0'
+         params['XEN_BOOTLOADER'] = '/usr/bin/pygrub'
+   if 'VM_NETWORKING' in list.keys() and list['VM_NETWORKING'] == '':
+      input = raw_input('Enable networking in the VM universe [y/N] ? ')
+      if input.lower() == 'y':
+         params['VM_NETWORKING'] = 'TRUE'
+         params['VM_NETWORKING_TYPE'] = 'nat, bridge'
+         input = raw_input('VM Networking type (nat or bridge): ')
+         params['VM_NETWORKING_DEFAULT_TYPE'] = input.split()[0]
+      else:
+         params['VM_NETWORKING'] = 'FALSE'
+
+
+def check_delete_params_needed(sess, store, features, params, gobj):
+   candidate_params = []
+   feature_params = []
+
+   # Grab the list of parameters for each feature being removed
+   for feat in features.keys():
+      obj = get_feature(sess, store, feat)
+      if obj != None:
+         result = obj.GetParams()
+         if result.status != 0:
+            print 'Error: Unable to retrieve parameters for removed feature "%s" (%d, %s)' % (feat, result.status, result.txt)
+            continue
+         else:
+            feat_params = result.outArgs['params']
+
+         # For each list of parameters, check to see if the MustChange is
+         # true.  This becomes a candidate to be removed if no features on
+         # the group use it
+         for param in feat_params.keys():
+            pobj = get_param(sess, store, param)
+            if pobj != None:
+               result = pobj.GetDefaultMustChange()
+               if result.status != 0:
+                  print 'Error: Failed to determing if parameter "%s" was explicitly set (%d, %s)' % (param, result.status, result.txt)
+                  continue
+               else:
+                  value = result.outArgs['mustChange']
+                  if value == True:
+                     candidate_params += ['%s' % param]
+
+   # Now, get the parameter list for the features still configured on
+   # the group
+   result = gobj.GetFeatures()
+   if result.status != 0:
+      print 'Error: Failed to retrieve features still configured (%d, %s)' % (result.status, result.txt)
+   else:
+      configed_feats = result.outArgs['features']
+
+   # Generate the list of parameters for these features
+   for feat in configed_feats.keys():
+      obj = get_feature(sess, store, feat)
+      if obj != None:
+         result = obj.GetParams()
+         if result.status != 0:
+            print 'Error: Unable to retrieve parameters for configured feature "%s" (%d, %s)' % (feat, result.status, result.txt)
+            continue
+         else:
+            configed_params = result.outArgs['params']
+            feature_params += configed_params.keys()
+
+   # Now, determine if any of the candidate parameters aren't needed for
+   # any of the still configured features.  If they aren't, add them to
+   # the list of parameters to remove
+   for param in candidate_params:
+      if param not in feature_params:
+         params[param] = False
+
+   # Special cases
+   if 'NEED_SET_ROUTING_TABLE' in feat_params.keys():
+      # In case this was set
+      params['NEED_SET_ROUTING_TABLE'] = False
+   if 'VM_TYPE' in feat_params.keys():
+      # Remove all the VM Universe params that are always set
+      params['VM_TYPE'] = False
+      params['VM_BRIDGE_SCRIPT'] = False
+      params['XEN_BOOTLOADER'] = False
+      params['VM_NETWORKING'] = False
+      params['VM_NETWORKING_TYPE'] = False
+      params['VM_NETWORKING_DEFAULT_TYPE'] = False
 
 
 def main(argv=None):
@@ -220,6 +297,7 @@ def main(argv=None):
    node = ''
    port = '5672'
    param_list = {}
+   replace_list = {}
    group_config = {}
    config_store = []
    session = []
@@ -230,11 +308,11 @@ def main(argv=None):
    signal.signal(signal.SIGINT, exit_signal_handler)
    signal.signal(signal.SIGTERM, exit_signal_handler)
 
-   long_opts = ['add', 'broker=', 'delete', 'features=', 'group=', 'help',
-                'list', 'list-all-features', 'list-all-groups',
-                'list-all-nodes', 'list-all-params', 'list-all-snapshots',
-                'load-snapshot=', 'node=', 'params=', 'port=',
-                'remove-snapshot']
+   long_opts = ['add', 'broker=', 'default-group', 'delete', 'features=',
+                'group=', 'help', 'list', 'list-all-features',
+                'list-all-groups', 'list-all-nodes', 'list-all-params',
+                'list-all-snapshots', 'load-snapshot=', 'node=', 'params=',
+                'port=', 'remove-snapshot=']
 
    try:
       opts, args = getopt.gnu_getopt(argv[1:], 'ab:df:g:hln:p:o:', long_opts)
@@ -250,6 +328,10 @@ def main(argv=None):
          action = 'add'
       if option in ('-b', '--broker'):
          broker_ip = arg
+      if option == '--default-group':
+         if name != '' or node != '':
+            print 'Can only configure 1 node or group at a time'
+         name = '+++DEFAULT'
       if option in ('-d', '--delete'):
          if action != '':
             print 'Only 1 action may be specified'
@@ -258,7 +340,7 @@ def main(argv=None):
       if option in ('-f', '--features'):
          features = arg
       if option in ('-g', '--group'):
-         if node != '':
+         if name != '' or node != '':
             print 'Can only configure 1 node or group at a time'
             return(1)
          name = arg
@@ -293,15 +375,15 @@ def main(argv=None):
          action = 'load-snapshot'
          snapshot_name = arg
       if option in ('-n', '--node'):
-         if name != '':
+         if name != '' or node != '':
             print 'Can only configure 1 node or group at a time'
             return(1)
          node = arg
       if option in ('-o', '--port'):
          port = arg
       if option in ('-p', '--params'):
-         for param_pair in arg.split(','):
-            param_list[param[0]] = False
+         for param in arg.split(','):
+            param_list[param] = False
       if option in ('--remove-snapshot'):
          if action != '':
             print 'Only 1 action may be specified'
@@ -363,6 +445,8 @@ def main(argv=None):
                      name = result.outArgs['name']
                      if '+++' != name[0:3]:
                         print '  %s' % name
+               if type == 'Group':
+                  print '  Internal Default Group'
          if  type == 'Node' or type == 'Parameter' or type == 'Snapshot':
             if objs == []:
                print '  There are no %ss in the store' % type
@@ -458,16 +542,17 @@ def main(argv=None):
             feature_list[feature] = '0'
          
       # Prompt for param values entered on the command line, if any
-      for param in param_list.keys():
-         input = raw_input('Value for "%s": ' % param)
-         param_list[param] = input.split()
+      if action == 'add':
+         for param in param_list.keys():
+            input = raw_input('Value for "%s": ' % param)
+            param_list[param] = input.split()
 
       # Configure which schedulers the node can submit to
-      configure_node_schedulers(param_list)
+      configure_node_schedulers(replace_list)
 
       # Configure the AMQP broker used to communicate with the Management
       # Console
-      configure_qmf_broker(param_list)
+      configure_qmf_broker(replace_list)
 
       if raw_input('\nApply these changes [y/N] ? ').lower() == 'y':
          if feature_list != {}:
@@ -476,21 +561,20 @@ def main(argv=None):
                print 'Error: Problem modifying features (%d, %s)' % (result.status, result.text)
                return(1)
 
-            # Check if the EC2Enhanced routes need to be prompted for
-            if action != 'remove' and check_ec2e(group_obj) == True:
-               configure_ec2e(param_list)
+            # Check if any additional params need to be added/removed
+            if action != 'remove':
+               check_more_params_needed(group_obj, param_list)
+            else:
+               check_delete_params_needed(session, config_store, feature_list, param_list, group_obj)
 
-#            if req_params != {}:
-#               print 'The following parameters must be set for this configuration to be valid:'
-#               for param in req_params.keys():
-#                  print '\nAttribute Name: %s' % param
-#                  print 'Reason: %s' % req_params[param]
-#                  value = raw_input('Value: ')
-#                  param_list[param] = value.strip()
-#                  check_more_params_needed(param, param_list)
-                  
          if param_list != {}:
             result = group_obj.ModifyParams(action, param_list, {})
+            if result.status != 0:
+               print 'Error: Problem modifying parameters (%d, %s)' % (result.status, result.text)
+               return(1)
+
+         if replace_list != {}:
+            result = group_obj.ModifyParams('replace', replace_list, {})
             if result.status != 0:
                print 'Error: Problem modifying parameters (%d, %s)' % (result.status, result.text)
                return(1)
@@ -504,20 +588,21 @@ def main(argv=None):
             else: 
                print 'Configuration saved'
 
-         if raw_input('\nActivate the changes [y/N] ? ').lower() == 'y':
-            result = config_store.ActivateConfiguration()
-            if result.status != 0:
-               print 'Error: Unable to active changes (%d, %s)' % (result.status, result.text)
-               requirements = result.outArgs['params']
-               print 'These nodes need non-default values to be set for the following parameters:'
-               for node in requirements.keys():
-                  print 'Node: %s' % node
-                  print 'Parameters:'
-                  for param in requirements[node].split(','):
-                     print '  %s' % param
-               return(1)
-         else: 
-            print 'Configuration activated'
+#         if raw_input('\nActivate the changes [y/N] ? ').lower() == 'y':
+#            result = config_store.ActivateConfiguration()
+#            if result.status != 0:
+#                print 'Error: Unable to active changes (%d, %s)' % (result.status, result.text)
+#                requirements = result.outArgs['params']
+#                print 'These nodes need non-default values to be set for the following parameters:'
+#                for node in requirements.keys():
+#                   print 'Node: %s' % node
+#                   print 'Parameters:'
+#                   for param in requirements[node].split(','):
+#                      print '  %s' % param
+#            else:
+#               return(1)
+#         else: 
+#            print 'Configuration activated'
       else:
          print 'Configuration not applied'
 

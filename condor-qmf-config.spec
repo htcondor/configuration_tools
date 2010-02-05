@@ -1,5 +1,5 @@
 %{!?python_sitelib: %define python_sitelib %(%{__python} -c "from distutils.sysconfig import get_python_lib; print get_python_lib()")}
-%define rel 0.1pre1
+%define rel 0.1pre2
 
 Name: condor-qmf-config
 Summary: Grid configuration over QMF
@@ -11,6 +11,7 @@ URL: http://git.fedorahosted.org/git/grid/configuration-tools.git
 Source0: %{name}-%{version}-%{rel}.tar.gz
 BuildRoot: %(mktemp -ud %{_tmppath}/%{name}-%{version}-%{release}-XXXXXX)
 BuildArch: noarch
+BuildRequires: python >= 2.3
 
 %description
 The Condor QMF Config package provides a means to quickly and easily

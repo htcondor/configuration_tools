@@ -1,2 +1,3 @@
-QMF_CONFIG_EVENTD=/usr/bin/condor_config_eventd
+QMF_CONFIG_EVENTD=/usr/sbin/condor_config_eventd
 DAEMON_LIST = $(DAEMON_LIST), QMF_CONFIG_EVENTD
+QMF_CONFIG_CHECK_INTERVAL = 3600

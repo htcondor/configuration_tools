@@ -96,7 +96,7 @@ def configure_qmf_broker(params):
                valid = False
 
 
-def configure_ec2e(params):
+def get_ec2e_routes():
    config = '$(JOB_ROUTER_ENTRIES)'
    answer = raw_input('Enable EC2 routing to the Small AMI type [y/N] ? ')
    if answer.lower() == 'y':
@@ -152,7 +152,7 @@ def configure_ec2e(params):
       config += ' set_remote_jobuniverse = 5;'
       get_aws_data(config)
       config += ' ]'
-   params['JOB_ROUTER_ENTRIES'] = config
+   return config
 
 
 def get_aws_data(info):
@@ -179,77 +179,50 @@ def get_aws_data(info):
       info += ' set_amazonamiid = "%s";' % resp.strip()
 
 
-def check_more_params_needed(obj, params):
-   result = obj.GetConfig()
-   if result.status != 0:
-      print 'Error: Unable to determine if more configuration is needed'
-      return False
-   else:
-      list = result.outArgs['config']
+def get_feature_params(sess, store, feature):
+   params = {}
 
-   # Check for EC2 Enhanced
-   if 'NEED_SET_ROUTING_TABLE' in list.keys() and \
-      list['NEED_SET_ROUTING_TABLE'].lower() == 'true':
-      if list['JOB_ROUTER_ENTRIES'] != '':
-         answer = raw_input('Edit the EC2Enhanced Routes [y/N]? ')
-         if answer.lower() == 'y':
-            configure_ec2e(params)
-      else:
-         configure_ec2e(params)
-
-   # Check for VM Universe params
-   if 'VM_TYPE' in list.keys() and list['VM_TYPE'] == '':
-      input = raw_input('Type of Virtual Machines to run on this node (xen or kvm): ')
-      params['VM_TYPE'] = input.split()[0]
-      if input.lower().split()[0] == 'xen':
-         params['VM_BRIDGE_SCRIPT'] = '/etc/xen/scripts/network-bridge start bridge=xenbr0'
-         params['XEN_BOOTLOADER'] = '/usr/bin/pygrub'
-   if 'VM_NETWORKING' in list.keys() and list['VM_NETWORKING'] == '':
-      input = raw_input('Enable networking in the VM universe [y/N] ? ')
-      if input.lower() == 'y':
-         params['VM_NETWORKING'] = 'TRUE'
-         params['VM_NETWORKING_TYPE'] = 'nat, bridge'
-         input = raw_input('VM Networking type (nat or bridge): ')
-         params['VM_NETWORKING_DEFAULT_TYPE'] = input.split()[0]
-      else:
-         params['VM_NETWORKING'] = 'FALSE'
-
-
-def check_delete_params_needed(sess, store, features, params, gobj):
-   candidate_params = []
-   feature_params = []
-
-   # Grab the list of parameters for each feature being removed
-   for feat in features.keys():
-      obj = get_feature(sess, store, feat)
+   if feature != '':
+      obj = get_feature(sess, store, feature)
       if obj != None:
          result = obj.GetParams()
          if result.status != 0:
-            print 'Error: Unable to retrieve parameters for removed feature "%s" (%d, %s)' % (feat, result.status, result.txt)
-            continue
+            print 'Error: Unable to retrieve parameters for feature "%s" (%d, %s)' % (feature, result.status, result.txt)
          else:
-            feat_params = result.outArgs['params']
+            params = result.outArgs['params']
+   return params
 
-         # For each list of parameters, check to see if the MustChange is
-         # true.  This becomes a candidate to be removed if no features on
-         # the group use it
+
+def get_unique_mustchange_params(sess, store, feature_list, group_obj):
+   param_list = []
+   feature_params = []
+   configed_feats = {}
+   unique_params = {}
+
+   # Iterate over the list of features and check each parameter included
+   for feat in feature_list.keys():
+      feat_params = get_feature_params(sess, store, feat)
+
+      # For each list of parameters, check to see if the MustChange is
+      # true.
+      if feat_params != {}:
          for param in feat_params.keys():
             pobj = get_param(sess, store, param)
             if pobj != None:
                result = pobj.GetDefaultMustChange()
                if result.status != 0:
-                  print 'Error: Failed to determing if parameter "%s" was explicitly set (%d, %s)' % (param, result.status, result.txt)
+                  print 'Error: Failed to determine if parameter "%s" must be set by user (%d, %s)' % (param, result.status, result.txt)
                   continue
                else:
                   value = result.outArgs['mustChange']
                   if value == True:
-                     candidate_params += ['%s' % param]
+                     param_list += ['%s' % param]
 
-   # Now, get the parameter list for the features still configured on
+   # Now, get the parameter list for the features configured on
    # the group
-   result = gobj.GetFeatures()
+   result = group_obj.GetFeatures()
    if result.status != 0:
-      print 'Error: Failed to retrieve features still configured (%d, %s)' % (result.status, result.txt)
+      print 'Error: Failed to retrieve features configured (%d, %s)' % (result.status, result.txt)
    else:
       configed_feats = result.outArgs['features']
 
@@ -262,28 +235,108 @@ def check_delete_params_needed(sess, store, features, params, gobj):
             print 'Error: Unable to retrieve parameters for configured feature "%s" (%d, %s)' % (feat, result.status, result.txt)
             continue
          else:
-            configed_params = result.outArgs['params']
-            feature_params += configed_params.keys()
+            feature_params += result.outArgs['params'].keys()
 
-   # Now, determine if any of the candidate parameters aren't needed for
-   # any of the still configured features.  If they aren't, add them to
-   # the list of parameters to remove
+   # Now, determine if any of the candidate parameters aren't set for
+   # any of the configured features.  If they aren't, add them to
+   # the list of unique must set parameters
    for param in candidate_params:
       if param not in feature_params:
-         params[param] = False
+         unique_params[param] = False
+
+   return unique_params
+
+
+def set_param(name, value, param_list, unique_list = None):
+   param_list[name] = value
+   if unique_list != None:
+      try:
+         del unique_list[name]
+      except:
+         pass
+
+def check_more_params_needed(sess, store, features, params, gobj):
+   list = {}
+
+   # Get a list of unique must set parameters for the features being added
+   unique_params = get_unique_mustchange_params(sess, store, features, gobj)
+
+   # Get the list of parameters for the group
+   result = gobj.GetConfig()
+   if result.status != 0:
+      print 'Error: Unable to determine if special configuration is needed'
+   else:
+      list = result.outArgs['config']
+
+   # Check for special case parameters
+
+   # Check for EC2 Enhanced
+   if ('NEED_SET_EC2E_ROUTES' in list.keys() and \
+      list['NEED_SET_EC2E_ROUTES'].lower() == 'true' and \
+      params['NEED_SET_EC2E_ROUTES'].lower() != 'false') or \
+      (params['NEED_SET_EC2E_ROUTES'].lower() == 'true'):
+      answer = 'y'
+      if list['JOB_ROUTER_ENTRIES'] != '':
+         answer = raw_input('Edit the EC2Enhanced Routes [y/N]? ')
+
+      if answer.lower() == 'y':
+         routes = get_ec2e_routes()
+         set_param('JOB_ROUTER_ENTRIES', routes, params, unique_params)
+         set_param('NEED_SET_EC2E_ROUTES', 'FALSE', params, unique_params)
+
+   # Check for VM Universe parameters
+   if 'VM_TYPE' in list.keys() and list['VM_TYPE'] == '':
+      input = raw_input('Type of Virtual Machines to run on this node (xen or kvm): ')
+      set_param('VM_TYPE', input.split()[0], params, unique_params)
+      if input.lower().split()[0] == 'xen':
+         set_param('VM_BRIDGE_SCRIPT', '/etc/xen/scripts/network-bridge start bridge=xenbr0', params, unique_params)
+         set_param('XEN_BOOTLOADER', '/usr/bin/pygrub', params, unique_params)
+   if 'VM_NETWORKING' in list.keys() and list['VM_NETWORKING'] == '':
+      input = raw_input('Enable networking in the VM universe [y/N] ? ')
+      if input.lower() == 'y':
+         set_param('VM_NETWORKING', 'TRUE', params, unique_params)
+         set_param('VM_NETWORKING_TYPE', 'nat, bridge', params, unique_params)
+         input = raw_input('VM Networking type (nat or bridge): ')
+         set_param('VM_NETWORKING_DEFAULT_TYPE', input.split()[0], params, unique_params)
+      else:
+         set_param('VM_NETWORKING', 'FALSE', params, unique_params)
+
+   # Prompt the user if there are parameters that need to be set
+   if len(unique_params) > 0:
+      print 'The following parameters need to be set for this configuration to be valid:'
+      for param in unique_params.keys():
+         print param
+      answer = raw_input('Set these parameters now ? [y/N] ')
+      if answer.lower() == 'y':
+         for param in unique_params.keys():
+            value = raw_input('%s: '% param)
+            set_param(param, value.split()[0], params)
+      else:
+         print 'Electing not to set these parameters now'
+         print 'WARNING: This configuration will not be able to be activated'
+
+
+def check_delete_params_needed(sess, store, features, params, gobj):
+   # Grab the list of unique must set parameters for each feature being removed
+   unique_params = get_unique_mustchange_params(sess, store, features, gobj)
+
+   for param in unique_params.keys():
+      params[param] = False
 
    # Special cases
-   if 'NEED_SET_ROUTING_TABLE' in feat_params.keys():
-      # In case this was set
-      params['NEED_SET_ROUTING_TABLE'] = False
-   if 'VM_TYPE' in feat_params.keys():
-      # Remove all the VM Universe params that are always set
-      params['VM_TYPE'] = False
-      params['VM_BRIDGE_SCRIPT'] = False
-      params['XEN_BOOTLOADER'] = False
-      params['VM_NETWORKING'] = False
-      params['VM_NETWORKING_TYPE'] = False
-      params['VM_NETWORKING_DEFAULT_TYPE'] = False
+   for feat in features.keys():
+      feat_params = get_feature_params(sess, store, feat)
+      if 'NEED_SET_EC2E_ROUTES' in feat_params.keys():
+         # In case this was set
+         params['NEED_SET_EC2E_ROUTES'] = False
+      if 'VM_TYPE' in feat_params.keys():
+         # Remove all the VM Universe params that are always set
+         params['VM_TYPE'] = False
+         params['VM_BRIDGE_SCRIPT'] = False
+         params['XEN_BOOTLOADER'] = False
+         params['VM_NETWORKING'] = False
+         params['VM_NETWORKING_TYPE'] = False
+         params['VM_NETWORKING_DEFAULT_TYPE'] = False
 
 
 def main(argv=None):
@@ -563,7 +616,7 @@ def main(argv=None):
 
             # Check if any additional params need to be added/removed
             if action != 'remove':
-               check_more_params_needed(group_obj, param_list)
+               check_more_params_needed(session, config_store, feature_list, param_list, group_obj)
             else:
                check_delete_params_needed(session, config_store, feature_list, param_list, group_obj)
 

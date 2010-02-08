@@ -1,5 +1,5 @@
 %{!?python_sitelib: %define python_sitelib %(%{__python} -c "from distutils.sysconfig import get_python_lib; print get_python_lib()")}
-%define rel 0.1pre2
+%define rel 0.1
 
 Name: condor-qmf-config
 Summary: Grid configuration over QMF
@@ -98,10 +98,15 @@ touch %{buildroot}/%{python_sitelib}/qmfconfig/__init__.py
 %files -n python-qmf-config
 %defattr(-,root,root,-)
 %doc LICENSE-2.0.txt
+%defattr(0644, root,root,-)
 %{python_sitelib}/qmfconfig/utils.py*
 %{python_sitelib}/qmfconfig/__init__.py*
 
 %changelog
+* Mon Feb 08 2010  <rrati@redhat> - 2.0-0.1
+- Initial packaging of 2.0, which uses QMF to communicate to a configuration
+  store
+
 * Thu Oct 15 2009  <rrati@redhat> - 1.0-22
 - Removed triggerd entries from startd configuration
 

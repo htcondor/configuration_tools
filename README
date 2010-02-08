@@ -1,35 +1,9 @@
-In order for the Condor Remote Configuration feature to work a CNAME record
-must be added to DNS with the name puppet.  It must be pointing to the
-machine that has the condor-remote-configuration-server installed.
-
-Client Configuration:
+Configuration Client:
 To configure the remote configuration feature on a condor node, first
-install the condor-remote-configuration package.  Next, configure the
-/etc/condor/remote-configuration.conf file and change the qmf_broker
-to point to the broker that will be used for remote-configuration
-
-Then add the following lines to condor_config.local:
-QMF_CONFIG_EVENTD = /usr/sbin/condor_config_eventd
-DAEMON_LIST = $(DAEMON_LIST), QMF_CONFIG_EVENTD
-
-and restart condor.
+install the condor-qmf-config-client package and restart condor.
 
 
-Server Configuration:
-To configure the remote configuration feature on the configuration server,
-install the condor-remote-configuration-server package.  Next, copy the
-puppet.conf.master to /etc/puppet by executing:
-
-cp -f /usr/share/doc/condor-remote-configuration-server-1.0/puppet.conf.master /etc/puppet/puppet.conf
-
-And then create the site.pp file by executing:
-
-echo 'import "condor"' >> /etc/puppet/manifests/site.pp
-
-Then start the service by executing:
-
-service puppetmaster start
-
+Configuration Tools:
 Usage:
 To configure a condor node, the Fully Qualified Domain Name (FQDN) of the
 node to be configured must be known as this is how the node will identify
@@ -37,7 +11,7 @@ itself to the configuration system.  Configuring a Condor node is as simple
 as running the condor_configure_node tool as root with the appropriate action
 and features:
 
-condor_configure_node [-h|--help] -n <FQDN> action [-f|--features] feature[,feature,...]
+condor_configure_pool [-h|--help] -n <FQDN> action [-f|--features] feature[,feature,...]
 
 The currently supported actions are either add, delete, or list.  The add
 action is used to add features to the provided node or group of nodes, and if

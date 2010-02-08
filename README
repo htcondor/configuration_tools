@@ -1,43 +1,9 @@
-In order for the Condor Remote Configuration feature to work a CNAME record
-must be added to DNS with the name puppet.  It must be pointing to the
-machine that has the condor-remote-configuration-server installed.
-
-Client Configuration:
-To configure the remote configuration feature on a condor node, install the
-condor-remote-configuration package.  Next, copy the puppet.conf.client to
-/etc/puppet by executing:
-
-cp -f /usr/share/doc/condor-remote-configuration-1.0/puppet.conf.client /etc/puppet/puppet.conf
-
-Then copy the namespaceauth.conf to /etc/puppet by executing:
-
-cp -f /usr/share/doc/condor-remote-configuration-1.0/namespaceauth.conf /etc/puppet
-
-Change the "allow <puppetmaster.fqdn>" entry in the namespaceauth.conf file
-and the replace "<puppetmaster.fqdn>" with the Fully Qualified Doman Name of
-the machine that has the condor-remote-configuration-server package installed.
-There should only be one system with this package installed in a cluster.
-
-Finally, start the service by executing:
-
-service puppet start
+Configuration Client:
+To configure the remote configuration feature on a condor node, first
+install the condor-qmf-config-client package and restart condor.
 
 
-Server Configuration:
-To configure the remote configuration feature on the configuration server,
-install the condor-remote-configuration-server package.  Next, copy the
-puppet.conf.master to /etc/puppet by executing:
-
-cp -f /usr/share/doc/condor-remote-configuration-server-1.0/puppet.conf.master /etc/puppet/puppet.conf
-
-And then create the site.pp file by executing:
-
-echo 'import "condor"' >> /etc/puppet/manifests/site.pp
-
-Then start the service by executing:
-
-service puppetmaster start
-
+Configuration Tools:
 Usage:
 To configure a condor node, the Fully Qualified Domain Name (FQDN) of the
 node to be configured must be known as this is how the node will identify
@@ -45,12 +11,12 @@ itself to the configuration system.  Configuring a Condor node is as simple
 as running the condor_configure_node tool as root with the appropriate action
 and features:
 
-condor_configure_node [-h|--help] -n <FQDN> action [-f|--features] feature[,feature,...]
+condor_configure_pool [-h|--help] -n <FQDN> action [-f|--features] feature[,feature,...]
 
-The currently supported actions are either add or delete.  The add action is
-used to add features to the provided node, and if any additional information
-is required then the tool will prompt the user.  Blank lines are valid for
-almost any entry.
+The currently supported actions are either add, delete, or list.  The add
+action is used to add features to the provided node or group of nodes, and if
+any additional information is required then the tool will prompt the user.
+Blank lines are valid for almost any entry.
 
 In addition, there are a few configuration items that will be prompted for
 regardless of which options are being enabled:

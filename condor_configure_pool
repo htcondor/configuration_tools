@@ -1,0 +1,663 @@
+#!/usr/bin/python
+#   Copyright 2008 Red Hat, Inc.
+#
+#   Licensed under the Apache License, Version 2.0 (the "License");
+#   you may not use this file except in compliance with the License.
+#   You may obtain a copy of the License at
+#
+#       http://www.apache.org/licenses/LICENSE-2.0
+#
+#   Unless required by applicable law or agreed to in writing, software
+#   distributed under the License is distributed on an "AS IS" BASIS,
+#   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+#   See the License for the specific language governing permissions and
+#   limitations under the License.
+
+import getopt
+import os
+import sys
+import re
+import signal
+from qmf.console import Session
+from qmfconfig.utils import *
+
+
+feature_list = {}
+group_obj = []
+
+
+def exit_signal_handler(signum, frame):
+   if group_obj != []:
+      result = group_obj.RemoveFeatures(feature_list)
+      if result.status != 0:
+         print 'Error: Problem removing features (%d, %s)' % (result.status, result.text)
+   sys.exit(0)
+
+
+def print_help(name, sess):
+   print 'usage: %s [-h|--help] -b|--broker <broker> [-p|--port <port>] [--load-snapshot|--remove-snapshot <snapshot>] [-g|--group|-n|--node name] action [-f|--features feature[,feature,...]] [-p|--params param1,param2,...]' % os.path.basename(name)
+   print '  <broker>   - The ip/hostname of the broker used by the configuration store'
+   print '  <port>     - The port of the broker used by the configuration store'
+   print '  <snapshot> - The name of the snapshot'
+   print '  -g - The name of the group to configure'
+   print '  -n - The name of the specific node to configure'
+   print '  -h - Print help'
+   print '\naction:'
+   print '  -a|--add             - Add to  the group/node'
+   print '  -d|--delete          - Remove from the group/node'
+   print '  -l|--list            - List the specific node/group/feature/param'
+   print '                         configuration'
+   print '  --list-all-features  - List all features in the store'
+   print '  --list-all-groups    - List all groups in the store'
+   print '  --list-all-nodes     - List all nodes in the store'
+   print '  --list-all-params    - List all params in the store'
+   print '  --list-all-snapshots - List all snapshots in the store'
+   print '  --default-group      - Perform actions on the Default Group in'
+   print '                         the store'
+
+
+def configure_node_schedulers(params):
+   response = 'y'
+
+   if raw_input('Modify which schedulers this group can submit to [y/N] ? ').lower() == 'y':
+      def_sched = raw_input('Enter the name of the default scheduler: ')
+      if def_sched != '':
+         if raw_input('Is this a High Available Scheduler [y/N] ? ').lower() == 'y':
+            params['SCHEDD_NAME'] = def_sched.split()[0]
+         else:
+            params['SCHEDD_HOST'] = def_sched.split()[0]
+      addl_scheds = raw_input('Enter a comma separated list of additional schedulers that will accept job submissions: ')
+      if addl_scheds != '':
+         params['ALLOW_WRITE_STARTD'] = addl_scheds.split()[0]
+         params['ALLOW_READ_STARTD'] = addl_scheds.split()[0]
+         params['ALLOW_WRITE_DAEMON'] = addl_scheds.split()[0]
+         params['ALLOW_READ_DAEMON'] = addl_scheds.split()[0]
+
+
+def configure_qmf_broker(params):
+   response = 'y'
+
+   response = raw_input('Change the broker information this group uses to communicate with the Management Console [y/N] ? ')
+   if response.lower() == 'y':
+      # Remove previous configuration it if exists
+      value = raw_input('Enter the hostname of the AMQP broker this group will use to communicate with the Management Console: ')
+      params['QMF_BROKER_HOST'] = value.split()[0]
+
+      valid = False
+      while valid == False:
+         valid = True
+         value = raw_input('Enter the port the AMQP broker listens on: ')
+         if value != '':
+            try:
+               junk = int(value)
+               params['QMF_BROKER_PORT'] = value.split()[0]
+            except ValueError:
+               print 'Error: "%s" is not a valid value' % value
+               valid = False
+
+
+def get_ec2e_routes():
+   config = '$(JOB_ROUTER_ENTRIES)'
+   answer = raw_input('Enable EC2 routing to the Small AMI type [y/N] ? ')
+   if answer.lower() == 'y':
+      config += ' [ GridResource = "condor localhost $(COLLECTOR_HOST)";'
+      config += ' Name = "Amazon Small";'
+      config += ' requirements=target.WantAWS is true && (target.Universe is vanilla || target.Universe is 5) && (target.WantArch is "INTEL" || target.WantArch is UNDEFINED) && (target.WantCpus <= 1 || target.WantCpus is UNDEFINED) && (target.WantMemory < 1.7 || target.WantMemory is UNDEFINED) && (target.WantDisk < 160 || target.WantDisk is UNDEFINED);'
+      config += ' set_gridresource = "amazon";'
+      config += ' set_amazoninstancetype = "m1.small";'
+      config += ' set_remote_jobuniverse = 5;'
+      get_aws_data(config)
+      config += ' ]'
+
+   answer = raw_input('Enable EC2 routing to the High-Compute Medium AMI type [y/N] ? ')
+   if answer.lower() == 'y':
+      config += ' [ GridResource = "condor localhost $(COLLECTOR_HOST)";'
+      config += ' Name = "Amazon High-CPU Medium";'
+      config += ' requirements=target.WantAWS is true && (target.Universe is vanilla || target.Universe is 5) && (target.WantArch is "INTEL" || target.WantArch is UNDEFINED) && ((target.WantCpus > 1 && target.WantCpus <= 5) || (target.WantDisk > 160 && target.WantDisk <= 350));'
+      config += ' set_gridresource = "amazon";'
+      config += ' set_amazoninstancetype = "c1.medium";'
+      config += ' set_remote_jobuniverse = 5;'
+      get_aws_data(config)
+      config += ' ]'
+
+   answer = raw_input('Enable EC2 routing to the High-Compute Extra Large AMI type [y/N] ? ')
+   if answer.lower() == 'y':
+      config += ' [ GridResource = "condor localhost $(COLLECTOR_HOST)";'
+      config += ' Name = "Amazon High-CPU Extra Large";'
+      config += ' requirements=target.WantAWS is true && (target.Universe is vanilla || target.Universe is 5) && target.WantArch is "X86_64" && target.WantCpus > 8 && target.WantCpus <= 20 && (target.WantMemory <= 7 || target.WantMemory is UNDEFINED) && (target.WantDisk <= 1690 || target.WantDisk is UNDEFINED);'
+      config += ' set_gridresource = "amazon";'
+      config += ' set_amazoninstancetype = "c1.xlarge";'
+      config += ' set_remote_jobuniverse = 5;'
+      get_aws_data(config)
+      config += ' ]'
+
+   answer = raw_input('Enable EC2 routing to the XLarge AMI type [y/N] ? ')
+   if answer.lower() == 'y':
+      config += ' [ GridResource = "condor localhost $(COLLECTOR_HOST)";'
+      config += ' Name = "Amazon XLarge";'
+      config += ' requirements=target.WantAWS is true && (target.Universe is vanilla || target.Universe is 5) && target.WantArch is "X86_64" && ((target.WantMemory > 7.5 && target.WantMemory <= 15) || (target.WantDisk > 850 && target.WantDisk < 1690) || (target.WantCpus > 4 && target.WantCpus <= 8));'
+      config += ' set_gridresource = "amazon";'
+      config += ' set_amazoninstancetype = "m1.xlarge";'
+      config += ' set_remote_jobuniverse = 5;'
+      get_aws_data(config)
+      config += ' ]'
+
+   answer = raw_input('Enable EC2 routing to the Large AMI type [y/N] ? ')
+   if answer.lower() == 'y':
+      config += ' [ GridResource = "condor localhost $(COLLECTOR_HOST)";'
+      config += ' Name = "Amazon Large";'
+      config += ' requirements=target.WantAWS is true && (target.Universe is vanilla || target.Universe is 5) && target.WantArch is "X86_64" && (target.WantCpus <= 4 || target.WantCpus is UNDEFINED) && (target.WantMemory <= 7.5 || target.WantMemory is UNDEFINED) && (target.WantDisk <= 850 || target.WantDisk is UNDEFINED);'
+      config += ' set_gridresource = "amazon";'
+      config += ' set_amazoninstancetype = "m1.large";'
+      config += ' set_remote_jobuniverse = 5;'
+      get_aws_data(config)
+      config += ' ]'
+   return config
+
+
+def get_aws_data(info):
+      resp = raw_input('Enter a filename containing an AWS Public Key for this route: ')
+      if resp.strip() != '':
+         info += ' set_amazonpublickey = "%s";' % resp.strip()
+      resp = raw_input('Enter a filename containing an AWS Private Key for this route: ')
+      if resp.strip() != '':
+         info += ' set_amazonprivatekey = "%s";' % resp.strip()
+      resp = raw_input('Enter a filename containing an AWS Access Key for this route: ')
+      if resp.strip() != '':
+         info += ' set_amazonaccesskey = "%s";' % resp.strip()
+      resp = raw_input('Enter a filename containing an AWS Secret Key for this route: ')
+      if resp.strip() != '':
+         info += ' set_amazonsecretkey = "%s";' % resp.strip()
+      resp = raw_input('Enter a filename containing an RSA Public Key for this route: ')
+      if resp.strip() != '':
+         info += ' set_rsapublickey = "%s";' % resp.strip()
+      resp = raw_input('Enter an S3 Storage Bucket name for this route: ')
+      info += ' set_amazons3bucketname = "%s";' % resp.strip()
+      resp = raw_input('Enter an SQS Queue name for this route: ')
+      info += ' set_amazonsqsqueuename = "%s";' % resp.strip()
+      resp = raw_input('Enter an AMI ID for use with this route: ')
+      info += ' set_amazonamiid = "%s";' % resp.strip()
+
+
+def get_feature_params(sess, store, feature):
+   params = {}
+
+   if feature != '':
+      obj = get_feature(sess, store, feature)
+      if obj != None:
+         result = obj.GetParams()
+         if result.status != 0:
+            print 'Error: Unable to retrieve parameters for feature "%s" (%d, %s)' % (feature, result.status, result.txt)
+         else:
+            params = result.outArgs['params']
+   return params
+
+
+def get_unique_mustchange_params(sess, store, feature_list, group_obj):
+   param_list = []
+   feature_params = []
+   configed_feats = {}
+   unique_params = {}
+
+   # Iterate over the list of features and check each parameter included
+   for feat in feature_list.keys():
+      feat_params = get_feature_params(sess, store, feat)
+
+      # For each list of parameters, check to see if the MustChange is
+      # true.
+      if feat_params != {}:
+         for param in feat_params.keys():
+            pobj = get_param(sess, store, param)
+            if pobj != None:
+               result = pobj.GetDefaultMustChange()
+               if result.status != 0:
+                  print 'Error: Failed to determine if parameter "%s" must be set by user (%d, %s)' % (param, result.status, result.txt)
+                  continue
+               else:
+                  value = result.outArgs['mustChange']
+                  if value == True:
+                     param_list += ['%s' % param]
+
+   # Now, get the parameter list for the features configured on
+   # the group
+   result = group_obj.GetFeatures()
+   if result.status != 0:
+      print 'Error: Failed to retrieve features configured (%d, %s)' % (result.status, result.txt)
+   else:
+      configed_feats = result.outArgs['features']
+
+   # Generate the list of parameters for these features
+   for feat in configed_feats.keys():
+      obj = get_feature(sess, store, feat)
+      if obj != None:
+         result = obj.GetParams()
+         if result.status != 0:
+            print 'Error: Unable to retrieve parameters for configured feature "%s" (%d, %s)' % (feat, result.status, result.txt)
+            continue
+         else:
+            feature_params += result.outArgs['params'].keys()
+
+   # Now, determine if any of the candidate parameters aren't set for
+   # any of the configured features.  If they aren't, add them to
+   # the list of unique must set parameters
+   for param in candidate_params:
+      if param not in feature_params:
+         unique_params[param] = False
+
+   return unique_params
+
+
+def set_param(name, value, param_list, unique_list = None):
+   param_list[name] = value
+   if unique_list != None:
+      try:
+         del unique_list[name]
+      except:
+         pass
+
+def check_more_params_needed(sess, store, features, params, gobj):
+   list = {}
+
+   # Get a list of unique must set parameters for the features being added
+   unique_params = get_unique_mustchange_params(sess, store, features, gobj)
+
+   # Get the list of parameters for the group
+   result = gobj.GetConfig()
+   if result.status != 0:
+      print 'Error: Unable to determine if special configuration is needed'
+   else:
+      list = result.outArgs['config']
+
+   # Check for special case parameters
+
+   # Check for EC2 Enhanced
+   if ('NEED_SET_EC2E_ROUTES' in list.keys() and \
+      list['NEED_SET_EC2E_ROUTES'].lower() == 'true' and \
+      params['NEED_SET_EC2E_ROUTES'].lower() != 'false') or \
+      (params['NEED_SET_EC2E_ROUTES'].lower() == 'true'):
+      answer = 'y'
+      if list['JOB_ROUTER_ENTRIES'] != '':
+         answer = raw_input('Edit the EC2Enhanced Routes [y/N]? ')
+
+      if answer.lower() == 'y':
+         routes = get_ec2e_routes()
+         set_param('JOB_ROUTER_ENTRIES', routes, params, unique_params)
+         set_param('NEED_SET_EC2E_ROUTES', 'FALSE', params, unique_params)
+
+   # Check for VM Universe parameters
+   if 'VM_TYPE' in list.keys() and list['VM_TYPE'] == '':
+      input = raw_input('Type of Virtual Machines to run on this node (xen or kvm): ')
+      set_param('VM_TYPE', input.split()[0], params, unique_params)
+      if input.lower().split()[0] == 'xen':
+         set_param('VM_BRIDGE_SCRIPT', '/etc/xen/scripts/network-bridge start bridge=xenbr0', params, unique_params)
+         set_param('XEN_BOOTLOADER', '/usr/bin/pygrub', params, unique_params)
+   if 'VM_NETWORKING' in list.keys() and list['VM_NETWORKING'] == '':
+      input = raw_input('Enable networking in the VM universe [y/N] ? ')
+      if input.lower() == 'y':
+         set_param('VM_NETWORKING', 'TRUE', params, unique_params)
+         set_param('VM_NETWORKING_TYPE', 'nat, bridge', params, unique_params)
+         input = raw_input('VM Networking type (nat or bridge): ')
+         set_param('VM_NETWORKING_DEFAULT_TYPE', input.split()[0], params, unique_params)
+      else:
+         set_param('VM_NETWORKING', 'FALSE', params, unique_params)
+
+   # Prompt the user if there are parameters that need to be set
+   if len(unique_params) > 0:
+      print 'The following parameters need to be set for this configuration to be valid:'
+      for param in unique_params.keys():
+         print param
+      answer = raw_input('Set these parameters now ? [y/N] ')
+      if answer.lower() == 'y':
+         for param in unique_params.keys():
+            value = raw_input('%s: '% param)
+            set_param(param, value.split()[0], params)
+      else:
+         print 'Electing not to set these parameters now'
+         print 'WARNING: This configuration will not be able to be activated'
+
+
+def check_delete_params_needed(sess, store, features, params, gobj):
+   # Grab the list of unique must set parameters for each feature being removed
+   unique_params = get_unique_mustchange_params(sess, store, features, gobj)
+
+   for param in unique_params.keys():
+      params[param] = False
+
+   # Special cases
+   for feat in features.keys():
+      feat_params = get_feature_params(sess, store, feat)
+      if 'NEED_SET_EC2E_ROUTES' in feat_params.keys():
+         # In case this was set
+         params['NEED_SET_EC2E_ROUTES'] = False
+      if 'VM_TYPE' in feat_params.keys():
+         # Remove all the VM Universe params that are always set
+         params['VM_TYPE'] = False
+         params['VM_BRIDGE_SCRIPT'] = False
+         params['XEN_BOOTLOADER'] = False
+         params['VM_NETWORKING'] = False
+         params['VM_NETWORKING_TYPE'] = False
+         params['VM_NETWORKING_DEFAULT_TYPE'] = False
+
+
+def main(argv=None):
+   if argv is None:
+      argv = sys.argv
+
+   action = ''
+   features = ''
+   broker_ip = ''
+   name = ''
+   node = ''
+   port = '5672'
+   param_list = {}
+   replace_list = {}
+   group_config = {}
+   config_store = []
+   session = []
+   list_alls = []
+   need_print_help = False
+
+   # Set signal handlers
+   signal.signal(signal.SIGINT, exit_signal_handler)
+   signal.signal(signal.SIGTERM, exit_signal_handler)
+
+   long_opts = ['add', 'broker=', 'default-group', 'delete', 'features=',
+                'group=', 'help', 'list', 'list-all-features',
+                'list-all-groups', 'list-all-nodes', 'list-all-params',
+                'list-all-snapshots', 'load-snapshot=', 'node=', 'params=',
+                'port=', 'remove-snapshot=']
+
+   try:
+      opts, args = getopt.gnu_getopt(argv[1:], 'ab:df:g:hln:p:o:', long_opts)
+   except getopt.GetoptError, error:
+      print str(error)
+      return(1)
+
+   for option, arg in opts:
+      if option in ('-a', '--add'):
+         if action != '':
+            print 'Only 1 action may be specified'
+            return(1)
+         action = 'add'
+      if option in ('-b', '--broker'):
+         broker_ip = arg
+      if option == '--default-group':
+         if name != '' or node != '':
+            print 'Can only configure 1 node or group at a time'
+         name = '+++DEFAULT'
+      if option in ('-d', '--delete'):
+         if action != '':
+            print 'Only 1 action may be specified'
+            return(1)
+         action = 'remove'
+      if option in ('-f', '--features'):
+         features = arg
+      if option in ('-g', '--group'):
+         if name != '' or node != '':
+            print 'Can only configure 1 node or group at a time'
+            return(1)
+         name = arg
+      if option in ('-h', '--help'):
+         need_print_help = True
+      if option in ('-l', '--list'):
+         if action != '':
+            print 'Only 1 action may be specified'
+            return(1)
+         action = 'list'
+      if option in ('--list-all-features', '--list-all-groups',
+                    '--list-all-nodes', '--list-all-params',
+                    '--list-all-snapshots'):
+         if action != '' and action != 'list-all':
+            print 'Only 1 action may be specified'
+            return(1)
+         action = 'list-all'
+         if option == '--list-all-features':
+            list_alls += ['Feature']
+         elif option == '--list-all-groups':
+            list_alls += ['Group']
+         elif option == '--list-all-nodes':
+            list_alls += ['Node']
+         elif option == '--list-all-params':
+            list_alls += ['Parameter']
+         elif option == '--list-all-snapshots':
+            list_alls += ['Snapshot']
+      if option  == '--load-snapshot':
+         if action != '':
+            print 'Only 1 action may be specified'
+            return(1)
+         action = 'load-snapshot'
+         snapshot_name = arg
+      if option in ('-n', '--node'):
+         if name != '' or node != '':
+            print 'Can only configure 1 node or group at a time'
+            return(1)
+         node = arg
+      if option in ('-o', '--port'):
+         port = arg
+      if option in ('-p', '--params'):
+         for param in arg.split(','):
+            param_list[param] = False
+      if option in ('--remove-snapshot'):
+         if action != '':
+            print 'Only 1 action may be specified'
+            return(1)
+         action = 'remove-snapshot'
+         snapshot_name = arg
+
+   # Connect to the configuration store
+   if broker_ip == '':
+      if need_print_help == True:
+         print_help(argv[0], session)
+         return(0)
+      print 'No broker specified.  Exiting'
+      return(0)
+
+   session = Session()
+   try:
+      broker = session.addBroker('amqp://%s:%s' % (broker_ip, port))
+   except:
+      print 'Unable to connect to broker "%s"' % broker_ip
+      return(1)
+
+   # Retreive the config store object
+   try:
+      config_store = session.getObjects(_class='Store', _package='mrg.grid.config')
+   except RuntimeError, error:
+      print 'Error: %s' % error
+      return(1)
+
+   if config_store == []:
+      print 'Unable to contact Configuration Store'
+   else:
+      config_store = config_store[0]
+       
+   if need_print_help == True:
+      print_help(argv[0], session)
+      return(0)
+
+   if config_store == []:
+      return(1)
+
+   # Process the list-alls, if there are any.
+   if action == 'list-all':
+      for type in list_alls:
+         try:
+            objs = session.getObjects(_class=type, _package='mrg.grid.config')
+         except RuntimeError, error:
+            print 'Error: %s' % error
+            return(1)
+
+         print '\n%ss:' % type
+         if type == 'Feature' or type == 'Group':
+            if objs == []:
+               print '  There are no %ss in the store' % type
+            else:
+               for obj in objs:
+                  result = obj.GetName()
+                  if result.status == 0:
+                     name = result.outArgs['name']
+                     if '+++' != name[0:3]:
+                        print '  %s' % name
+               if type == 'Group':
+                  print '  Internal Default Group'
+         if  type == 'Node' or type == 'Parameter' or type == 'Snapshot':
+            if objs == []:
+               print '  There are no %ss in the store' % type
+            else:
+               for obj in objs:
+                  print '  %s' % obj.getIndex()
+      return(0)
+
+   # Process snapshots
+   if action == 'load-snapshot':
+      result = config_store.LoadSnapshot(snapshot_name)
+      if result.status != 0:
+         print 'Error: Failed to load snapshot "%s" (%d %s)' % (snapshot_name, result.status, result.text)
+         return(1)
+      return(0)
+   elif action == 'remove-snapshot':
+      result = config_store.RemoveSnapshot(snapshot_name)
+      if result.status != 0:
+         print 'Error: Failed to remove snapshot "%s" (%d %s)' % (snapshot_name, result.status, result.text)
+         return(1)
+      return(0)
+
+   # If configuring a single node, grab that node's identity group and
+   # act upon that
+   if node != '':
+      result = config_store.GetNode(node)
+      if result.status != 0:
+         print 'Error: Unable to get node "%s" from data store (%d, %s)' % (node, result.status, result.text)
+         return(1)
+      else:
+         try:
+            ref = session.getObjects(_objectId=result.outArgs['obj'])
+         except RuntimeError, error:
+            print 'Error: %s' % error
+            return(1)
+
+         if ref == []:
+            print 'Error: Unable to find node object with id "%s" (%d, %s)' % (node, result.status, result.text)
+         else:
+            obj = ref[0]
+            result = obj.GetIdentityGroup()
+            if result.status != 0:
+               print 'Error: Unable to the identity group for node "%s" (%d, %s)' % (node, result.status, result.text)
+            else:
+               try:
+                  idgroup_ref = session.getObjects(_objectId=result.outArgs['group'])
+               except RuntimeError, error:
+                  print 'Error: %s' % error
+                  return(1)
+
+               if idgroup_ref == []:
+                  print 'Error: Unable to find identity group with id "%s" (%d, %s)' % (result.outArgs['obj'], result.status, result.text)
+               else:
+                  result = idgroup_ref[0].GetName()
+                  name = result.outArgs['name']
+
+   # Perform list opertions
+   if action == 'list':
+      if name != '':
+         # Provide the configuration for the group/node
+         if node != '':
+            list_node_info(session, config_store, node)
+         else:
+            list_group_info(session, config_store, name)
+      if features != '':
+         # Provide the configuration for the features
+         for feat in features.split(','):
+            print 'Configuration for feature %s:' % feat
+            list_feature_info(session, config_store, feat)
+      for param in param_list.keys():
+         list_param_info(session, config_store, param)
+            
+      return(0)
+
+   if name == '':
+      print 'No name supplied.  Exiting'
+      print_help(argv[0], session)
+   elif action == '':
+      print 'No action specified.  Exiting'
+      print_help(argv[0], session)
+   elif features == '' and param_list == {}:
+      print 'No features/parameters specified.  Exiting'
+      print_help(argv[0], session)
+   else:
+      # Query the store to get the group
+      group_obj = get_group(session, config_store, name)
+      if group_obj == None:
+         return(1)
+
+      # Generate the list of features to act upon
+      if features != '':
+         for feature in features.split(','):
+            feature_list[feature] = '0'
+         
+      # Prompt for param values entered on the command line, if any
+      if action == 'add':
+         for param in param_list.keys():
+            input = raw_input('Value for "%s": ' % param)
+            param_list[param] = input.split()
+
+      # Configure which schedulers the node can submit to
+      configure_node_schedulers(replace_list)
+
+      # Configure the AMQP broker used to communicate with the Management
+      # Console
+      configure_qmf_broker(replace_list)
+
+      if raw_input('\nApply these changes [y/N] ? ').lower() == 'y':
+         if feature_list != {}:
+            result = group_obj.ModifyFeatures(action, feature_list, {})
+            if result.status != 0:
+               print 'Error: Problem modifying features (%d, %s)' % (result.status, result.text)
+               return(1)
+
+            # Check if any additional params need to be added/removed
+            if action != 'remove':
+               check_more_params_needed(session, config_store, feature_list, param_list, group_obj)
+            else:
+               check_delete_params_needed(session, config_store, feature_list, param_list, group_obj)
+
+         if param_list != {}:
+            result = group_obj.ModifyParams(action, param_list, {})
+            if result.status != 0:
+               print 'Error: Problem modifying parameters (%d, %s)' % (result.status, result.text)
+               return(1)
+
+         if replace_list != {}:
+            result = group_obj.ModifyParams('replace', replace_list, {})
+            if result.status != 0:
+               print 'Error: Problem modifying parameters (%d, %s)' % (result.status, result.text)
+               return(1)
+         print 'Configuration applied'
+
+         if raw_input('\nSave this configuration [y/N] ? ').lower() == 'y':
+            config_name = raw_input('  Configuration Name: ')
+            result = config_store.MakeSnapshot(config_name)
+            if result.status != 0:
+               print 'Error: Problem saving configuration in store (%d, %s)' % (result.status, result.text)
+            else: 
+               print 'Configuration saved'
+
+#         if raw_input('\nActivate the changes [y/N] ? ').lower() == 'y':
+#            result = config_store.ActivateConfiguration()
+#            if result.status != 0:
+#                print 'Error: Unable to active changes (%d, %s)' % (result.status, result.text)
+#                requirements = result.outArgs['params']
+#                print 'These nodes need non-default values to be set for the following parameters:'
+#                for node in requirements.keys():
+#                   print 'Node: %s' % node
+#                   print 'Parameters:'
+#                   for param in requirements[node].split(','):
+#                      print '  %s' % param
+#            else:
+#               return(1)
+#         else: 
+#            print 'Configuration activated'
+      else:
+         print 'Configuration not applied'
+
+if __name__ == '__main__':
+    sys.exit(main())

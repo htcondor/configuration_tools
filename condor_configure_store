@@ -1,0 +1,340 @@
+#!/usr/bin/python
+#   Copyright 2008 Red Hat, Inc.
+#
+#   Licensed under the Apache License, Version 2.0 (the "License");
+#   you may not use this file except in compliance with the License.
+#   You may obtain a copy of the License at
+#
+#       http://www.apache.org/licenses/LICENSE-2.0
+#
+#   Unless required by applicable law or agreed to in writing, software
+#   distributed under the License is distributed on an "AS IS" BASIS,
+#   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+#   See the License for the specific language governing permissions and
+#   limitations under the License.
+import getopt
+import os
+import sys
+import re
+import signal
+from qmf.console import Session
+from qmfconfig.utils import *
+
+
+def exit_signal_handler(signum, frame):
+   sys.exit(0)
+
+
+def print_help(name):
+   print 'usage: %s [-h|--help] -b|--broker <broker> [-p|--port <port>] action [-f|--features feature[,feature,...]] [-p|--params param[=1],param2[=string],...] [-n|--nodes hostname,hostname] [-g|--groups group[,group]] [-s|--subsys subsystem[,subsystem]]' % os.path.basename(name)
+   print '  <broker> - The ip/hostname of the broker used by the configuration store'
+   print '  <port>   - The port of the broker used by the configuration store'
+   print '  -h - Print help'
+   print '\naction:'
+   print '  -a|--add             - Add the target(s) to the store'
+   print '  -d|--delete          - Remove the target(s) from the store'
+   print '  -e|--edit            - Edit the target(s) in the store'
+   print '  -l|--list            - List configuration store information.  If'
+   print '                         provided without any targets, lists all'
+   print '                         items in the store.  If a target is'
+   print '                         provided, print the information for the'
+   print '                         provided targets'
+   print '  --list-all-features  - List all features in the store'
+   print '  --list-all-groups    - List all groups in the store'
+   print '  --list-all-nodes     - List all nodes in the store'
+   print '  --list-all-params    - List all params in the store'
+   print '  --list-all-snapshots - List all snapshots in the store'
+   print '  --default-group      - Perform actions on the Default Group in'
+   print '                         the store'
+
+
+def main(argv=None):
+   if argv is None:
+      argv = sys.argv
+
+   broker_ip = ''
+   port = '5672'
+   action = ''
+   features = ''
+   groups = ''
+   nodes = ''
+   params = ''
+   subsys = ''
+   config_store = []
+   list_alls = []
+   feat_list = {}
+   param_list = {}
+   group_list = {}
+   node_list = {}
+   subsys_list = {}
+
+   # Set signal handlers
+   signal.signal(signal.SIGINT, exit_signal_handler)
+   signal.signal(signal.SIGTERM, exit_signal_handler)
+
+   long_opts = ['add', 'broker=', 'default-group', 'delete', 'edit',
+                'features=', 'groups=', 'help', 'list', 'list-all-features',
+                'list-all-groups', 'list-all-nodes', 'list-all-params',
+                'list-all-subsystems', 'nodes=', 'params=', 'port=', 'subsys=']
+   try:
+      opts, args = getopt.getopt(argv[1:], 'ab:def:g:hln:p:o:s:', long_opts)
+   except getopt.GetoptError, error:
+      print str(error)
+      return(1)
+
+   for option, arg in opts:
+      if option in ('-a', '--add'):
+         if action != '':
+            print 'Only 1 action may be specified'
+            return(1)
+         action = 'add'
+      if option in ('-b', '--broker'):
+         broker_ip = arg
+      if option == '--default-group':
+         if groups == '':
+            groups += '+++DEFAULT,'
+         else:
+            groups += ',+++DEFAULT'
+      if option in ('-d', '--delete'):
+         if action != '':
+            print 'Only 1 action may be specified'
+            return(1)
+         action = 'delete'
+      if option in ('-e', '--edit'):
+         if action != '':
+            print 'Only 1 action may be specified'
+            return(1)
+         action = 'edit'
+      if option in ('-f', '--features'):
+         features = arg
+      if option in ('-g', '--groups'):
+         groups += arg
+      if option in ('-h', '--help'):
+         print_help(argv[0])
+         return(0)
+      if option in ('-l', '--list'):
+         if action != '':
+            print 'Only 1 action may be specified'
+            return(1)
+         action = 'list'
+      if option in ('--list-all-features', '--list-all-groups',
+                    '--list-all-nodes', '--list-all-params',
+                    '--list-all-subsystems'):
+         if action != '' and action != 'list-all':
+            print 'Only 1 action may be specified'
+            return(1)
+         action = 'list-all'
+         if option == '--list-all-features':
+            list_alls += ['Feature']
+         elif option == '--list-all-groups':
+            list_alls += ['Group']
+         elif option == '--list-all-nodes':
+            list_alls += ['Node']
+         elif option == '--list-all-params':
+            list_alls += ['Parameter']
+         elif option == '--list-all-subsystems':
+            list_alls += ['Subsystem']
+      if option in ('-n', '--nodes'):
+         nodes = arg
+      if option in ('-p', '--params'):
+         params = arg
+      if option in ('-o', '--port'):
+         port = arg
+      if option in ('-s', '--subsys'):
+         subsys = arg
+
+   if broker_ip == '':
+      print 'No broker specified.  Exiting'
+      print_help(argv[0])
+      return(0)
+
+   session = Session()
+   try:
+      broker = session.addBroker('amqp://%s:%s' % (broker_ip, port))
+   except:
+      print 'Unable to connect to broker "%s"' % broker_ip
+      return(1)
+
+   # Retreive the config store object
+   try:
+      config_store = session.getObjects(_class='Store', _package='mrg.grid.config')
+   except RuntimeError, error:
+      print 'Error: %s' % error
+      return(1)
+
+   if config_store == []:
+      print 'Unable to contact Configuration Store'
+   else:
+      config_store = config_store[0]
+
+   if config_store == []:
+      return(1)
+
+   # Process the list-alls, if there are any.
+   if action == 'list-all':
+      for type in list_alls:
+         try:
+            objs = session.getObjects(_class=type, _package='mrg.grid.config')
+         except RuntimeError, error:
+            print 'Error: %s' % error
+            return(1)
+         print '\n%ss:' % type
+         if type == 'Feature' or type == 'Group':
+            if objs == []:
+               print '  There are no %ss in the store' % type
+            else:
+               for obj in objs:
+                  result = obj.GetName()
+                  if result.status == 0:
+                     name = result.outArgs['name']
+                     if '+++' != name[0:3]:
+                        print '  %s' % name
+               if type == 'Group':
+                  print '  Internal Default Group'
+         if  type == 'Node' or type == 'Parameter' or type == 'Subsystem':
+            if objs == []:
+               print '  There are no %ss in the store' % type
+            else:
+               for obj in objs:
+                  print '  %s' % obj.getIndex()
+      return(0)
+
+   # First add all the params/nodes/features/etc the user entered on the
+   # command line, then edit them if needed.  This is done to address any
+   # potential issues with conflicts/depends/includes
+
+   # Process the nodes
+   if nodes != '':
+      for node in nodes.split(','):
+         node = node.strip()
+         if action == 'add':
+            obj = add_node(session, config_store, node)
+            if obj != None:
+              node_list[node] = obj
+         elif action == 'delete':
+            if node != '':
+               result = config_store.RemoveNode(node)
+               if result.status != 0:
+                  print 'Error: Failed to remove node "%s" (%d, %s)' % (node, result.status, result.text)
+                  continue
+         elif action == 'list':
+            list_node_info(session, config_store, node)
+            print
+
+   # Process the parameters
+   if params != '':
+      for param in params.split(','):
+         param = param.strip()
+         if action == 'add':
+            obj = add_param(session, config_store, param)
+            if obj != None:
+               param_list[param] = obj
+         elif action == 'delete':
+            if param.strip() != '':
+               result = config_store.RemoveParam(param)
+               if result.status != 0:
+                  print 'Error: Failed to remove parameter "%s" (%d, %s)' % (param, result.status, result.text)
+         elif action == 'list':
+            list_param_info(session, config_store, param)
+            print
+         elif action == 'edit':
+            obj = get_param(session, config_store, param)
+            if obj != None:
+               param_list[param] = obj
+
+   # Process the features
+   if features != '':
+      for feat in features.split(','):
+         feat = feat.strip()
+         if action == 'add':
+            obj = add_feature(session, config_store, feat)
+            if obj != None:
+               feat_list[feat] = obj
+         elif action == 'delete':
+            obj = get_feature(session, config_store, feat)
+            if obj != None:
+               id = obj.getIndex()
+               result = config_store.RemoveFeature(id)
+               if result.status != 0:
+                  print 'Error: Failed to remove feature "%s" (%d, %s)' % (feat, result.status, result.text)
+         elif action == 'list':
+            list_feature_info(session, config_store, feat)
+            print
+         elif action == 'edit':
+            obj = get_feature(session, config_store, feat)
+            if obj != None:
+               feat_list[feat] = obj
+
+   # Process the groups
+   if groups != '':
+      for group in groups.split(','):
+         group = group.strip()
+         if action == 'add':
+            if group != '+++DEFAULT':
+               obj = add_group(session, config_store, group)
+               if obj != None:
+                  group_list[group] = obj
+            else:
+               print 'The default group in the configuration store can not be added'
+         elif action == 'delete':
+            if group != '+++DEFAULT':
+               obj = get_group(session, config_store, group)
+               if obj != None:
+                  id = obj.getIndex()
+                  result = config_store.RemoveGroup(id)
+                  if result.status != 0:
+                     print 'Error: Failed to remove group "%s" (%d, %s)' % (group, result.status, result.text)
+            else:
+               print 'The default group in the configuration store can not be deleted'
+         elif action == 'list':
+            list_group_info(session, config_store, group)
+            print
+         elif action == 'edit':
+            if group != '+++DEFAULT':
+               obj = get_group(session, config_store, group)
+               if obj != None:
+                  group_list[group] = obj
+            else:
+               print 'The nodes included in the default group in the configuration store can not be modified'
+
+   # Process the subsystems
+   if subsys != '':
+      for sub in subsys.split(','):
+         sub = sub.strip()
+         if action == 'add':
+            obj = add_subsys(session, config_store, sub)
+            if obj != None:
+               subsys_list[sub] = obj
+         elif action == 'delete':
+            if sub != '':
+               result = config_store.RemoveSubsys(sub)
+               if result.status != 0:
+                  print 'Error: Failed to remove subsystem "%s" (%d, %s)' % (sub, result.status, result.text)
+         elif action == 'list':
+            list_subsys_info(session, config_store, sub)
+            print
+         elif action == 'edit':
+            obj = get_subsys(session, config_store, sub)
+            if obj != None:
+               subsys_list[sub] = obj
+
+   # Now modify the params/features/etc
+
+   # Modify the parameters, if needed
+   for param in param_list.keys():
+      modify_param(param_list[param], param, action)
+
+   # Modify the features, if needed
+   for feat in feat_list.keys():
+      modify_feature(feat_list[feat], feat, action)
+
+   # Modify the groups, if needed
+   for group in group_list.keys():
+      modify_group(group_list[group], group, action, config_store, session)
+
+   # Modify the subsystems, if needed
+   for sub in subsys_list.keys():
+      modify_subsys(subsys_list[sub], sub, action)
+
+if __name__ == '__main__':
+    sys.exit(main())

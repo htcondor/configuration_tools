@@ -602,7 +602,7 @@ def main(argv=None):
       if action == 'add':
          for param in param_list.keys():
             input = raw_input('Value for "%s": ' % param)
-            param_list[param] = input.split()
+            param_list[param] = input.split()[0]
 
       # Configure which schedulers the node can submit to
       configure_node_schedulers(replace_list)
@@ -618,11 +618,11 @@ def main(argv=None):
                print 'Error: Problem modifying features (%d, %s)' % (result.status, result.text)
                return(1)
 
-            # Check if any additional params need to be added/removed
-            if action != 'remove':
-               check_more_params_needed(session, config_store, feature_list, param_list, group_obj)
-            else:
-               check_delete_params_needed(session, config_store, feature_list, param_list, group_obj)
+          # Check if any additional params need to be added/removed
+         if action != 'remove':
+            check_more_params_needed(session, config_store, feature_list, param_list, group_obj)
+         else:
+            check_delete_params_needed(session, config_store, feature_list, param_list, group_obj)
 
          if param_list != {}:
             result = group_obj.ModifyParams(action, param_list, {})
@@ -631,7 +631,26 @@ def main(argv=None):
                return(1)
 
          if replace_list != {}:
-            result = group_obj.ModifyParams('replace', replace_list, {})
+            result = group_obj.GetParams()
+            if result.status != 0:
+               print 'Error: Problem retrieving parameters (%d, %s)' % (result.status, result.text)
+               return(1)
+            else:
+               all_params = result.outArgs['params']
+               all_params.update(replace_list)
+               schedd_params = ['SCHEDD_NAME', 'SCHEDD_HOST',
+                                'ALLOW_WRITE_STARTD', 'ALLOW_READ_STARTD',
+                                'ALLOW_WRITE_DAEMON', 'ALLOW_READ_DAEMON']
+               for sparam in schedd_params:
+                  print 'examining "%s"' % sparam
+                  if sparam in all_params.keys() and \
+                     sparam not in replace_list.keys():
+                     try:
+                        del all_params[sparam]
+                     except:
+                        pass
+           
+            result = group_obj.ModifyParams('replace', all_params, {})
             if result.status != 0:
                print 'Error: Problem modifying parameters (%d, %s)' % (result.status, result.text)
                return(1)

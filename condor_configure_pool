@@ -194,58 +194,33 @@ def get_feature_params(sess, store, feature):
 
 
 def get_unique_mustchange_params(sess, store, feature_list, group_obj):
-   param_list = []
-   feature_params = {}
-   configed_feats = {}
+   param_list = {}
+   mustchange_list = {}
    unique_params = {}
 
-   # Iterate over the list of features and check each parameter included
-   for feat in feature_list.values():
-      feat_params = get_feature_params(sess, store, feat)
-
-      # For each list of parameters, check to see if the MustChange is
-      # true.
-      if feat_params != {}:
-         for param in feat_params.keys():
-            pobj = get_param(sess, store, param)
-            if pobj != None:
-               result = pobj.GetDefaultMustChange()
-               if result.status != 0:
-                  print 'Error: Failed to determine if parameter "%s" must be set by user (%d, %s)' % (param, result.status, result.txt)
-                  continue
-               else:
-                  value = result.outArgs['mustChange']
-                  if value == True and feat_params[param] == '':
-                     param_list += ['%s' % param]
-
-   # Now, get the parameter list for the features configured on
-   # the group
-   result = group_obj.GetFeatures()
+   # Get the list of parameters for the group
+   result = group_obj.GetConfig()
    if result.status != 0:
-      print 'Error: Failed to retrieve features configured (%d, %s)' % (result.status, result.txt)
+      print 'Error: Failed to retrieve configuration for group'
    else:
-      configed_feats = result.outArgs['features']
+      param_list = result.outArgs['config']
 
+   # Get the list of parameters that must change from the store
+   result = store.GetMustChangeParams()
+   if result.status != 0:
+      print 'Error: Failed to retrieve list of MustChange parameters from the Configuration Store'
+   else:
+      mustchange_list = result.outArgs['params']
+   
+   # Compare the value of the parameters that must be changed in the
+   # group against the params default value.  If the value is the same
+   # then the parameter hasn't been given a new value
+   for param in mustchange_list.keys():
+      if param in param_list.keys() and \
+         mustchange_list[param] == param_list[param]:
+            unique_params[param] = False
 
-   # Generate the list of parameters for these features
-   for feat in configed_feats.values():
-      obj = get_feature(sess, store, feat)
-      if obj != None:
-         result = obj.GetParams()
-         if result.status != 0:
-            print 'Error: Unable to retrieve parameters for configured feature "%s" (%d, %s)' % (feat, result.status, result.txt)
-            continue
-         else:
-            feature_params.update(result.outArgs['params'])
-
-   # Now, determine if any of the candidate parameters aren't set for
-   # any of the configured features.  If they aren't, add them to
-   # the list of unique must set parameters
-   for param in param_list:
-      if param not in feature_params.keys() or feature_params[param] == '':
-         unique_params[param] = False
-
-   return unique_params
+   return (unique_params, param_list)
 
 
 def set_param(name, value, param_list, unique_list = None):
@@ -260,31 +235,31 @@ def check_more_params_needed(sess, store, features, params, gobj):
    list = {}
 
    # Get a list of unique must set parameters for the features being added
-   unique_params = get_unique_mustchange_params(sess, store, features, gobj)
-
-   # Get the list of parameters for the group
-   result = gobj.GetConfig()
-   if result.status != 0:
-      print 'Error: Unable to determine if special configuration is needed'
-   else:
-      list = result.outArgs['config']
+   (unique_params, list) = get_unique_mustchange_params(sess, store, features, gobj)
 
    # Check for special case parameters
 
    # Check for EC2 Enhanced
    if ('NEED_SET_EC2E_ROUTES' in list.keys() and \
-      list['NEED_SET_EC2E_ROUTES'].lower() == 'true' and \
-      params['NEED_SET_EC2E_ROUTES'].lower() != 'false') or \
+      list['NEED_SET_EC2E_ROUTES'].lower() == 'true') or \
       ('NEED_SET_EC2E_ROUTES' in params.keys() and \
       params['NEED_SET_EC2E_ROUTES'].lower() == 'true'):
-      answer = 'y'
-      if list['JOB_ROUTER_ENTRIES'] != '':
-         answer = raw_input('Edit the EC2Enhanced Routes [y/N]? ')
 
-      if answer.lower() == 'y':
-         routes = get_ec2e_routes()
-         set_param('JOB_ROUTER_ENTRIES', routes, params, unique_params)
-         set_param('NEED_SET_EC2E_ROUTES', 'FALSE', params, unique_params)
+      if 'NEED_SET_EC2E_ROUTES' in params.keys() and \
+         params['NEED_SET_EC2E_ROUTES'].lower() == 'false':
+         skip = True
+      else:
+         skip = False
+
+      if skip == False:
+         answer = 'y'
+         if list['JOB_ROUTER_ENTRIES'] != '':
+            answer = raw_input('Edit the EC2Enhanced Routes [y/N]? ')
+
+         if answer.lower() == 'y':
+            routes = get_ec2e_routes()
+            set_param('JOB_ROUTER_ENTRIES', routes, params, unique_params)
+            set_param('NEED_SET_EC2E_ROUTES', 'FALSE', params, unique_params)
 
    # Check for VM Universe parameters
    if 'VM_TYPE' in list.keys() and list['VM_TYPE'] == '':
@@ -303,7 +278,7 @@ def check_more_params_needed(sess, store, features, params, gobj):
       else:
          set_param('VM_NETWORKING', 'FALSE', params, unique_params)
 
-   # Prompt the user if there are parameters that need to be set
+   # Prompt the user if there are still parameters that need to be set
    if len(unique_params) > 0:
       print 'The following parameters need to be set for this configuration to be valid:'
       for param in unique_params.keys():
@@ -320,10 +295,11 @@ def check_more_params_needed(sess, store, features, params, gobj):
 
 def check_delete_params_needed(sess, store, features, params, gobj):
    # Grab the list of unique must set parameters for each feature being removed
-   unique_params = get_unique_mustchange_params(sess, store, features, gobj)
+   (unique_params, config) = get_unique_mustchange_params(sess, store, features, gobj)
 
-   for param in unique_params.keys():
-      params[param] = False
+   # Update the list of parameters to include the unique parameters that
+   # must be set by the user
+   params.update(unique_params)
 
    # Special cases
    for feat in features.values():
@@ -331,6 +307,7 @@ def check_delete_params_needed(sess, store, features, params, gobj):
       if 'NEED_SET_EC2E_ROUTES' in feat_params.keys():
          # In case this was set
          params['NEED_SET_EC2E_ROUTES'] = False
+         params['JOB_ROUTER_ENTRIES'] = False
       if 'VM_TYPE' in feat_params.keys():
          # Remove all the VM Universe params that are always set
          params['VM_TYPE'] = False
@@ -642,7 +619,6 @@ def main(argv=None):
                                 'ALLOW_WRITE_STARTD', 'ALLOW_READ_STARTD',
                                 'ALLOW_WRITE_DAEMON', 'ALLOW_READ_DAEMON']
                for sparam in schedd_params:
-                  print 'examining "%s"' % sparam
                   if sparam in all_params.keys() and \
                      sparam not in replace_list.keys():
                      try:

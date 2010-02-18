@@ -28,7 +28,7 @@ SOURCES/${SOURCE}:
 	cp -f condor_config_eventd ${DIR}
 	cp -f utils.py ${DIR}
 	cp -f config/* ${DIR}
-	cp -f LICENSE-2.0.txt ${DIR}
+	cp -f LICENSE-2.0.txt README ${DIR}
 	tar -cf ${SOURCE} ${DIR}
 	mv "${SOURCE}" SOURCES
 

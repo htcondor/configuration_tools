@@ -89,7 +89,7 @@ touch %{buildroot}/%{python_sitelib}/qmfconfig/__init__.py
 %if 0%{?rhel} != 4
 %files tools
 %defattr(-,root,root,-)
-%doc LICENSE-2.0.txt
+%doc LICENSE-2.0.txt README
 %defattr(0755,root,root,-)
 %_sbindir/condor_configure_store
 %_sbindir/condor_configure_pool

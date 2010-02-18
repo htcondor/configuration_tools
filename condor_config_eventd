@@ -37,7 +37,7 @@ class EventConsole(Console):
          args = event.getArguments()
          affected_hosts = args['AffectedNodes'].split(',')
          if self.node.getIndex() in affected_hosts:
-            self.get_config()
+            get_config(self.node)
             if args['Restart'] == True:
                cmd = 'condor_restart'
             else:
@@ -51,24 +51,16 @@ class EventConsole(Console):
                   (retval, out, err) = run_cmd(cmd, '-subsystem %s' % subsys)
                if retval != 0:
                   syslog.syslog(syslog.LOG_ERR, 'Error: Failed to send command to subsystem "%s" (stdout: %s, stderr: %s)' % (subsys, out, err))
-
-
-   def get_config(self):
-      # Retrieve the node's configuration
-      result = self.node.GetConfig()
-      if result.status != 0:
-         # Problem getting the configuration, so do nothing
-         syslog.syslog(syslog.LOG_ERR, 'Error: Failed to retrieve configuration from the store (%d, %s)' % (result.status, result.text))
-         return
-      else:
-         config = result.outArgs['config']
-
-      # Write the config to a file on disk
-      loc = read_condor_config('CONDOR_CONFIG', 'DIR')
-      config_file = open('%s/qmf_condor_config' % loc['DIR'], 'w')
-      for key in config.keys():
-         config_file.write('%s = %s\n' % key, config[key])
-      config_file.close()
+      elif event.getClassKey().getClassName() == 'NewConfigEvent':
+#         print dir(event)
+#         args = event.getArguments()
+#         affected_hosts = args['nodelist']
+#         if self.node.getIndex() in affected_hosts.keys():
+         if True:
+            get_config(self.node)
+            (retval, out, err) = run_cmd('condor_restart', '-subsystem master')
+            if retval != 0:
+               syslog.syslog(syslog.LOG_ERR, 'Error: Failed to send command to subsystem "master" (stdout: %s, stderr: %s)' % (out, err))
 
 
 class Service:
@@ -167,12 +159,38 @@ class Service:
          return(1)
 
       try:
-         val = read_condor_config('QMF_CONFIG' ['VERSION'])
-         version = val['version']
+         val = read_condor_config('WALLABY_CONFIG', ['VERSION'])
+         version = int(val['version'])
       except config_err, error:
          # Never been configured before, so send a bank version
-         version = ''
-      self.node_obj.CheckConfigVersion(version)
+         version = 0
+      if version != self.node_obj.last_updated_version:
+         get_config(self.node_obj)
+
+
+def get_config(node_obj):
+   # Retrieve the node's configuration
+   result = node_obj.GetConfig()
+   if result.status != 0:
+      # Problem getting the configuration, so do nothing
+      syslog.syslog(syslog.LOG_ERR, 'Error: Failed to retrieve configuration from the store (%d, %s)' % (result.status, result.text))
+      return
+   else:
+      config = result.outArgs['config']
+
+   # Write the config to a file on disk
+   try:
+      loc = read_condor_config('LOCAL_CONFIG', ['DIR'])
+   except:
+      syslog.syslog(syslog.LOG_ERR, 'Error: LOCAL_CONFIG_DIR not defined.  Unable to write config')
+      return
+
+   config_file = open('%s/qmf_condor_config' % loc['dir'], 'w')
+   for key in config.keys():
+      config_file.write('%s = %s\n' % (key, config[key]))
+   config_file.close()
+
+#   node_obj.CheckIn()
 
 
 def reconfig(signum, frame):

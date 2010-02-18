@@ -317,17 +317,19 @@ def check_more_params_needed(sess, store, features, params, gobj):
 
    # Prompt the user if there are still parameters that need to be set
    if len(unique_params) > 0:
-      print 'The following parameters need to be set for this configuration to be valid:'
+      print 'The following parameters need to be set for this configuration to be valid.'
       for param in unique_params.keys():
-         print param
+         if param != '' and param not in params.keys():
+            print param
       answer = raw_input('Set these parameters now ? [y/N] ')
       if answer.lower() == 'y':
          for param in unique_params.keys():
-            value = raw_input('%s: '% param)
-            set_param(param, value.split()[0], params)
+            if param != '' and param not in params.keys():
+               value = raw_input('%s: '% param)
+               set_param(param, value.split()[0], params)
       else:
          print 'Electing not to set these parameters now'
-         print 'WARNING: This configuration will not be able to be activated'
+         print 'WARNING: This configuration may not be able to be activated'
 
 
 def check_delete_params_needed(sess, store, features, params, gobj):
@@ -677,21 +679,26 @@ def main(argv=None):
             else: 
                print 'Configuration saved'
 
-#         if raw_input('\nActivate the changes [y/N] ? ').lower() == 'y':
-#            result = config_store.ActivateConfiguration()
-#            if result.status != 0:
-#                print 'Error: Unable to active changes (%d, %s)' % (result.status, result.text)
-#                requirements = result.outArgs['params']
-#                print 'These nodes need non-default values to be set for the following parameters:'
-#                for node in requirements.keys():
-#                   print 'Node: %s' % node
-#                   print 'Parameters:'
-#                   for param in requirements[node].split(','):
-#                      print '  %s' % param
-#            else:
-#               return(1)
-#         else: 
-#            print 'Configuration activated'
+         if raw_input('\nActivate the changes [y/N] ? ').lower() == 'y':
+            result = config_store.ActivateConfiguration()
+            if result.status != 0:
+               print 'Error: Unable to active changes (%d, %s)' % (result.status, result.text)
+            else:
+               errors = result.outArgs['explain']
+               if errors != {}:
+                  print 'The configuration is not valid'
+                  for node in errors.keys():
+                     print 'Node: %s' % node
+                     for reason in errors[node].keys():
+                        print '%s:' % reason
+                        for param in errors[node][reason].keys():
+                           print '  %s' % param
+                     print
+                  print 'Configuration not activated'
+               else:
+                  print 'Configuration activated'
+         else: 
+            print 'Configuration not activated'
       else:
          print 'Configuration not applied'
 

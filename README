@@ -12,6 +12,43 @@ Groups, Subsystems, and Nodes in the store.
 Usage:
 condor_configure_store [-h|--help] -b|--broker <broker> [-p|--port <port>] action [-f|--features feature[,feature,...]] [-p|--params param[=1],param2[=string],...] [-n|--nodes hostname,hostname] [-g|--groups group[,group]] [-s|--subsys subsystem[,subsystem]]
 
+The supported actions are add, delete, edit, or list, but only one action
+can be performed at a time.
+
+The add action is used to add features, parameters, groups, nodes, and
+subsystem object information into the configuration store.  The user will
+be prompted for information related to the type of object being added if
+needed.
+
+The delete, edit, and list actions act upon specific object types in
+the store.  The user is able to completely remove objects from the store,
+edit existing objects in the store, or print out object information.
+
+To list the setup of the configuration store's Default Group, use the
+--default-group option.
+
+It is also possible to list all feature, group, node, parameter, and
+snapshot names by using --list-all-<object_type>. 
+
+Examples:
+To add Features Feature1 and Feature2, as well as Parameters Param1 and Param2
+to the store:
+condor_configure_store -b <broker_ip> -a -f Feature1,Feature2 -p Param1,Param2
+
+To list the default group's information:
+condor_configure_store -b <broker_ip> -l --default-group
+
+To remove Feature1 from the store:
+condor_configure_store -b <broker_ip> -d -f Feature1
+
+To list Param2's information:
+condor_configure_store -b <broker_ip> -l -p Param2
+
+To edit Feature2 in the store:
+condor_configure_store -b <broker_ip> -e -f Feature2
+
+
+
 condor_configure_pool:
 The condor_configure_pool tool is used to apply configurations to a specific
 node or a group of nodes.  This tool uses the Parameters, Features, Groups,
@@ -22,8 +59,10 @@ features and parameters by be added per tool invocation.
 Usage:
 condor_configure_pool [-h|--help] -b|--broker <broker> [-p|--port <port>] [--load-snapshot|--remove-snapshot <snapshot>] [-g|--group|-n|--node name] action [-f|--features feature[,feature,...]] [-p|--params param1,param2,...]
 
-The currently supported actions are either add, delete, or list.  The add
-action is used to add features or parameters to the provided node or
+The supported actions are either add, delete, or list, but only one action
+may be performed at a time.
+
+The add action is used to add features or parameters to the provided node or
 group of nodes, and if any additional parameters are required for the
 configuration to be valid then the tool will prompt the user.
 
@@ -55,14 +94,22 @@ changes in the configuration store.  If needed, the tool will then prompt
 for any additional parameters that are required.
 
 The configuration tool will then prompt to save the configuration.  If 'y'
-is answered then the tool will prompt for a configuratio name and generate a
-named snapshot in the configuration store with the provided name.
+is answered then the tool will prompt for a configuration name and generate a
+named snapshot in the configuration store with the provided name.  Snapshots
+can be loaded into or removed from the store with the --load-snapshot and
+--remove-snapshot options.
 
 Finally, the configuration tool will ask if the changes should be actived.
 If 'y' is answered, the configuration tool will tell the configuration store
 to validate the configuration and, if valid, push out the changes to the nodes
 in the pool.  If the configuration is not valid, the configuration tool will
 notify the user of the problems and then exit.
+
+To modify the setup of the configuration store's Default Group, use the
+--default-group option.
+
+It is also possible to list all feature, group, node, parameter, and
+snapshot names by using --list-all-<object_type>. 
 
 The list of supported features and usage information can be obtained by
 executing:

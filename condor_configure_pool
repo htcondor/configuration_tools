@@ -47,6 +47,8 @@ def print_help(name, sess):
    print '  -d|--delete          - Remove from the group/node'
    print '  -l|--list            - List the specific node/group/feature/param'
    print '                         configuration'
+   print '  --activate           - Attempt to activate the configuration in'
+   print '                         the store'
    print '  --list-all-features  - List all features in the store'
    print '  --list-all-groups    - List all groups in the store'
    print '  --list-all-nodes     - List all nodes in the store'
@@ -357,6 +359,29 @@ def check_delete_params_needed(sess, store, features, params, gobj):
          params['VM_NETWORKING_DEFAULT_TYPE'] = False
 
 
+def activate_configuration(store):
+   ret_val = False
+   result = store.ActivateConfiguration()
+   if result.status != 0:
+      print 'Error: Unable to active changes (%d, %s)' % (result.status, result.text)
+   else:
+      errors = result.outArgs['explain']
+      if errors != {}:
+         print 'The configuration is not valid'
+         for node in errors.keys():
+            print 'Node: %s' % node
+            for reason in errors[node].keys():
+               print '%s:' % reason
+               for param in errors[node][reason].keys():
+                  print '  %s' % param
+            print
+         ret_val = True
+         print 'Configuration not activated'
+      else:
+         print 'Configuration activated'
+   return ret_val
+
+
 def main(argv=None):
    if argv is None:
       argv = sys.argv
@@ -379,8 +404,8 @@ def main(argv=None):
    signal.signal(signal.SIGINT, exit_signal_handler)
    signal.signal(signal.SIGTERM, exit_signal_handler)
 
-   long_opts = ['add', 'broker=', 'default-group', 'delete', 'features=',
-                'group=', 'help', 'list', 'list-all-features',
+   long_opts = ['activate', 'add', 'broker=', 'default-group', 'delete',
+                'features=', 'group=', 'help', 'list', 'list-all-features',
                 'list-all-groups', 'list-all-nodes', 'list-all-params',
                 'list-all-snapshots', 'load-snapshot=', 'node=', 'params=',
                 'port=', 'remove-snapshot=']
@@ -392,6 +417,11 @@ def main(argv=None):
       return(1)
 
    for option, arg in opts:
+      if option == '--activate':
+         if action != '':
+            print 'Only 1 action may be specified'
+            return(1)
+         action = 'activate'
       if option in ('-a', '--add'):
          if action != '':
             print 'Only 1 action may be specified'
@@ -496,7 +526,14 @@ def main(argv=None):
    if config_store == []:
       return(1)
 
-   # Process the list-alls, if there are any.
+   # Attempt to activate the configuration in the store if told to do so
+   if action == 'activate':
+      if activate_configuration(config_store) == False:
+         return(1)
+      else:
+         return(0)
+
+   # Process the list-alls, if there are any
    if action == 'list-all':
       for type in list_alls:
          try:
@@ -669,23 +706,7 @@ def main(argv=None):
                print 'Configuration saved'
 
          if raw_input('\nActivate the changes [y/N] ? ').lower() == 'y':
-            result = config_store.ActivateConfiguration()
-            if result.status != 0:
-               print 'Error: Unable to active changes (%d, %s)' % (result.status, result.text)
-            else:
-               errors = result.outArgs['explain']
-               if errors != {}:
-                  print 'The configuration is not valid'
-                  for node in errors.keys():
-                     print 'Node: %s' % node
-                     for reason in errors[node].keys():
-                        print '%s:' % reason
-                        for param in errors[node][reason].keys():
-                           print '  %s' % param
-                     print
-                  print 'Configuration not activated'
-               else:
-                  print 'Configuration activated'
+            activate_configuration(config_store)
          else: 
             print 'Configuration not activated'
       else:

@@ -105,7 +105,7 @@ class Service:
 
       try:
          val = read_condor_config('QMF_CONFIG', ['CHECK_INTERVAL'])
-         self.interval = val['check_interval']
+         self.interval = int(val['check_interval'])
       except config_err, error:
          syslog.syslog(syslog.LOG_INFO, '%s. Node configuration evaluation disabled' % error.msg)
          self.interval = 0
@@ -190,7 +190,7 @@ def get_config(node_obj):
       config_file.write('%s = %s\n' % (key, config[key]))
    config_file.close()
 
-#   node_obj.CheckIn()
+   node_obj.checkin()
 
 
 def reconfig(signum, frame):

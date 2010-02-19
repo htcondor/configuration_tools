@@ -543,36 +543,25 @@ def main(argv=None):
    # If configuring a single node, grab that node's identity group and
    # act upon that
    if node != '':
-      result = config_store.GetNode(node)
-      if result.status != 0:
-         print 'Error: Unable to get node "%s" from data store (%d, %s)' % (node, result.status, result.text)
+      obj = get_node(session, config_store, node)
+      if obj == None:
          return(1)
       else:
-         try:
-            ref = session.getObjects(_objectId=result.outArgs['obj'])
-         except RuntimeError, error:
-            print 'Error: %s' % error
-            return(1)
-
-         if ref == []:
-            print 'Error: Unable to find node object with id "%s" (%d, %s)' % (node, result.status, result.text)
+         result = obj.GetIdentityGroup()
+         if result.status != 0:
+            print 'Error: Unable to the identity group for node "%s" (%d, %s)' % (node, result.status, result.text)
          else:
-            obj = ref[0]
-            result = obj.GetIdentityGroup()
-            if result.status != 0:
-               print 'Error: Unable to the identity group for node "%s" (%d, %s)' % (node, result.status, result.text)
-            else:
-               try:
-                  idgroup_ref = session.getObjects(_objectId=result.outArgs['group'])
-               except RuntimeError, error:
-                  print 'Error: %s' % error
-                  return(1)
+            try:
+               idgroup_ref = session.getObjects(_objectId=result.outArgs['group'])
+            except RuntimeError, error:
+               print 'Error: %s' % error
+               return(1)
 
-               if idgroup_ref == []:
-                  print 'Error: Unable to find identity group with id "%s" (%d, %s)' % (result.outArgs['obj'], result.status, result.text)
-               else:
-                  result = idgroup_ref[0].GetName()
-                  name = result.outArgs['name']
+            if idgroup_ref == []:
+               print 'Error: Unable to find identity group with id "%s" (%d, %s)' % (result.outArgs['obj'], result.status, result.text)
+            else:
+               result = idgroup_ref[0].GetName()
+               name = result.outArgs['name']
 
    # Perform list opertions
    if action == 'list':

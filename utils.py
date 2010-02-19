@@ -1,3 +1,5 @@
+from datetime import datetime
+
 def get_group(sess, store, name):
    if name != '':
       if name == '+++DEFAULT':
@@ -68,25 +70,29 @@ def get_param(sess, store, name):
 
 
 def get_node(sess, store, name):
+   obj = []
    if name != '':
-      result = store.GetNode(name)
-   else:
-      return(None)
-
-   if result.status != 0:
-      print 'Error: Failed to find node "%s" (%d, %s)' % (name, result.status, result.txt)
-      return(None)
-   else:
+      # store.GetNode will create a node object if the give name doesn't exist,
+      # so look to see if a node object exists to avoid creating one
       try:
-         obj = sess.getObjects(_objectId=result.outArgs['obj'])
+         all_nodes = sess.getObjects(_class='Node', _package='mrg.grid.config')
       except RuntimeError, error:
-         print 'Error: %s' % error
+         print 'Failed to retrieve list of nodes from the store'
          return(None)
 
-      if obj != []:
-         return(obj[0])
-      else:
-         return(None)
+      # Iterate over the list of node ojects
+      for node in all_nodes:
+         if name == node.getIndex():
+            obj = node
+            break
+   else:
+      return(None)
+
+   if obj == []:
+      print 'Error: Failed to find node "%s"' % name
+      return(None)
+   else:
+      return(obj)
 
 
 def get_subsys(sess, store, name):
@@ -298,8 +304,11 @@ def list_node_info(sess, store, name):
       if result.status != 0:
          print 'Error: Failed to retrieve LastCheckinTime (%d, %s)' % (result.status, result.txt)
       else:
-         value = result.outArgs['time']
-         print 'Last Check-in Time: %d' % value
+         value = int(result.outArgs['time'])
+         if value == 0:
+            print 'Last Check-in Time: Never'
+         else:
+            print 'Last Check-in Time: %s' % datetime.fromtimestamp(value/1000000).strftime('%A %B %d, %Y %H:%M:%S')
 
       result = node_obj.GetMemberships()
       if result.status != 0:

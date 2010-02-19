@@ -1,5 +1,5 @@
 %{!?python_sitelib: %define python_sitelib %(%{__python} -c "from distutils.sysconfig import get_python_lib; print get_python_lib()")}
-%define rel 0.2
+%define rel 0.3
 
 Name: condor-qmf-config
 Summary: Grid configuration over QMF
@@ -103,6 +103,17 @@ touch %{buildroot}/%{python_sitelib}/qmfconfig/__init__.py
 %{python_sitelib}/qmfconfig/__init__.py*
 
 %changelog
+* Fri Feb 19 2010  <rrati@redhat> - 2.0-0.3
+- Added README to the tools package
+- Configurations can now be activated in the store
+- Nodes checkin with the store after receiving the configuration
+- The eventd check interval wasn't always an integer
+- Last Checkin Time is displayed in a more readable format
+- Node objects are no longer created in the store if the tools ask about a
+  node that doesn't exist
+- Fixed detection of which parameters must be asked for when a configuration
+  is changed
+
 * Wed Feb 17 2010  <rrati@redhat> - 2.0-0.2
 - Fixed issues relating to prompting for params that must be set by the
   user when adding features to groups/nodes

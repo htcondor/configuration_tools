@@ -1,9 +1,9 @@
 %{!?python_sitelib: %define python_sitelib %(%{__python} -c "from distutils.sysconfig import get_python_lib; print get_python_lib()")}
-%define rel 0.3
+%define rel 0.1
 
 Name: condor-qmf-config
 Summary: Grid configuration over QMF
-Version: 2.0
+Version: 2.1
 Release: %{rel}%{?dist}
 Group: Applications/System
 License: ASL 2.0
@@ -103,6 +103,9 @@ touch %{buildroot}/%{python_sitelib}/qmfconfig/__init__.py
 %{python_sitelib}/qmfconfig/__init__.py*
 
 %changelog
+* Tue Feb 23 2010  <rrati@redhat> - 2.1-0.1
+- Updated to version 2.1
+
 * Fri Feb 19 2010  <rrati@redhat> - 2.0-0.3
 - Added README to the tools package
 - Configurations can now be activated in the store

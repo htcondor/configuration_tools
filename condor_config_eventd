@@ -19,6 +19,8 @@ import syslog
 import signal
 import time
 import socket
+import getopt
+import random
 from qmf.console import Session, Console
 from jobhooks.functions import *
 
@@ -134,15 +136,15 @@ class Service:
          else:
             self.node_obj = obj[0]
       self.console.config(self.node_obj)
-      self.check_config_ver()
 
+      return(True)
+
+
+   def setup_timers(self):
       # Setup the alarm for evaluation
       signal.alarm(0)
       if self.interval > 0:
          signal.alarm(self.interval)
-
-      return(True)
-
 
    def shutdown(self):
       if self.broker != None:
@@ -155,7 +157,9 @@ class Service:
 
 
    def check_config_ver(self):
+      syslog.syslog(syslog.LOG_INFO, 'Checking version of condor configuration')
       if self.node_obj == []:
+         syslog.syslog(syslog.LOG_ERR, 'Error: No node object from the store')
          return(1)
 
       try:
@@ -195,7 +199,7 @@ def get_config(node_obj):
 
 def reconfig(signum, frame):
    service.config()
-#   signal.alarm(service.get_interval())
+   service.setup_timers()
 
 
 def exit_signal_handler(signum, frame):
@@ -204,8 +208,9 @@ def exit_signal_handler(signum, frame):
    sys.exit(0)
 
 
-def config_check():
+def config_check(signum, frame):
    service.check_config_ver()
+   service.setup_timers()
 
 
 service = Service()
@@ -215,6 +220,24 @@ def main(argv=None):
 
    # Open a connection to the system logger
    syslog.openlog(os.path.basename(argv[0]))
+
+   long_opts = ['retrieve']
+
+   try:
+      opts, args = getopt.gnu_getopt(argv[1:], 'r', long_opts)
+   except getopt.GetoptError, error:
+      print str(error)
+      return(1)
+
+   for option, arg in opts:
+      if option in ('-r', '--retrieve'):
+         service.init()
+         if service.config() != True:
+            print 'Error: Unable to retrieve configuration'
+            return(1)
+         else:
+            service.check_config_ver()
+            return(0)
 
    # Set signal handlers
    signal.signal(signal.SIGINT, exit_signal_handler)
@@ -227,12 +250,17 @@ def main(argv=None):
    if service.config() != True:
       return(1)
 
+   # Delay initial checkin after startup 
+   random.seed()
+   time.sleep(random.randint(0, 10))
+   config_check(0, 0)
+
    # Loop forever until told to shutdown
    try:
       while True:
          time.sleep(1)
    except:
-      pass
+      syslog.syslog(syslog.LOG_ERR, 'Error: Received exception in main loop.  Exiting'
 
 if __name__ == '__main__':
     sys.exit(main())

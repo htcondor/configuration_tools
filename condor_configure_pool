@@ -388,7 +388,7 @@ def main(argv=None):
 
    action = ''
    features = ''
-   broker_ip = ''
+   broker_ip = '127.0.0.1'
    name = ''
    node = ''
    port = '5672'
@@ -584,21 +584,9 @@ def main(argv=None):
       if obj == None:
          return(1)
       else:
-         result = obj.GetIdentityGroup()
-         if result.status != 0:
-            print 'Error: Unable to the identity group for node "%s" (%d, %s)' % (node, result.status, result.text)
-         else:
-            try:
-               idgroup_ref = session.getObjects(_objectId=result.outArgs['group'])
-            except RuntimeError, error:
-               print 'Error: %s' % error
-               return(1)
-
-            if idgroup_ref == []:
-               print 'Error: Unable to find identity group with id "%s" (%d, %s)' % (result.outArgs['obj'], result.status, result.text)
-            else:
-               result = idgroup_ref[0].GetName()
-               name = result.outArgs['name']
+         name = get_id_group_name(obj, session)
+         if name == None:
+            return(1)
 
    # Perform list opertions
    if action == 'list':

@@ -52,7 +52,7 @@ def main(argv=None):
    if argv is None:
       argv = sys.argv
 
-   broker_ip = ''
+   broker_ip = '127.0.0.1'
    port = '5672'
    action = ''
    features = ''

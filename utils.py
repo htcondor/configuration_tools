@@ -316,9 +316,42 @@ def list_node_info(sess, store, name):
       else:
          value = result.outArgs['groups']
          print 'Group Memberships:'
+         print '  Internal Default Group'
          for key in value.values():
             print '  %s' % key
 
+      print 'Features Applied:'
+      group_list = value
+      id_name = get_id_group_name(node_obj, sess)
+      if id_name != None:
+         group_list[len(group_list) + 1] = id_name
+      group_list[len(group_list) + 1] = '+++DEFAULT'
+
+      for group in group_list.values():
+         group_obj = get_group(sess, store, group)
+         if group_obj != None:
+            result = group_obj.GetFeatures()
+            if result.status != 0:
+               print 'Error: Unable to retrieve features for group "%s" (%s, %s)' % (group, result.status, result.txt)
+            else:
+               value = result.outArgs['features']
+               for key in value.values():
+                  print '  %s' % key
+
+      if id_name != None:
+         group_obj = get_group(sess, store, id_name)
+         if group_obj != None:
+            result = group_obj.GetParams()
+            if result.status != 0:
+               print 'Error: Unable to retrieve explicitly set parameters (%s, %s)' % (result.status, result.txt)
+            else:
+               print 'Explicitly Set Parameters:'
+               value = result.outArgs['params']
+               for key in value.keys():
+                  print '  %s = %s' % (key, value[key])
+      else:
+         print 'Error: Failed to find explicitly set parameters'
+      
       result = node_obj.GetConfig()
       if result.status != 0:
          print 'Error: Failed to retrieve configuration (%d, %s)' % (result.status, result.txt)
@@ -855,3 +888,27 @@ def process_priority_list(list):
          else:
             pairs[split[1].strip()] = split[0].strip()
    return (valid, pairs)
+
+def get_id_group_name(obj, sess):
+   name = None
+   idgroup_ref = []
+
+   result = obj.GetIdentityGroup()
+   if result.status != 0:
+      print 'Error: Unable to retrieve the identity group (%d, %s)' % (result.status, result.txt)
+   else:
+      try:
+         idgroup_ref = sess.getObjects(_objectId=result.outArgs['group'])
+      except RuntimeError, error:
+         print 'Error: %s' % error
+
+      if idgroup_ref == []:
+         print 'Error: Unable to find identity group with id "%s" (%d, %s)' % (result.outArgs['obj'], result.status, result.txt)
+      else:
+         result = idgroup_ref[0].GetName()
+         if result.status != 0:
+            print 'Error: Unable to retrieve identity group name (5s, %s)' % (result.status, result.txt)
+         else:
+            name = result.outArgs['name']
+
+   return name

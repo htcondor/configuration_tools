@@ -263,7 +263,7 @@ def set_param(name, value, param_list, unique_list = None):
       except:
          pass
 
-def check_more_params_needed(sess, store, features, params, gobj):
+def check_more_params_needed(sess, store, features, params, more_params, gobj):
    list = {}
 
    # Get a list of unique must set parameters for the features being added
@@ -321,12 +321,14 @@ def check_more_params_needed(sess, store, features, params, gobj):
    if len(unique_params) > 0:
       print 'The following parameters need to be set for this configuration to be valid.'
       for param in unique_params.keys():
-         if param != '' and param not in params.keys():
+         if param != '' and param not in params.keys() and \
+            param not in more_params.keys():
             print param
       answer = raw_input('Set these parameters now ? [y/N] ')
       if answer.lower() == 'y':
          for param in unique_params.keys():
-            if param != '' and param not in params.keys():
+            if param != '' and param not in params.keys() and \
+               param not in more_params.keys():
                value = raw_input('%s: '% param)
                set_param(param, value.split()[0], params)
       else:
@@ -650,7 +652,7 @@ def main(argv=None):
 
           # Check if any additional params need to be added/removed
          if action != 'remove':
-            check_more_params_needed(session, config_store, feature_list, param_list, group_obj)
+            check_more_params_needed(session, config_store, feature_list, param_list, replace_list, group_obj)
          else:
             check_delete_params_needed(session, config_store, feature_list, param_list, group_obj)
 

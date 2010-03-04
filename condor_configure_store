@@ -26,7 +26,7 @@ def exit_signal_handler(signum, frame):
 
 
 def print_help(name):
-   print 'usage: %s [-h|--help] -b|--broker <broker> [-p|--port <port>] action [-f|--features feature[,feature,...]] [-p|--params param[=1],param2[=string],...] [-n|--nodes hostname,hostname] [-g|--groups group[,group]] [-s|--subsys subsystem[,subsystem]]' % os.path.basename(name)
+   print 'usage: %s [-h|--help] [-b|--broker <broker>] [-o|--port <port>] action [-f|--features feature[,feature,...]] [-p|--params param[=1],param2[=string],...] [-n|--nodes hostname,hostname] [-g|--groups group[,group]] [-s|--subsys subsystem[,subsystem]]' % os.path.basename(name)
    print '  <broker> - The ip/hostname of the broker used by the configuration store'
    print '  <port>   - The port of the broker used by the configuration store'
    print '  -h - Print help'
@@ -143,10 +143,10 @@ def main(argv=None):
       if option in ('-s', '--subsys'):
          subsys = arg
 
-   if broker_ip == '':
-      print 'No broker specified.  Exiting'
+   if action == '':
+      print 'No action specified.  Exiting'
       print_help(argv[0])
-      return(0)
+      return(1)
 
    session = Session()
    try:
@@ -202,6 +202,12 @@ def main(argv=None):
    # First add all the params/nodes/features/etc the user entered on the
    # command line, then edit them if needed.  This is done to address any
    # potential issues with conflicts/depends/includes
+
+   if nodes == '' and params == '' and features == '' and groups == '' and \
+      subsys == '':
+      print 'No targets provided.  Exiting'
+      print_help(argv[0])
+      return(1)
 
    # Process the nodes
    if nodes != '':
@@ -321,20 +327,24 @@ def main(argv=None):
    # Now modify the params/features/etc
 
    # Modify the parameters, if needed
-   for param in param_list.keys():
-      modify_param(param_list[param], param, action)
+   for param in params.split(','):
+      if param != '' and param in param_list.keys():
+         modify_param(param_list[param], param, action)
 
    # Modify the features, if needed
-   for feat in feat_list.keys():
-      modify_feature(feat_list[feat], feat, action)
+   for feat in features.split(','):
+      if feat != '' and feat in feat_list.keys():
+         modify_feature(feat_list[feat], feat, action)
 
    # Modify the groups, if needed
-   for group in group_list.keys():
-      modify_group(group_list[group], group, action, config_store, session)
+   for group in groups.split(','):
+      if group != '' and group in group_list.keys():
+         modify_group(group_list[group], group, action, config_store, session)
 
    # Modify the subsystems, if needed
-   for sub in subsys_list.keys():
-      modify_subsys(subsys_list[sub], sub, action)
+   for sub in subsys.split(','):
+      if sub != '' and sub in subsys_list.keys():
+         modify_subsys(subsys_list[sub], sub, action)
 
 if __name__ == '__main__':
     sys.exit(main())

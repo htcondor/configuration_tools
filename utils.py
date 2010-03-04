@@ -316,42 +316,47 @@ def list_node_info(sess, store, name):
       else:
          value = result.outArgs['groups']
          print 'Group Memberships:'
-         print '  Internal Default Group'
          for key in value.values():
             print '  %s' % key
+         print '  Internal Default Group'
 
       print 'Features Applied:'
+      feat_num = 0
       group_list = value
+      feature_list = {}
       id_name = get_id_group_name(node_obj, sess)
       if id_name != None:
-         group_list[len(group_list) + 1] = id_name
-      group_list[len(group_list) + 1] = '+++DEFAULT'
+         group_obj = get_group(sess, store, id_name)
+         if group_obj != None:
+            result = group_obj.GetFeatures()
+            if result.status != 0:
+               print 'Error: Unable to retrieve node specific features (%d, %s)' % (result.status, result.txt)
+            else:
+               value = result.outArgs['features']
+               for key in range(len(value.keys())):
+                  feature_list[feat_num] = value[str(key)]
+                  feat_num += 1
 
-      for group in group_list.values():
-         group_obj = get_group(sess, store, group)
+      group_list[str(len(group_list))] = '+++DEFAULT'
+      num = 0
+      while num < len(group_list.keys()):
+         group_obj = get_group(sess, store, group_list[str(num)])
+         num += 1
          if group_obj != None:
             result = group_obj.GetFeatures()
             if result.status != 0:
                print 'Error: Unable to retrieve features for group "%s" (%s, %s)' % (group, result.status, result.txt)
             else:
                value = result.outArgs['features']
-               for key in value.values():
-                  print '  %s' % key
+               for key in range(len(value.keys())):
+                  if value[str(key)] not in feature_list.values():
+                     feature_list[feat_num] = value[str(key)]
+                     feat_num += 1
+      num = 0
+      while num < len(feature_list.keys()):
+         print '  %s' % feature_list[num]
+         num += 1
 
-      if id_name != None:
-         group_obj = get_group(sess, store, id_name)
-         if group_obj != None:
-            result = group_obj.GetParams()
-            if result.status != 0:
-               print 'Error: Unable to retrieve explicitly set parameters (%s, %s)' % (result.status, result.txt)
-            else:
-               print 'Explicitly Set Parameters:'
-               value = result.outArgs['params']
-               for key in value.keys():
-                  print '  %s = %s' % (key, value[key])
-      else:
-         print 'Error: Failed to find explicitly set parameters'
-      
       result = node_obj.GetConfig()
       if result.status != 0:
          print 'Error: Failed to retrieve configuration (%d, %s)' % (result.status, result.txt)
@@ -680,7 +685,7 @@ def modify_param(obj, name, action):
          print 'Error: Failed to modify description of "%s" for parameter "%s" (%d, %s)' % (value, name, result.status, result.txt)
 
    if action == 'edit':
-      answer = raw_input('Modify the DefaultMustChange for parameter "%s" [y/N]? ' % name)
+      answer = raw_input('Modify whether the user must set a value for parameter "%s" [y/N]? ' % name)
       if answer.lower() == 'y':
          result = obj.GetDefaultMustChange()
          if result.status != 0:
@@ -733,7 +738,7 @@ def modify_param(obj, name, action):
             val = result.outArgs['needsRestart']
             print 'Current requires restart: %s' % val
    if answer.lower() == 'y':
-      value = raw_input('Restart condor when this parameter is changed [y/N]? ')
+      value = raw_input('Restart the subsystem when this parameter is changed [y/N]? ')
       if value.lower() == 'y':
          result = obj.SetRequiresRestart(True)
       else:

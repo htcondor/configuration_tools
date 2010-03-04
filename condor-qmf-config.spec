@@ -73,8 +73,8 @@ mkdir -p %{buildroot}/%_var/lib/condor/config
 cp -f condor_configure_pool %{buildroot}/%_sbindir
 cp -f condor_configure_store %{buildroot}/%_sbindir
 %endif
-cp -f condor_config_eventd %{buildroot}/%_sbindir
-cp -f qmf_config_eventd %{buildroot}/%_var/lib/condor/config
+cp -f condor_configd %{buildroot}/%_sbindir
+cp -f 99configd.config %{buildroot}/%_var/lib/condor/config
 cp -f utils.py %{buildroot}/%{python_sitelib}/qmfconfig
 touch %{buildroot}/%{python_sitelib}/qmfconfig/__init__.py
 
@@ -82,9 +82,9 @@ touch %{buildroot}/%{python_sitelib}/qmfconfig/__init__.py
 %defattr(-,root,root,-)
 %doc LICENSE-2.0.txt
 %defattr(0755,root,root,-)
-%_sbindir/condor_config_eventd
+%_sbindir/condor_configd
 %defattr(0644,condor,condor,-)
-%_var/lib/condor/config/qmf_config_eventd
+%_var/lib/condor/config/99configd.config
 
 %if 0%{?rhel} != 4
 %files tools

@@ -34,16 +34,16 @@ def exit_signal_handler(signum, frame):
    sys.exit(0)
 
 
-def print_help(name, sess):
-   print 'usage: %s [-h|--help] -b|--broker <broker> [-p|--port <port>] [--load-snapshot|--remove-snapshot <snapshot>] [-g|--group|-n|--node name] action [-f|--features feature[,feature,...]] [-p|--params param1,param2,...]' % os.path.basename(name)
-   print '  <broker>   - The ip/hostname of the broker used by the configuration store'
-   print '  <port>     - The port of the broker used by the configuration store'
-   print '  <snapshot> - The name of the snapshot'
-   print '  -g - The name of the group to configure'
-   print '  -n - The name of the specific node to configure'
+def print_help(name):
+   print 'usage: %s [-h|--help] [-b|--broker <broker>] [-o|--port <port>] [--load-snapshot|--remove-snapshot <snapshot>] [--schedds] [--qmfbroker] [-g|--group|-n|--node name] action [-f|--features feature[,feature,...]] [-p|--params param1,param2,...]' % os.path.basename(name)
+   print '  <broker>    - The ip/hostname of the broker used by the configuration store'
+   print '  <port>      - The port of the broker used by the configuration store'
+   print '  <snapshot>  - The name of the snapshot'
+   print '  --schedds   - Prompt for scheduler information when configuring'
+   print '  --qmfbroker - Prompt for QMF broker information when configuring'
    print '  -h - Print help'
    print '\naction:'
-   print '  -a|--add             - Add to  the group/node'
+   print '  -a|--add             - Add to the group/node'
    print '  -d|--delete          - Remove from the group/node'
    print '  -l|--list            - List the specific node/group/feature/param'
    print '                         configuration'
@@ -68,12 +68,6 @@ def configure_node_schedulers(params):
             params['SCHEDD_NAME'] = def_sched.split()[0]
          else:
             params['SCHEDD_HOST'] = def_sched.split()[0]
-      addl_scheds = raw_input('Enter a comma separated list of additional schedulers that will accept job submissions: ')
-      if addl_scheds != '':
-         params['ALLOW_WRITE_STARTD'] = addl_scheds.split()[0]
-         params['ALLOW_READ_STARTD'] = addl_scheds.split()[0]
-         params['ALLOW_WRITE_DAEMON'] = addl_scheds.split()[0]
-         params['ALLOW_READ_DAEMON'] = addl_scheds.split()[0]
 
 
 def configure_qmf_broker(params):
@@ -390,6 +384,7 @@ def main(argv=None):
 
    action = ''
    features = ''
+   params = ''
    broker_ip = '127.0.0.1'
    name = ''
    node = ''
@@ -400,7 +395,8 @@ def main(argv=None):
    config_store = []
    session = []
    list_alls = []
-   need_print_help = False
+   broker_prompts = False
+   schedd_prompts = False
 
    # Set signal handlers
    signal.signal(signal.SIGINT, exit_signal_handler)
@@ -410,7 +406,7 @@ def main(argv=None):
                 'features=', 'group=', 'help', 'list', 'list-all-features',
                 'list-all-groups', 'list-all-nodes', 'list-all-params',
                 'list-all-snapshots', 'load-snapshot=', 'node=', 'params=',
-                'port=', 'remove-snapshot=']
+                'port=', 'qmfbroker', 'remove-snapshot=', 'schedds']
 
    try:
       opts, args = getopt.gnu_getopt(argv[1:], 'ab:df:g:hln:p:o:', long_opts)
@@ -448,7 +444,8 @@ def main(argv=None):
             return(1)
          name = arg
       if option in ('-h', '--help'):
-         need_print_help = True
+         print_help(argv[0])
+         return(0)
       if option in ('-l', '--list'):
          if action != '':
             print 'Only 1 action may be specified'
@@ -485,23 +482,24 @@ def main(argv=None):
       if option in ('-o', '--port'):
          port = arg
       if option in ('-p', '--params'):
-         for param in arg.split(','):
-            param_list[param] = False
+         params = arg
+      if option == '--qmfbroker':
+         broker_prompts = True
       if option in ('--remove-snapshot'):
          if action != '':
             print 'Only 1 action may be specified'
             return(1)
          action = 'remove-snapshot'
          snapshot_name = arg
+      if option == '--schedds':
+         schedd_prompts = True
 
-   # Connect to the configuration store
-   if broker_ip == '':
-      if need_print_help == True:
-         print_help(argv[0], session)
-         return(0)
-      print 'No broker specified.  Exiting'
-      return(0)
+   if action == '':
+      print 'No action specified.  Exiting'
+      print_help(argv[0])
+      return(1)
 
+   # Connect to the broker
    session = Session()
    try:
       broker = session.addBroker('amqp://%s:%s' % (broker_ip, port))
@@ -521,10 +519,6 @@ def main(argv=None):
    else:
       config_store = config_store[0]
        
-   if need_print_help == True:
-      print_help(argv[0], session)
-      return(0)
-
    if config_store == []:
       return(1)
 
@@ -603,20 +597,20 @@ def main(argv=None):
          for feat in features.split(','):
             print 'Configuration for feature %s:' % feat
             list_feature_info(session, config_store, feat)
-      for param in param_list.keys():
+      for param in params.split(','):
          list_param_info(session, config_store, param)
             
       return(0)
 
    if name == '':
       print 'No name supplied.  Exiting'
-      print_help(argv[0], session)
-   elif action == '':
-      print 'No action specified.  Exiting'
-      print_help(argv[0], session)
-   elif features == '' and param_list == {}:
-      print 'No features/parameters specified.  Exiting'
-      print_help(argv[0], session)
+      print_help(argv[0])
+      return(1)
+   elif features == '' and params == '' and schedd_prompts == False and \
+        broker_prompts == False:
+      print 'No targets specified.  Exiting'
+      print_help(argv[0])
+      return(1)
    else:
       # Query the store to get the group
       group_obj = get_group(session, config_store, name)
@@ -631,19 +625,26 @@ def main(argv=None):
             count = count + 1
          
       # Prompt for param values entered on the command line, if any
-      if action == 'add':
-         for param in param_list.keys():
+      for param in params.split(','):
+         if action == 'add':
             input = raw_input('Value for "%s": ' % param)
-            param_list[param] = input.split()[0]
+            if input != '':
+               param_list[param] = input.split()[0]
+            else:
+               param_list[param] = input
+         else:
+            param_list[param] = False
 
       # Configure which schedulers the node can submit to
-      configure_node_schedulers(replace_list)
+      if schedd_prompts == True:
+         configure_node_schedulers(replace_list)
 
       # Configure the AMQP broker used to communicate with the Management
       # Console
-      configure_qmf_broker(replace_list)
+      if broker_prompts == True:
+         configure_qmf_broker(replace_list)
 
-      if raw_input('\nApply these changes [y/N] ? ').lower() == 'y':
+      if raw_input('\nApply these changes [Y/n] ? ').lower() != 'n':
          if feature_list != {}:
             result = group_obj.ModifyFeatures(action, feature_list, {})
             if result.status != 0:
@@ -670,9 +671,7 @@ def main(argv=None):
             else:
                all_params = result.outArgs['params']
                all_params.update(replace_list)
-               schedd_params = ['SCHEDD_NAME', 'SCHEDD_HOST',
-                                'ALLOW_WRITE_STARTD', 'ALLOW_READ_STARTD',
-                                'ALLOW_WRITE_DAEMON', 'ALLOW_READ_DAEMON']
+               schedd_params = ['SCHEDD_NAME', 'SCHEDD_HOST']
                for sparam in schedd_params:
                   if sparam in all_params.keys() and \
                      sparam not in replace_list.keys():

@@ -21,6 +21,7 @@ import time
 import socket
 import getopt
 import random
+import tempfile
 from qmf.console import Session, Console
 from jobhooks.functions import *
 
@@ -182,17 +183,28 @@ def get_config(node_obj):
    else:
       config = result.outArgs['config']
 
-   # Write the config to a file on disk
+   (temp_file,name) = tempfile.mkstemp('.tmp', 'condor_config.local', text=True)
+   for key in config.keys():
+      os.write(temp_file, '%s = %s\n' % (key, config[key]))
+   os.close(temp_file)
+
+   # Verify the config file is valid
+   (retval, out, err) = run_cmd('condor_config_val', '-dump', {'CONDOR_CONFIG':'%s' % name})
+   if retval != 0:
+      syslog.syslog(syslog.LOG_ERR, 'Error: Configuration is invalid.  Discarding')
+      os.remove(name)
+      return
+
+   # Install the file for condor to use
    try:
       loc = read_condor_config('LOCAL_CONFIG', ['DIR'])
    except:
       syslog.syslog(syslog.LOG_ERR, 'Error: LOCAL_CONFIG_DIR not defined.  Unable to write config')
       return
 
-   config_file = open('%s/qmf_condor_config' % loc['dir'], 'w')
-   for key in config.keys():
-      config_file.write('%s = %s\n' % (key, config[key]))
-   config_file.close()
+   file_name = '%s/00wallaby_node.config' % loc['dir']
+   os.remove(file_name)
+   os.rename(name, file_name)
 
    node_obj.checkin()
 
@@ -260,7 +272,7 @@ def main(argv=None):
       while True:
          time.sleep(1)
    except:
-      syslog.syslog(syslog.LOG_ERR, 'Error: Received exception in main loop.  Exiting'
+      syslog.syslog(syslog.LOG_ERR, 'Error: Received exception in main loop.  Exiting')
 
 if __name__ == '__main__':
     sys.exit(main())

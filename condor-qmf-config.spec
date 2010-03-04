@@ -3,7 +3,7 @@
 
 Name: condor-qmf-config
 Summary: Grid configuration over QMF
-Version: 2.2
+Version: 2.3
 Release: %{rel}%{?dist}
 Group: Applications/System
 License: ASL 2.0
@@ -103,6 +103,9 @@ touch %{buildroot}/%{python_sitelib}/qmfconfig/__init__.py
 %{python_sitelib}/qmfconfig/__init__.py*
 
 %changelog
+* Wed Mar 04 2010  <rrati@redhat> - 2.3-0.1
+- Updated to version 2.3
+
 * Wed Feb 24 2010  <rrati@redhat> - 2.2-0.1
 - Updated to version 2.2
 

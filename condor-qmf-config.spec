@@ -1,5 +1,5 @@
 %{!?python_sitelib: %define python_sitelib %(%{__python} -c "from distutils.sysconfig import get_python_lib; print get_python_lib()")}
-%define rel 0.1
+%define rel 0.2
 
 Name: condor-qmf-config
 Summary: Grid configuration over QMF
@@ -103,6 +103,9 @@ touch %{buildroot}/%{python_sitelib}/qmfconfig/__init__.py
 %{python_sitelib}/qmfconfig/__init__.py*
 
 %changelog
+* Tue Mar 09 2010  <rrati@redhat> - 2.4-0.2
+- Removed handling of HUP and ALRM signals.
+
 * Tue Mar 09 2010  <rrati@redhat> - 2.4-0.1
 - Changed logging method in configd from syslog to native logging to a file
 - Updated configuration file to configure logging

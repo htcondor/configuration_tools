@@ -20,10 +20,10 @@ import logging.handlers
 import signal
 import time
 import socket
+import threading
 import getopt
 import random
 import tempfile
-import socket
 from qmf.console import Session, Console
 from jobhooks.functions import *
 
@@ -53,7 +53,7 @@ class EventConsole(Console):
 
             targets = args['Targets'].values()[0]
             for subsys in targets.split(','):
-               if subsys == 'carod':
+               if subsys == 'carod' or subsys == 'qmf_configd':
                   (retval, out, err) = run_cmd('condor_restart', '-subsystem %s' % subsys)
                else:
                   (retval, out, err) = run_cmd(cmd, '-subsystem %s' % subsys)
@@ -83,6 +83,7 @@ class Service:
       self.node_obj = []
       self.logger_name = ''
       self.logger = None
+      self.timer = None
 
 
    def init(self, name):
@@ -151,10 +152,18 @@ class Service:
 
 
    def setup_timers(self):
-      # Setup the alarm for evaluation
-      signal.alarm(0)
-      if self.interval > 0:
-         signal.alarm(self.interval)
+      def Timer():
+         while True:
+            time.sleep(self.interval)
+            self.check_config_ver()
+
+      # Setup the thread for evaluating the timer
+      if self.timer == None:
+         if self.interval > 0:
+            self.timer = threading.Thread(target=Timer)
+            self.timer.setDaemon(True)
+            self.timer.start()
+
 
    def shutdown(self):
       if self.broker != None:
@@ -219,21 +228,11 @@ def get_config(node_obj, logger):
    node_obj.checkin()
 
 
-def reconfig(signum, frame):
-   service.config()
-   service.setup_timers()
-
-
 def exit_signal_handler(signum, frame):
    service.shutdown()
    del service
    logging.shutdown()
    sys.exit(0)
-
-
-def config_check(signum, frame):
-   service.check_config_ver()
-   service.setup_timers()
 
 
 service = Service()
@@ -254,9 +253,9 @@ def main(argv=None):
 
    base_logger = logging.getLogger(os.path.basename(argv[0]))
    hndlr = logging.handlers.RotatingFileHandler(filename='%s' % file['log'],
-                                    mode='a',
-                                       maxBytes=int(size['log']),
-                                      backupCount=1)
+                                                mode='a',
+                                                maxBytes=int(size['log']),
+                                                backupCount=1)
    hndlr.setLevel(logging.INFO)
    base_logger.setLevel(logging.INFO)
    fmtr = logging.Formatter('%(asctime)s %(message)s', '%m/%d %H:%M:%S')
@@ -283,8 +282,6 @@ def main(argv=None):
    # Set signal handlers
    signal.signal(signal.SIGINT, exit_signal_handler)
    signal.signal(signal.SIGTERM, exit_signal_handler)
-   signal.signal(signal.SIGHUP, reconfig)
-   signal.signal(signal.SIGALRM, config_check)
 
    # Retrieve the broker information from condor's configuration file
    service.init(os.path.basename(argv[0]))
@@ -294,7 +291,7 @@ def main(argv=None):
    # Delay initial checkin after startup 
    random.seed()
    time.sleep(random.randint(0, 10))
-   config_check(0, 0)
+   service.setup_timers()
 
    # Loop forever until told to shutdown
    try:

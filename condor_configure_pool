@@ -344,7 +344,6 @@ def check_delete_params_needed(sess, store, features, params, gobj):
       if 'NEED_SET_EC2E_ROUTES' in feat_params.keys():
          # In case this was set
          params['NEED_SET_EC2E_ROUTES'] = False
-#         params['JOB_ROUTER_ENTRIES'] = False
       if 'VM_TYPE' in feat_params.keys():
          # Remove all the VM Universe params that are always set
          params['VM_TYPE'] = False
@@ -362,10 +361,18 @@ def activate_configuration(store):
       print 'Error: Unable to active changes (%d, %s)' % (result.status, result.text)
    else:
       errors = result.outArgs['explain']
+      warnings = result.outArgs['warnings']
+      if warnings != {}:
+         for warn in warnings.keys():
+            print 'Warning: %s' % warn
+         print
       if errors != {}:
          print 'The configuration is not valid'
          for node in errors.keys():
-            print 'Node: %s' % node
+            if node == '+++DEFAULT':
+               print 'Node: Internal Default Group'
+            else:
+               print 'Node: %s' % node
             for reason in errors[node].keys():
                print '%s:' % reason
                for param in errors[node][reason].keys():
@@ -626,14 +633,15 @@ def main(argv=None):
          
       # Prompt for param values entered on the command line, if any
       for param in params.split(','):
-         if action == 'add':
-            input = raw_input('Value for "%s": ' % param)
-            if input != '':
-               param_list[param] = input.split()[0]
+         if param != '':
+            if action == 'add':
+               input = raw_input('Value for "%s": ' % param)
+               if input != '':
+                  param_list[param] = input.split()[0]
+               else:
+                  param_list[param] = input
             else:
-               param_list[param] = input
-         else:
-            param_list[param] = False
+               param_list[param] = False
 
       # Configure which schedulers the node can submit to
       if schedd_prompts == True:

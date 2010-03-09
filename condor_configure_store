@@ -257,12 +257,9 @@ def main(argv=None):
             if obj != None:
                feat_list[feat] = obj
          elif action == 'delete':
-            obj = get_feature(session, config_store, feat)
-            if obj != None:
-               id = obj.getIndex()
-               result = config_store.RemoveFeature(id)
-               if result.status != 0:
-                  print 'Error: Failed to remove feature "%s" (%d, %s)' % (feat, result.status, result.text)
+            result = config_store.RemoveFeature(feat)
+            if result.status != 0:
+               print 'Error: Failed to remove feature "%s" (%d, %s)' % (feat, result.status, result.text)
          elif action == 'list':
             list_feature_info(session, config_store, feat)
             print
@@ -284,12 +281,9 @@ def main(argv=None):
                print 'The default group in the configuration store can not be added'
          elif action == 'delete':
             if group != '+++DEFAULT':
-               obj = get_group(session, config_store, group)
-               if obj != None:
-                  id = obj.getIndex()
-                  result = config_store.RemoveGroup(id)
-                  if result.status != 0:
-                     print 'Error: Failed to remove group "%s" (%d, %s)' % (group, result.status, result.text)
+               result = config_store.RemoveGroup(group)
+               if result.status != 0:
+                  print 'Error: Failed to remove group "%s" (%d, %s)' % (group, result.status, result.text)
             else:
                print 'The default group in the configuration store can not be deleted'
          elif action == 'list':

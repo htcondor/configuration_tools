@@ -15,13 +15,15 @@
 
 import os
 import sys
-import syslog
+import logging
+import logging.handlers
 import signal
 import time
 import socket
 import getopt
 import random
 import tempfile
+import socket
 from qmf.console import Session, Console
 from jobhooks.functions import *
 
@@ -29,10 +31,13 @@ from jobhooks.functions import *
 class EventConsole(Console):
    def __init__(self):
       self.node = []
+      self.logger = None
+      self.name = ''
 
 
-   def config(self, obj):
+   def config(self, obj, name):
       self.node = obj
+      self.logger = logging.getLogger(name)
 
 
    def event(self, broker, event):
@@ -40,7 +45,7 @@ class EventConsole(Console):
          args = event.getArguments()
          affected_hosts = args['AffectedNodes'].split(',')
          if self.node.getIndex() in affected_hosts:
-            get_config(self.node)
+            get_config(self.node, self.logger)
             if args['Restart'] == True:
                cmd = 'condor_restart'
             else:
@@ -53,17 +58,17 @@ class EventConsole(Console):
                else:
                   (retval, out, err) = run_cmd(cmd, '-subsystem %s' % subsys)
                if retval != 0:
-                  syslog.syslog(syslog.LOG_ERR, 'Error: Failed to send command to subsystem "%s" (stdout: %s, stderr: %s)' % (subsys, out, err))
+                  self.logger.error('Error: Failed to send command to subsystem "%s" (stdout: %s, stderr: %s)', subsys, out, err)
       elif event.getClassKey().getClassName() == 'NewConfigEvent':
 #         print dir(event)
 #         args = event.getArguments()
 #         affected_hosts = args['nodelist']
 #         if self.node.getIndex() in affected_hosts.keys():
          if True:
-            get_config(self.node)
+            get_config(self.node, self.logger)
             (retval, out, err) = run_cmd('condor_restart', '-subsystem master')
             if retval != 0:
-               syslog.syslog(syslog.LOG_ERR, 'Error: Failed to send command to subsystem "master" (stdout: %s, stderr: %s)' % (out, err))
+               self.logger.error('Error: Failed to send command to subsystem "master" (stdout: %s, stderr: %s)', out, err)
 
 
 class Service:
@@ -76,11 +81,15 @@ class Service:
       self.store = []
       self.interval = 0
       self.node_obj = []
+      self.logger_name = ''
+      self.logger = None
 
 
-   def init(self):
+   def init(self, name):
       self.console = EventConsole()
       self.session = Session(self.console, manageConnections=False, rcvObjects=False, rcvHeartbeats=False, rcvEvents=True)
+      self.logger_name = name
+      self.logger = logging.getLogger(self.logger_name)
 
 
    def config(self):
@@ -96,47 +105,47 @@ class Service:
          self.broker_ip = val['host']
       except config_err, error:
          # Broker host not defined, so exit
-         syslog.syslog(syslog.LOG_ERR, 'Error: %s.  Exiting' % error.msg)
+         self.logger.error('Error: %s.  Exiting', error.msg)
          return(False)
 
       try:
          val = read_condor_config('QMF_BROKER', ['PORT'])
          self.broker_port = val['port']
       except config_err, error:
-         syslog.syslog(syslog.LOG_INFO, '%s. Using default (5672)' % error.msg)
+         self.logger.info('%s. Using default (5672)', error.msg)
          self.broker_port = 5672
 
       try:
-         val = read_condor_config('QMF_CONFIG', ['CHECK_INTERVAL'])
+         val = read_condor_config('QMF_CONFIGD', ['CHECK_INTERVAL'])
          self.interval = int(val['check_interval'])
       except config_err, error:
-         syslog.syslog(syslog.LOG_INFO, '%s. Node configuration evaluation disabled' % error.msg)
+         self.logger.info('%s. Node configuration evaluation disabled', error.msg)
          self.interval = 0
        
       try:
          self.broker = self.session.addBroker('amqp://%s:%s' % (self.broker_ip, self.broker_port))
       except:
-         syslog.syslog(syslog.LOG_ERR, 'Error: Unable to connect to broker "%s"' % self.broker_ip)
+         self.logger.error('Error: Unable to connect to broker "%s"', self.broker_ip)
          return(False)
 
       obj = self.session.getObjects(_class='Store', _package='mrg.grid.config')
       if obj == []:
-         syslog.syslog(syslog.LOG_ERR, 'Failed to contact configuration store.  Exiting')
+         self.logger.error('Failed to contact configuration store.  Exiting')
          return(False)
 
       self.store = obj[0]
-      result = self.store.GetNode(os.uname()[1])
+      result = self.store.GetNode(socket.gethostname())
       if result.status != 0:
-         syslog.syslog('Error(%d, %s): Store does not know about this node' % (result.status, result.txt))
+         self.logger.critical('Error(%d, %s): Store does not know about this node', result.status, result.txt)
          return(False)
       else:
          obj = self.session.getObjects(_objectId=result.outArgs['obj'])
          if obj == []:
-            syslog.syslog('Error: Unable to get node information object')
+            self.logger.critical('Error: Unable to get node information object')
             return(False)
          else:
             self.node_obj = obj[0]
-      self.console.config(self.node_obj)
+      self.console.config(self.node_obj, self.logger_name)
 
       return(True)
 
@@ -158,9 +167,9 @@ class Service:
 
 
    def check_config_ver(self):
-      syslog.syslog(syslog.LOG_INFO, 'Checking version of condor configuration')
+      self.logger.info('Checking version of condor configuration')
       if self.node_obj == []:
-         syslog.syslog(syslog.LOG_ERR, 'Error: No node object from the store')
+         self.logger.error('Error: No node object from the store')
          return(1)
 
       try:
@@ -168,17 +177,17 @@ class Service:
          version = int(val['version'])
       except config_err, error:
          # Never been configured before, so send a bank version
-         version = 0
+         version = -1
       if version != self.node_obj.last_updated_version:
-         get_config(self.node_obj)
+         get_config(self.node_obj, self.logger)
 
 
-def get_config(node_obj):
+def get_config(node_obj, logger):
    # Retrieve the node's configuration
    result = node_obj.GetConfig()
    if result.status != 0:
       # Problem getting the configuration, so do nothing
-      syslog.syslog(syslog.LOG_ERR, 'Error: Failed to retrieve configuration from the store (%d, %s)' % (result.status, result.text))
+      logger.error('Error: Failed to retrieve configuration from the store (%d, %s)', result.status, result.text)
       return
    else:
       config = result.outArgs['config']
@@ -191,7 +200,7 @@ def get_config(node_obj):
    # Verify the config file is valid
    (retval, out, err) = run_cmd('condor_config_val', '-dump', {'CONDOR_CONFIG':'%s' % name})
    if retval != 0:
-      syslog.syslog(syslog.LOG_ERR, 'Error: Configuration is invalid.  Discarding')
+      logger.error('Error: Configuration is invalid.  Discarding')
       os.remove(name)
       return
 
@@ -199,11 +208,12 @@ def get_config(node_obj):
    try:
       loc = read_condor_config('LOCAL_CONFIG', ['DIR'])
    except:
-      syslog.syslog(syslog.LOG_ERR, 'Error: LOCAL_CONFIG_DIR not defined.  Unable to write config')
+      logger.error('Error: LOCAL_CONFIG_DIR not defined.  Unable to write config')
       return
 
    file_name = '%s/00wallaby_node.config' % loc['dir']
-   os.remove(file_name)
+   if os.path.exists(file_name):
+      os.remove(file_name)
    os.rename(name, file_name)
 
    node_obj.checkin()
@@ -217,6 +227,7 @@ def reconfig(signum, frame):
 def exit_signal_handler(signum, frame):
    service.shutdown()
    del service
+   logging.shutdown()
    sys.exit(0)
 
 
@@ -226,14 +237,31 @@ def config_check(signum, frame):
 
 
 service = Service()
+
 def main(argv=None):
    if argv is None:
       argv = sys.argv
 
-   # Open a connection to the system logger
-   syslog.openlog(os.path.basename(argv[0]))
-
    long_opts = ['retrieve']
+
+   # Configure the logging system
+   try:
+      file = read_condor_config('QMF_CONFIGD', ['LOG'])
+      size = read_condor_config('MAX_QMF_CONFIGD', ['LOG'])
+   except config_err, error:
+      print 'Error: %s.  Exiting' % error.msg
+      os.exit(1)
+
+   base_logger = logging.getLogger(os.path.basename(argv[0]))
+   hndlr = logging.handlers.RotatingFileHandler(filename='%s' % file['log'],
+                                    mode='a',
+                                       maxBytes=int(size['log']),
+                                      backupCount=1)
+   hndlr.setLevel(logging.INFO)
+   base_logger.setLevel(logging.INFO)
+   fmtr = logging.Formatter('%(asctime)s %(message)s', '%m/%d %H:%M:%S')
+   hndlr.setFormatter(fmtr)
+   base_logger.addHandler(hndlr)
 
    try:
       opts, args = getopt.gnu_getopt(argv[1:], 'r', long_opts)
@@ -243,12 +271,13 @@ def main(argv=None):
 
    for option, arg in opts:
       if option in ('-r', '--retrieve'):
-         service.init()
+         service.init(os.path.basename(argv[0]))
          if service.config() != True:
             print 'Error: Unable to retrieve configuration'
             return(1)
          else:
             service.check_config_ver()
+            logging.shutdown()
             return(0)
 
    # Set signal handlers
@@ -258,7 +287,7 @@ def main(argv=None):
    signal.signal(signal.SIGALRM, config_check)
 
    # Retrieve the broker information from condor's configuration file
-   service.init()
+   service.init(os.path.basename(argv[0]))
    if service.config() != True:
       return(1)
 
@@ -272,7 +301,7 @@ def main(argv=None):
       while True:
          time.sleep(1)
    except:
-      syslog.syslog(syslog.LOG_ERR, 'Error: Received exception in main loop.  Exiting')
+      base_logger.critical('Error: Received exception in main loop.  Exiting')
 
 if __name__ == '__main__':
     sys.exit(main())

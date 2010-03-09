@@ -1,9 +1,9 @@
 %{!?python_sitelib: %define python_sitelib %(%{__python} -c "from distutils.sysconfig import get_python_lib; print get_python_lib()")}
-%define rel 0.2
+%define rel 0.1
 
 Name: condor-qmf-config
 Summary: Grid configuration over QMF
-Version: 2.3
+Version: 2.4
 Release: %{rel}%{?dist}
 Group: Applications/System
 License: ASL 2.0
@@ -103,6 +103,19 @@ touch %{buildroot}/%{python_sitelib}/qmfconfig/__init__.py
 %{python_sitelib}/qmfconfig/__init__.py*
 
 %changelog
+* Tue Mar 09 2010  <rrati@redhat> - 2.4-0.1
+- Changed logging method in configd from syslog to native logging to a file
+- Updated configuration file to configure logging
+- Changed QMF_CONFIG_CHECK_INTERVAL -> QMF_CONFIGD_CHECK_INTERVAL
+- Change hostname retrieval method to a more cross platform implementation
+- Fixed issue with unconfigured nodes not retrieving configurations from the
+  store
+- Fixed error laying down configuration file
+- Added support for processing warning messages into pool
+- Fixed issue with pool prompting for param values when no params have been
+  specified on the command line
+- Updated API calls for RemoveFeature and RemoveGroup
+
 * Thu Mar 04 2010  <rrati@redhat> - 2.3-0.2
 - Fixed revision history dates
 

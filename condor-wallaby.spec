@@ -1,9 +1,9 @@
 %{!?python_sitelib: %define python_sitelib %(%{__python} -c "from distutils.sysconfig import get_python_lib; print get_python_lib()")}
-%define rel 0.2
+%define rel 0.1
 
 Name: condor-wallaby
 Summary: Grid configuration over QMF
-Version: 2.4
+Version: 2.5
 Release: %{rel}%{?dist}
 Group: Applications/System
 License: ASL 2.0
@@ -102,6 +102,10 @@ touch %{buildroot}/%{python_sitelib}/wallabyclient/__init__.py
 %{python_sitelib}/wallabyclient/__init__.py*
 
 %changelog
+* Wed Mar 31 2010  <rrati@redhat> - 2.5-0.1
+- Changed package name to condor-wallaby
+- Switched to condorutils & wallabyclient modules
+
 * Tue Mar 09 2010  <rrati@redhat> - 2.4-0.2
 - Removed handling of HUP and ALRM signals.
 

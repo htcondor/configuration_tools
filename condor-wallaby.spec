@@ -1,7 +1,7 @@
 %{!?python_sitelib: %define python_sitelib %(%{__python} -c "from distutils.sysconfig import get_python_lib; print get_python_lib()")}
 %define rel 0.2
 
-Name: condor-qmf-config
+Name: condor-wallaby
 Summary: Grid configuration over QMF
 Version: 2.4
 Release: %{rel}%{?dist}
@@ -24,14 +24,14 @@ Group: Applications/System
 Requires: condor
 Requires: python >= 2.3
 Requires: python-qpid
-Requires: python-condor-job-hooks-common
-Requires: python-qmf-config
+Requires: python-condorutils
+Requires: python-wallabyclient
 Obsoletes: condor-remote-configuration
 
 %description client
-The Condor QMF Configuration package provides a means to quickly and easily
-configure machines running Condor by providing tools to define configurations
-and apply them to nodes over QMF.
+This package provides a means to quickly and easily configure machines
+running Condor by providing tools to define configurations in wallaby and
+apply them to nodes.
 
 This package provides the tools needed for managed clients
 
@@ -41,32 +41,31 @@ Summary: Grid QMF Configuration Tools
 Group: Applications/System
 Requires: python >= 2.4
 Requires: python-qpid
-Requires: python-qmf-config
+Requires: python-wallabyclient
 Obsoletes: condor-remote-configuration-server
 
 %description tools
-The Condor QMF Configuration package provides a means to quickly and easily
-configure machines running Condor by providing tools to define configurations
-and apply them to nodes over QMF.
+This package provides a means to quickly and easily configure machines
+running Condor by providing tools to define configurations in wallaby and
+apply them to nodes.
 
-This package provides tools to configure condor pools and the
-configuration store
+This package provides tools to configure condor pools and wallaby
 %endif
 
-%package -n python-qmf-config
-Summary: Functions for interacting with a qmf configuration store
+%package -n python-wallabyclient
+Summary: Functions for interacting with wallaby
 Group: Applications/System
 Requires: python >= 2.3
 
-%description -n python-qmf-config
-Functions for interacting with the condor qmf configuration store
+%description -n python-wallabyclient
+Functions for interacting with wallaby
 
 %prep
 %setup -q
 
 %install
 rm -rf %{buildroot}
-mkdir -p %{buildroot}/%{python_sitelib}/qmfconfig
+mkdir -p %{buildroot}/%{python_sitelib}/wallabyclient
 mkdir -p %{buildroot}/%_sbindir
 mkdir -p %{buildroot}/%_var/lib/condor/config
 %if 0%{?rhel} != 4
@@ -75,8 +74,8 @@ cp -f condor_configure_store %{buildroot}/%_sbindir
 %endif
 cp -f condor_configd %{buildroot}/%_sbindir
 cp -f 99configd.config %{buildroot}/%_var/lib/condor/config
-cp -f utils.py %{buildroot}/%{python_sitelib}/qmfconfig
-touch %{buildroot}/%{python_sitelib}/qmfconfig/__init__.py
+cp -f utils.py %{buildroot}/%{python_sitelib}/wallabyclient
+touch %{buildroot}/%{python_sitelib}/wallabyclient/__init__.py
 
 %files client
 %defattr(-,root,root,-)
@@ -95,12 +94,12 @@ touch %{buildroot}/%{python_sitelib}/qmfconfig/__init__.py
 %_sbindir/condor_configure_pool
 %endif
 
-%files -n python-qmf-config
+%files -n python-wallabyclient
 %defattr(-,root,root,-)
 %doc LICENSE-2.0.txt
 %defattr(0644, root,root,-)
-%{python_sitelib}/qmfconfig/utils.py*
-%{python_sitelib}/qmfconfig/__init__.py*
+%{python_sitelib}/wallabyclient/utils.py*
+%{python_sitelib}/wallabyclient/__init__.py*
 
 %changelog
 * Tue Mar 09 2010  <rrati@redhat> - 2.4-0.2

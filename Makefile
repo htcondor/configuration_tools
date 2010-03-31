@@ -1,17 +1,17 @@
-.PHONY: build condor-qmf-config
+.PHONY: build condor-wallaby
 
 RPMBUILD_DIRS := BUILD BUILDROOT RPMS SOURCES SPECS SRPMS
 
-NAME := condor-qmf-config
+NAME := condor-wallaby
 SPEC := ${NAME}.spec
 VERSION := $(shell grep -i version: "${SPEC}" | awk '{print $$2}')
 RELEASE := $(shell grep -i 'define rel' "${SPEC}" | awk '{print $$3}')
 SOURCE := ${NAME}-${VERSION}-${RELEASE}.tar.gz
 DIR := ${NAME}-${VERSION}
 
-build: condor-qmf-config
+build: condor-wallaby
 
-condor-qmf-config: SPECS/${SPEC} SOURCES/${SOURCE}
+condor-wallaby: SPECS/${SPEC} SOURCES/${SOURCE}
 	mkdir -p BUILD RPMS SRPMS
 	rpmbuild --define="_topdir ${PWD}" -ba SPECS/${SPEC}
 

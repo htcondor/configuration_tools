@@ -18,7 +18,7 @@ import sys
 import re
 import signal
 from qmf.console import Session
-from qmfconfig.utils import *
+from wallabyclient.utils import *
 
 
 def exit_signal_handler(signum, frame):

@@ -67,12 +67,13 @@ def main(argv=None):
    group_list = {}
    node_list = {}
    subsys_list = {}
+   fast = False
 
    # Set signal handlers
    signal.signal(signal.SIGINT, exit_signal_handler)
    signal.signal(signal.SIGTERM, exit_signal_handler)
 
-   long_opts = ['add', 'broker=', 'default-group', 'delete', 'edit',
+   long_opts = ['add', 'broker=', 'default-group', 'delete', 'edit', 'fast',
                 'features=', 'groups=', 'help', 'list', 'list-all-features',
                 'list-all-groups', 'list-all-nodes', 'list-all-params',
                 'list-all-subsystems', 'nodes=', 'params=', 'port=', 'subsys=']
@@ -105,6 +106,8 @@ def main(argv=None):
             print 'Only 1 action may be specified'
             return(1)
          action = 'edit'
+      if option == '--fast':
+         fast = True
       if option in ('-f', '--features'):
          features = arg
       if option in ('-g', '--groups'):
@@ -216,7 +219,7 @@ def main(argv=None):
          if action == 'add':
             obj = add_node(session, config_store, node)
             if obj != None:
-              node_list[node] = obj
+               node_list[node] = obj
          elif action == 'delete':
             if node != '':
                result = config_store.RemoveNode(node)
@@ -322,23 +325,23 @@ def main(argv=None):
 
    # Modify the parameters, if needed
    for param in params.split(','):
-      if param != '' and param in param_list.keys():
-         modify_param(param_list[param], param, action)
+      if param != '' and param in param_list.keys() and (fast == False or action == 'edit'):
+         edit_param(param_list[param], param, action, config_store, session, fast == False)
 
    # Modify the features, if needed
    for feat in features.split(','):
-      if feat != '' and feat in feat_list.keys():
-         modify_feature(feat_list[feat], feat, action)
+      if feat != '' and feat in feat_list.keys() and (fast == False or action == 'edit'):
+         edit_feature(feat_list[feat], feat, action, config_store, session, fast == False)
 
    # Modify the groups, if needed
    for group in groups.split(','):
-      if group != '' and group in group_list.keys():
-         modify_group(group_list[group], group, action, config_store, session)
+      if group != '' and group in group_list.keys() and (fast == False or action == 'edit'):
+         edit_group(group_list[group], group, action, config_store, session, fast == False)
 
    # Modify the subsystems, if needed
    for sub in subsys.split(','):
-      if sub != '' and sub in subsys_list.keys():
-         modify_subsys(subsys_list[sub], sub, action)
+      if sub != '' and sub in subsys_list.keys() and (fast == False or action == 'edit'):
+         edit_subsys(subsys_list[sub], sub, action, config_store, session, fast == False)
 
 if __name__ == '__main__':
     sys.exit(main())

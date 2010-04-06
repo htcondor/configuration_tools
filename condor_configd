@@ -157,7 +157,7 @@ class Service:
       self.store = obj[0]
       result = self.store.GetNode(socket.gethostname())
       if result.status != 0:
-         log(logging.CRITICAL, self.logger_name, 'Error(%d, %s): Store does not know about this node' % (result.status, result.txt))
+         log(logging.CRITICAL, self.logger_name, 'Error(%d, %s): Store does not know about this node' % (result.status, result.text))
          return(False)
       else:
          obj = self.session.getObjects(_objectId=result.outArgs['obj'])

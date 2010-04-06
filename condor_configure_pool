@@ -183,7 +183,7 @@ def get_feature_params(sess, store, feature):
       if obj != None:
          result = obj.GetParams()
          if result.status != 0:
-            print 'Error: Unable to retrieve parameters for feature "%s" (%d, %s)' % (feature, result.status, result.txt)
+            print 'Error: Unable to retrieve parameters for feature "%s" (%d, %s)' % (feature, result.status, result.text)
          else:
             params = result.outArgs['params']
    return params
@@ -223,7 +223,7 @@ def get_unique_mustchange_params(sess, store, feature_list, group_obj):
    # the group
    result = group_obj.GetFeatures()
    if result.status != 0:
-      print 'Error: Failed to retrieve features configured (%d, %s)' % (result.status, result.txt)
+      print 'Error: Failed to retrieve features configured (%d, %s)' % (result.status, result.text)
    else:
       configed_feats = result.outArgs['features']
 
@@ -233,7 +233,7 @@ def get_unique_mustchange_params(sess, store, feature_list, group_obj):
       if obj != None:
          result = obj.GetParams()
          if result.status != 0:
-            print 'Error: Unable to retrieve parameters for configured feature "%s" (%d, %s)' % (feat, result.status, result.txt)
+            print 'Error: Unable to retrieve parameters for configured feature "%s" (%d, %s)' % (feat, result.status, result.text)
             continue
          else:
             feature_params.update(result.outArgs['params'])

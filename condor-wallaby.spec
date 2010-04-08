@@ -1,5 +1,5 @@
 %{!?python_sitelib: %define python_sitelib %(%{__python} -c "from distutils.sysconfig import get_python_lib; print get_python_lib()")}
-%define rel 0.1
+%define rel 0.2
 
 Name: condor-wallaby
 Summary: Condor configuration using wallaby
@@ -42,6 +42,7 @@ Group: Applications/System
 Requires: python >= 2.4
 Requires: python-qmf
 Requires: python-wallabyclient
+Requires: PyYAML
 Obsoletes: condor-remote-configuration-server
 
 %description tools
@@ -57,6 +58,7 @@ Summary: Tools for interacting with wallaby
 Group: Applications/System
 Requires: python >= 2.3
 Requires: python-condorutils
+Requires: PyYAML
 
 %description -n python-wallabyclient
 Tools for interacting with wallaby
@@ -104,6 +106,9 @@ cp -f module/*.py %{buildroot}/%{python_sitelib}/wallabyclient
 %{python_sitelib}/wallabyclient/exceptions.py*
 
 %changelog
+* Thu Apr  8 2010  <rrati@redhat> - 2.6-0.2
+- Added dep for PyYAML
+
 * Thu Apr  8 2010  <rrati@redhat> - 2.6-0.1
 - UI revamp.  Metadata is now entered through an editor rather than by being
   prompted.  $EDITOR is used if set, otherwise vi is used.

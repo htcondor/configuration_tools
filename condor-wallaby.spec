@@ -1,5 +1,5 @@
 %{!?python_sitelib: %define python_sitelib %(%{__python} -c "from distutils.sysconfig import get_python_lib; print get_python_lib()")}
-%define rel 0.2
+%define rel 0.3
 
 Name: condor-wallaby
 Summary: Condor configuration using wallaby
@@ -25,7 +25,6 @@ Requires: condor
 Requires: python >= 2.3
 Requires: python-qmf
 Requires: python-condorutils
-Requires: python-wallabyclient
 Obsoletes: condor-remote-configuration
 
 %description client
@@ -106,6 +105,9 @@ cp -f module/*.py %{buildroot}/%{python_sitelib}/wallabyclient
 %{python_sitelib}/wallabyclient/exceptions.py*
 
 %changelog
+* Thu Apr  8 2010  <rrati@redhat> - 2.6-0.3
+- Removed the python-wallabyclient dep from the client package
+
 * Thu Apr  8 2010  <rrati@redhat> - 2.6-0.2
 - Added dep for PyYAML
 

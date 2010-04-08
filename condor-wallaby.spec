@@ -3,7 +3,7 @@
 
 Name: condor-wallaby
 Summary: Condor configuration using wallaby
-Version: 2.5
+Version: 2.6
 Release: %{rel}%{?dist}
 Group: Applications/System
 License: ASL 2.0
@@ -104,6 +104,16 @@ cp -f module/*.py %{buildroot}/%{python_sitelib}/wallabyclient
 %{python_sitelib}/wallabyclient/exceptions.py*
 
 %changelog
+* Thu Apr  8 2010  <rrati@redhat> - 2.6-0.1
+- UI revamp.  Metadata is now entered through an editor rather than by being
+  prompted.  $EDITOR is used if set, otherwise vi is used.
+- Removed utils.py, added new submodules
+- Specfile description updates
+- The tools package now depends on python-qmf instead of python-qpid
+- Updated calls to condorutils.run_cmd
+- Updated to new wallaby protocol.  No more fake lists/sets, function
+  call renames.
+
 * Wed Mar 31 2010  <rrati@redhat> - 2.5-0.1
 - Changed package name to condor-wallaby
 - Switched to condorutils & wallabyclient modules

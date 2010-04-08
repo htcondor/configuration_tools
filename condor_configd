@@ -76,9 +76,9 @@ class EventConsole(Console):
             targets = args['Targets'].values()[0]
             for subsys in targets.split(','):
                if subsys == 'carod' or subsys == 'qmf_configd':
-                  (retval, out, err) = run_cmd('condor_restart', '-subsystem %s' % subsys)
+                  (retval, out, err) = run_cmd('condor_restart -subsystem %s' % subsys)
                else:
-                  (retval, out, err) = run_cmd(cmd, '-subsystem %s' % subsys)
+                  (retval, out, err) = run_cmd('%s -subsystem %s' % (cmd, subsys))
                if retval != 0:
                   log(logging.ERROR, self.logger_name, 'Error: Failed to send command to subsystem "%s" (stdout: %s, stderr: %s)' % (subsys, out, err))
       elif event.getClassKey().getClassName() == 'NewConfigEvent':
@@ -88,7 +88,7 @@ class EventConsole(Console):
 #         if self.node.getIndex() in affected_hosts.keys():
          if True:
             get_config(self.node, self.logger_name)
-            (retval, out, err) = run_cmd('condor_restart', '-subsystem master')
+            (retval, out, err) = run_cmd('condor_restart -subsystem master')
             if retval != 0:
                log(logging.ERROR, self.logger_name, 'Error: Failed to send command to subsystem "master" (stdout: %s, stderr: %s)' % (out, err))
 
@@ -155,7 +155,7 @@ class Service:
          return(False)
 
       self.store = obj[0]
-      result = self.store.GetNode(socket.gethostname())
+      result = self.store.getNode(socket.gethostname())
       if result.status != 0:
          log(logging.CRITICAL, self.logger_name, 'Error(%d, %s): Store does not know about this node' % (result.status, result.text))
          return(False)
@@ -211,7 +211,7 @@ class Service:
 
 def get_config(node_obj, log_name):
    # Retrieve the node's configuration
-   result = node_obj.GetConfig()
+   result = node_obj.getConfig()
    if result.status != 0:
       # Problem getting the configuration, so do nothing
       log(logging.ERROR, log_name, 'Error: Failed to retrieve configuration from the store (%d, %s)' % (result.status, result.text))
@@ -225,7 +225,7 @@ def get_config(node_obj, log_name):
    os.close(temp_file)
 
    # Verify the config file is valid
-   (retval, out, err) = run_cmd('condor_config_val', '-dump', {'CONDOR_CONFIG':'%s' % name})
+   (retval, out, err) = run_cmd('condor_config_val -dump', environ={'CONDOR_CONFIG':'%s' % name})
    if retval != 0:
       log(logging.ERROR, log_name, 'Error: Configuration is invalid.  Discarding')
       os.remove(name)

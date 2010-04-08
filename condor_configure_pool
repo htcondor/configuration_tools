@@ -18,17 +18,17 @@ import os
 import sys
 import re
 import signal
+from wallabyclient import WallabyHelpers
 from qmf.console import Session
-from wallabyclient.utils import *
 
 
-feature_list = {}
+feature_list = []
 group_obj = []
 
 
 def exit_signal_handler(signum, frame):
    if group_obj != []:
-      result = group_obj.RemoveFeatures(feature_list)
+      result = group_obj.modifyFeatures('remove', feature_list, {})
       if result.status != 0:
          print 'Error: Problem removing features (%d, %s)' % (result.status, result.text)
    sys.exit(0)
@@ -179,9 +179,9 @@ def get_feature_params(sess, store, feature):
    params = {}
 
    if feature != '':
-      obj = get_feature(sess, store, feature)
+      obj = WallabyHelpers.get_feature(sess, store, feature)
       if obj != None:
-         result = obj.GetParams()
+         result = obj.getParams()
          if result.status != 0:
             print 'Error: Unable to retrieve parameters for feature "%s" (%d, %s)' % (feature, result.status, result.text)
          else:
@@ -198,14 +198,14 @@ def get_unique_mustchange_params(sess, store, feature_list, group_obj):
    unique_params = {}
 
    # Get the list of parameters that must change from the store
-   result = store.GetMustChangeParams()
+   result = store.getMustChangeParams()
    if result.status != 0:
       print 'Error: Failed to retrieve list of MustChange parameters from the Configuration Store'
    else:
       mustchange_list = result.outArgs['params']
    
    # Iterate over the list of features and check each parameter included
-   for feat in feature_list.values():
+   for feat in feature_list:
       feat_params = get_feature_params(sess, store, feat)
 
       # For each list of parameters, check to see if the MustChange is
@@ -221,17 +221,17 @@ def get_unique_mustchange_params(sess, store, feature_list, group_obj):
 
    # Now, get the parameter list for the features configured on
    # the group
-   result = group_obj.GetFeatures()
+   result = group_obj.getFeatures()
    if result.status != 0:
       print 'Error: Failed to retrieve features configured (%d, %s)' % (result.status, result.text)
    else:
       configed_feats = result.outArgs['features']
 
    # Generate the list of parameters for these features
-   for feat in configed_feats.values():
-      obj = get_feature(sess, store, feat)
+   for feat in configed_feats:
+      obj = WallabyHelpers.get_feature(sess, store, feat)
       if obj != None:
-         result = obj.GetParams()
+         result = obj.getParams()
          if result.status != 0:
             print 'Error: Unable to retrieve parameters for configured feature "%s" (%d, %s)' % (feat, result.status, result.text)
             continue
@@ -264,7 +264,7 @@ def check_more_params_needed(sess, store, features, params, more_params, gobj):
    unique_params = get_unique_mustchange_params(sess, store, features, gobj)
 
    # Get the list of parameters for the group
-   result = gobj.GetConfig()
+   result = gobj.getConfig()
    if result.status != 0:
       print 'Error: Unable to determine if special configuration is needed'
    else:
@@ -339,7 +339,7 @@ def check_delete_params_needed(sess, store, features, params, gobj):
    params.update(unique_params)
 
    # Special cases
-   for feat in features.values():
+   for feat in features:
       feat_params = get_feature_params(sess, store, feat)
       if 'NEED_SET_EC2E_ROUTES' in feat_params.keys():
          # In case this was set
@@ -356,14 +356,14 @@ def check_delete_params_needed(sess, store, features, params, gobj):
 
 def activate_configuration(store):
    ret_val = False
-   result = store.ActivateConfiguration()
+   result = store.activateConfiguration()
    if result.status != 0:
       print 'Error: Unable to active changes (%d, %s)' % (result.status, result.text)
    else:
       errors = result.outArgs['explain']
       warnings = result.outArgs['warnings']
-      if warnings != {}:
-         for warn in warnings.keys():
+      if warnings != []:
+         for warn in warnings:
             print 'Warning: %s' % warn
          print
       if errors != {}:
@@ -375,7 +375,7 @@ def activate_configuration(store):
                print 'Node: %s' % node
             for reason in errors[node].keys():
                print '%s:' % reason
-               for param in errors[node][reason].keys():
+               for param in errors[node][reason]:
                   print '  %s' % param
             print
          ret_val = True
@@ -551,7 +551,7 @@ def main(argv=None):
                print '  There are no %ss in the store' % type
             else:
                for obj in objs:
-                  result = obj.GetName()
+                  result = obj.getName()
                   if result.status == 0:
                      name = result.outArgs['name']
                      if '+++' != name[0:3]:
@@ -568,13 +568,13 @@ def main(argv=None):
 
    # Process snapshots
    if action == 'load-snapshot':
-      result = config_store.LoadSnapshot(snapshot_name)
+      result = config_store.loadSnapshot(snapshot_name)
       if result.status != 0:
          print 'Error: Failed to load snapshot "%s" (%d %s)' % (snapshot_name, result.status, result.text)
          return(1)
       return(0)
    elif action == 'remove-snapshot':
-      result = config_store.RemoveSnapshot(snapshot_name)
+      result = config_store.removeSnapshot(snapshot_name)
       if result.status != 0:
          print 'Error: Failed to remove snapshot "%s" (%d %s)' % (snapshot_name, result.status, result.text)
          return(1)
@@ -583,11 +583,11 @@ def main(argv=None):
    # If configuring a single node, grab that node's identity group and
    # act upon that
    if node != '':
-      obj = get_node(session, config_store, node)
+      obj = WallabyHelpers.get_node(session, config_store, node)
       if obj == None:
          return(1)
       else:
-         name = get_id_group_name(obj, session)
+         name = WallabyHelpers.get_id_group_name(obj, session)
          if name == None:
             return(1)
 
@@ -596,16 +596,16 @@ def main(argv=None):
       if name != '':
          # Provide the configuration for the group/node
          if node != '':
-            list_node_info(session, config_store, node)
+            WallabyHelpers.list_node_info(session, config_store, node)
          else:
-            list_group_info(session, config_store, name)
+            WallabyHelpers.list_group_info(session, config_store, name)
       if features != '':
          # Provide the configuration for the features
          for feat in features.split(','):
             print 'Configuration for feature %s:' % feat
-            list_feature_info(session, config_store, feat)
+            WallabyHelpers.list_feature_info(session, config_store, feat)
       for param in params.split(','):
-         list_param_info(session, config_store, param)
+         WallabyHelpers.list_param_info(session, config_store, param)
             
       return(0)
 
@@ -620,16 +620,13 @@ def main(argv=None):
       return(1)
    else:
       # Query the store to get the group
-      group_obj = get_group(session, config_store, name)
+      group_obj = WallabyHelpers.get_group(session, config_store, name)
       if group_obj == None:
          return(1)
 
       # Generate the list of features to act upon
       if features != '':
-         count = 0
-         for feature in features.split(','):
-            feature_list['%s' % count] = feature
-            count = count + 1
+         feature_list = features.split(',')
          
       # Prompt for param values entered on the command line, if any
       for param in params.split(','):
@@ -653,8 +650,8 @@ def main(argv=None):
          configure_qmf_broker(replace_list)
 
       if raw_input('\nApply these changes [Y/n] ? ').lower() != 'n':
-         if feature_list != {}:
-            result = group_obj.ModifyFeatures(action, feature_list, {})
+         if feature_list != []:
+            result = group_obj.modifyFeatures(action, feature_list, {})
             if result.status != 0:
                print 'Error: Problem modifying features (%d, %s)' % (result.status, result.text)
                return(1)
@@ -666,13 +663,13 @@ def main(argv=None):
             check_delete_params_needed(session, config_store, feature_list, param_list, group_obj)
 
          if param_list != {}:
-            result = group_obj.ModifyParams(action, param_list, {})
+            result = group_obj.modifyParams(action, param_list, {})
             if result.status != 0:
                print 'Error: Problem modifying parameters (%d, %s)' % (result.status, result.text)
                return(1)
 
          if replace_list != {}:
-            result = group_obj.GetParams()
+            result = group_obj.getParams()
             if result.status != 0:
                print 'Error: Problem retrieving parameters (%d, %s)' % (result.status, result.text)
                return(1)
@@ -688,7 +685,7 @@ def main(argv=None):
                      except:
                         pass
            
-            result = group_obj.ModifyParams('replace', all_params, {})
+            result = group_obj.modifyParams('replace', all_params, {})
             if result.status != 0:
                print 'Error: Problem modifying parameters (%d, %s)' % (result.status, result.text)
                return(1)
@@ -696,7 +693,7 @@ def main(argv=None):
 
          if raw_input('\nSave this configuration [y/N] ? ').lower() == 'y':
             config_name = raw_input('  Configuration Name: ')
-            result = config_store.MakeSnapshot(config_name)
+            result = config_store.makeSnapshot(config_name)
             if result.status != 0:
                print 'Error: Problem saving configuration in store (%d, %s)' % (result.status, result.text)
             else: 

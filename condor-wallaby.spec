@@ -2,7 +2,7 @@
 %define rel 0.1
 
 Name: condor-wallaby
-Summary: Grid configuration over QMF
+Summary: Condor configuration using wallaby
 Version: 2.5
 Release: %{rel}%{?dist}
 Group: Applications/System
@@ -16,14 +16,14 @@ BuildRequires: python >= 2.3
 %description
 The Condor QMF Config package provides a means to quickly and easily
 configure machines running Condor by providing tools to define configurations
-and apply them to nodes over QMF.
+and apply them to nodes using wallaby.
 
 %package client
-Summary: Grid QMF Configuration Client
+Summary: Wallaby configuration client for condor
 Group: Applications/System
 Requires: condor
 Requires: python >= 2.3
-Requires: python-qpid
+Requires: python-qmf
 Requires: python-condorutils
 Requires: python-wallabyclient
 Obsoletes: condor-remote-configuration
@@ -37,10 +37,10 @@ This package provides the tools needed for managed clients
 
 %if 0%{?rhel} != 4
 %package tools
-Summary: Grid QMF Configuration Tools
+Summary: Wallaby configuration tools for configuring condor
 Group: Applications/System
 Requires: python >= 2.4
-Requires: python-qpid
+Requires: python-qmf
 Requires: python-wallabyclient
 Obsoletes: condor-remote-configuration-server
 
@@ -53,13 +53,13 @@ This package provides tools to configure condor pools and wallaby
 %endif
 
 %package -n python-wallabyclient
-Summary: Functions for interacting with wallaby
+Summary: Tools for interacting with wallaby
 Group: Applications/System
 Requires: python >= 2.3
 Requires: python-condorutils
 
 %description -n python-wallabyclient
-Functions for interacting with wallaby
+Tools for interacting with wallaby
 
 %prep
 %setup -q
@@ -75,8 +75,7 @@ cp -f condor_configure_store %{buildroot}/%_sbindir
 %endif
 cp -f condor_configd %{buildroot}/%_sbindir
 cp -f 99configd.config %{buildroot}/%_var/lib/condor/config
-cp -f utils.py %{buildroot}/%{python_sitelib}/wallabyclient
-touch %{buildroot}/%{python_sitelib}/wallabyclient/__init__.py
+cp -f module/*.py %{buildroot}/%{python_sitelib}/wallabyclient
 
 %files client
 %defattr(-,root,root,-)
@@ -99,8 +98,10 @@ touch %{buildroot}/%{python_sitelib}/wallabyclient/__init__.py
 %defattr(-,root,root,-)
 %doc LICENSE-2.0.txt
 %defattr(0644, root,root,-)
-%{python_sitelib}/wallabyclient/utils.py*
+%{python_sitelib}/wallabyclient/WallabyHelpers.py*
+%{python_sitelib}/wallabyclient/WallabyTypes.py*
 %{python_sitelib}/wallabyclient/__init__.py*
+%{python_sitelib}/wallabyclient/exceptions.py*
 
 %changelog
 * Wed Mar 31 2010  <rrati@redhat> - 2.5-0.1

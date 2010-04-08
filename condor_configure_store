@@ -17,8 +17,12 @@ import os
 import sys
 import re
 import signal
+import yaml
+import tempfile
+from wallabyclient.exceptions import WallabyError, WallabyValidateError
+from wallabyclient import WallabyHelpers, WallabyTypes
+from condorutils.osutil import run_cmd
 from qmf.console import Session
-from wallabyclient.utils import *
 
 
 def exit_signal_handler(signum, frame):
@@ -26,7 +30,7 @@ def exit_signal_handler(signum, frame):
 
 
 def print_help(name):
-   print 'usage: %s [-h|--help] [-b|--broker <broker>] [-o|--port <port>] action [-f|--features feature[,feature,...]] [-p|--params param[=1],param2[=string],...] [-n|--nodes hostname,hostname] [-g|--groups group[,group]] [-s|--subsys subsystem[,subsystem]]' % os.path.basename(name)
+   print 'usage: %s [-h|--help] [-b|--broker <broker>] [-o|--port <port>] action [-f|--features feature[,feature,...]] [-p|--params param[,param,...]] [-n|--nodes hostname,hostname] [-g|--groups group[,group]] [-s|--subsys subsystem[,subsystem]]' % os.path.basename(name)
    print '  <broker> - The ip/hostname of the broker used by the configuration store'
    print '  <port>   - The port of the broker used by the configuration store'
    print '  -h - Print help'
@@ -62,11 +66,7 @@ def main(argv=None):
    subsys = ''
    config_store = []
    list_alls = []
-   feat_list = {}
-   param_list = {}
-   group_list = {}
-   node_list = {}
-   subsys_list = {}
+   edit_objs = []
    fast = False
 
    # Set signal handlers
@@ -187,7 +187,7 @@ def main(argv=None):
                print '  There are no %ss in the store' % type
             else:
                for obj in objs:
-                  result = obj.GetName()
+                  result = obj.getName()
                   if result.status == 0:
                      name = result.outArgs['name']
                      if '+++' != name[0:3]:
@@ -217,131 +217,219 @@ def main(argv=None):
       for node in nodes.split(','):
          node = node.strip()
          if action == 'add':
-            obj = add_node(session, config_store, node)
-            if obj != None:
-               node_list[node] = obj
+            WallabyHelpers.add_node(session, config_store, node)
          elif action == 'delete':
             if node != '':
-               result = config_store.RemoveNode(node)
+               result = config_store.removeNode(node)
                if result.status != 0:
                   print 'Error: Failed to remove node "%s" (%d, %s)' % (node, result.status, result.text)
                   continue
          elif action == 'list':
-            list_node_info(session, config_store, node)
+            WallabyHelpers.list_node_info(session, config_store, node)
             print
 
    # Process the parameters
    if params != '':
       for param in params.split(','):
+         obj = None
          param = param.strip()
          if action == 'add':
-            obj = add_param(session, config_store, param)
-            if obj != None:
-               param_list[param] = obj
+            obj = WallabyHelpers.add_param(session, config_store, param)
          elif action == 'delete':
             if param.strip() != '':
-               result = config_store.RemoveParam(param)
+               result = config_store.removeParam(param)
                if result.status != 0:
                   print 'Error: Failed to remove parameter "%s" (%d, %s)' % (param, result.status, result.text)
          elif action == 'list':
-            list_param_info(session, config_store, param)
+            WallabyHelpers.list_param_info(session, config_store, param)
             print
          elif action == 'edit':
-            obj = get_param(session, config_store, param)
-            if obj != None:
-               param_list[param] = obj
+            obj = WallabyHelpers.get_param(session, config_store, param)
+
+         if obj != None:
+            edit_obj = WallabyTypes.Parameter(param)
+            edit_obj.init_from_obj(obj)
+            edit_objs += [edit_obj]
 
    # Process the features
    if features != '':
       for feat in features.split(','):
+         obj = None
          feat = feat.strip()
          if action == 'add':
-            obj = add_feature(session, config_store, feat)
-            if obj != None:
-               feat_list[feat] = obj
+            obj = WallabyHelpers.add_feature(session, config_store, feat)
          elif action == 'delete':
-            result = config_store.RemoveFeature(feat)
+            result = config_store.removeFeature(feat)
             if result.status != 0:
                print 'Error: Failed to remove feature "%s" (%d, %s)' % (feat, result.status, result.text)
          elif action == 'list':
-            list_feature_info(session, config_store, feat)
+            WallabyHelpers.list_feature_info(session, config_store, feat)
             print
          elif action == 'edit':
-            obj = get_feature(session, config_store, feat)
-            if obj != None:
-               feat_list[feat] = obj
+            obj = WallabyHelpers.get_feature(session, config_store, feat)
+
+         if obj != None:
+            edit_obj = WallabyTypes.Feature(feat)
+            edit_obj.init_from_obj(obj)
+            edit_objs += [edit_obj]
 
    # Process the groups
    if groups != '':
       for group in groups.split(','):
+         obj = None
          group = group.strip()
          if action == 'add':
             if group != '+++DEFAULT':
-               obj = add_group(session, config_store, group)
-               if obj != None:
-                  group_list[group] = obj
+               obj = WallabyHelpers.add_group(session, config_store, group)
             else:
                print 'The default group in the configuration store can not be added'
          elif action == 'delete':
             if group != '+++DEFAULT':
-               result = config_store.RemoveGroup(group)
+               result = config_store.removeGroup(group)
                if result.status != 0:
                   print 'Error: Failed to remove group "%s" (%d, %s)' % (group, result.status, result.text)
             else:
                print 'The default group in the configuration store can not be deleted'
          elif action == 'list':
-            list_group_info(session, config_store, group)
+            WallabyHelpers.list_group_info(session, config_store, group)
             print
          elif action == 'edit':
             if group != '+++DEFAULT':
-               obj = get_group(session, config_store, group)
-               if obj != None:
-                  group_list[group] = obj
+               obj = WallabyHelpers.get_group(session, config_store, group)
             else:
                print 'The nodes included in the default group in the configuration store can not be modified'
+
+         if obj != None:
+            edit_obj = WallabyTypes.Group(group)
+            edit_obj.init_from_obj(obj)
+            edit_objs += [edit_obj]
 
    # Process the subsystems
    if subsys != '':
       for sub in subsys.split(','):
+         obj = None
          sub = sub.strip()
          if action == 'add':
-            obj = add_subsys(session, config_store, sub)
-            if obj != None:
-               subsys_list[sub] = obj
+            obj = WallabyHelpers.add_subsys(session, config_store, sub)
          elif action == 'delete':
             if sub != '':
-               result = config_store.RemoveSubsys(sub)
+               result = config_store.removeSubsys(sub)
                if result.status != 0:
                   print 'Error: Failed to remove subsystem "%s" (%d, %s)' % (sub, result.status, result.text)
          elif action == 'list':
-            list_subsys_info(session, config_store, sub)
+            WallabyHelpers.list_subsys_info(session, config_store, sub)
             print
          elif action == 'edit':
-            obj = get_subsys(session, config_store, sub)
-            if obj != None:
-               subsys_list[sub] = obj
+            obj = WallabyHelpers.get_subsys(session, config_store, sub)
+
+         if obj != None:
+            edit_obj = WallabyTypes.Subsystem(sub)
+            edit_obj.init_from_obj(obj)
+            edit_objs += [edit_obj]
 
    # Now modify the params/features/etc
+   if edit_objs != []:
+      retry = True
+      file = tempfile.NamedTemporaryFile()
+      while retry == True:
+         retry = False
+         file.seek(0, 0)
+         file.truncate()
+         yaml.dump_all(edit_objs, file, explicit_start=True, default_flow_style=False)
+         run_cmd('%s %s' % (os.getenv('EDITOR') or '/bin/vi', file.name), inter=True)
+         file.flush()
+         file.seek(0, 0)
+         yaml_output = yaml.load_all(file)
 
-   # Modify the parameters, if needed
-   for param in params.split(','):
-      if param != '' and param in param_list.keys() and (fast == False or action == 'edit'):
-         edit_param(param_list[param], param, action, config_store, session, fast == False)
+         # load_all returns a stream, so read its data into a python list we
+         # can traverse more than once.  Replace the edit_objs so the changes
+         # are preserved
+         edit_objs = []
+         for entry in yaml_output:
+            edit_objs += [entry]
 
-   # Modify the features, if needed
-   for feat in features.split(','):
-      if feat != '' and feat in feat_list.keys() and (fast == False or action == 'edit'):
-         edit_feature(feat_list[feat], feat, action, config_store, session, fast == False)
+         # Check for invalid items in the configurations
+         invalids = {}
+         errors = {}
+         for edited in edit_objs:
+            try:
+               edited.store_validate(config_store)
+            except WallabyValidateError, error:
+               for type in error.invalids.keys():
+                  try:
+                     invalids[type] = invalids[type] + error.invalids[type]
+                  except:
+                     invalids[type] = error.invalids[type]
+                  errors.update(error.errors)
+         if errors != {}:
+            print ' The following errors were reported when checking for configuration validity:'
+            for err in errors.key():
+               print '  %d: %s' % (err, errors[err])
+         if invalids != {}:
+            print 'The store does not know about the following items:'
+            for type in invalids.keys():
+               if invalids[type] != []:
+                  print type
+                  for item in invalids[type]:
+                     print '  %s' % item
+            answer = raw_input('Should the above be added to the store [Y/n]? ')
+            if answer.lower() != 'n':
+               retry = True
 
-   # Modify the groups, if needed
-   for group in groups.split(','):
-      if group != '' and group in group_list.keys() and (fast == False or action == 'edit'):
-         edit_group(group_list[group], group, action, config_store, session, fast == False)
+               # Add the unknown items into the store
+               for type in invalids.keys():
+                  for item in invalids[type]:
+                     obj = None
+                     if type == 'Parameter':
+                        obj = WallabyHelpers.add_param(session, config_store, item)
+                        if obj != None:
+                           edit_obj = WallabyTypes.Parameter(item)
+                     elif type == 'Feature':
+                        obj = WallabyHelpers.add_feature(session, config_store, item)
+                        if obj != None:
+                           edit_obj = WallabyTypes.Feature(item)
+                     elif type == 'Node':
+                        add_node(session, config_store, item)
+                     elif type == 'Group':
+                        obj = WallabyHelpers.add_group(session, config_store, item)
+                        if obj != None:
+                           edit_obj = WallabyTypes.Group(item)
+                     elif type == 'Subsystem':
+                        obj = WallabyHelpers.add_subsys(session, config_store, item)
+                        if obj != None:
+                           edit_obj = WallabyTypes.Subsystem(item)
+                     if obj != None:
+                        edit_obj.init_from_obj(obj)
+                        edit_objs += [edit_obj]
+               continue
 
-   # Modify the subsystems, if needed
-   for sub in subsys.split(','):
-      if sub != '' and sub in subsys_list.keys() and (fast == False or action == 'edit'):
-         edit_subsys(subsys_list[sub], sub, action, config_store, session, fast == False)
+         # Make the changes
+         for edited in edit_objs:
+            if isinstance(edited, WallabyTypes.Parameter):
+               obj = WallabyHelpers.get_param(session, config_store, edited.name)
+            if isinstance(edited, WallabyTypes.Feature):
+               obj = WallabyHelpers.get_feature(session, config_store, edited.name)
+            if isinstance(edited, WallabyTypes.Group):
+               obj = WallabyHelpers.get_group(session, config_store, edited.name)
+            if isinstance(edited, WallabyTypes.Subsystem):
+               obj = WallabyHelpers.get_subsys(session, config_store, edited.name)
+
+            if isinstance(edited, WallabyTypes.Group):
+               try:
+                  edited.update(obj, config_store, session)
+               except WallabyError, error:
+                  print 'The following errors were reported updating "%s":' % edited.name
+                  for key in error.errors.keys():
+                     print '%s: %s' % (key, error.errors[key])
+            else:
+               try:
+                  edited.update(obj)
+               except WallabyError, error:
+                  print 'The following errors were reported updating "%s":' % edited.name
+                  for key in error.errors.keys():
+                     print '%s: %s' % (key, error.errors[key])
+         file.close()
+
 
 if __name__ == '__main__':
     sys.exit(main())

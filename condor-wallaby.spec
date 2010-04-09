@@ -1,5 +1,5 @@
 %{!?python_sitelib: %define python_sitelib %(%{__python} -c "from distutils.sysconfig import get_python_lib; print get_python_lib()")}
-%define rel 0.3
+%define rel 0.4
 
 Name: condor-wallaby
 Summary: Condor configuration using wallaby
@@ -105,6 +105,13 @@ cp -f module/*.py %{buildroot}/%{python_sitelib}/wallabyclient
 %{python_sitelib}/wallabyclient/exceptions.py*
 
 %changelog
+* Fri Apr  9 2010  <rrati@redhat> - 2.6-0.4
+- Logging message cleanup in configd
+- Fixed error when applying configuration w/o features supplied on the
+  commandline
+- Disallowed entering blank name for a saved snapshot
+- Removed --fast option
+
 * Thu Apr  8 2010  <rrati@redhat> - 2.6-0.3
 - Removed the python-wallabyclient dep from the client package
 

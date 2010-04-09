@@ -389,6 +389,8 @@ def main(argv=None):
    if argv is None:
       argv = sys.argv
 
+   global feature_list
+
    action = ''
    features = ''
    params = ''
@@ -691,13 +693,21 @@ def main(argv=None):
                return(1)
          print 'Configuration applied'
 
-         if raw_input('\nSave this configuration [y/N] ? ').lower() == 'y':
-            config_name = raw_input('  Configuration Name: ')
-            result = config_store.makeSnapshot(config_name)
-            if result.status != 0:
-               print 'Error: Problem saving configuration in store (%d, %s)' % (result.status, result.text)
-            else: 
-               print 'Configuration saved'
+         retry = True
+         while retry == True:
+            retry = False
+            if raw_input('\nSave this configuration [y/N] ? ').lower() == 'y':
+               config_name = raw_input('  Configuration Name: ')
+               if config_name == '':
+                  retry = True
+                  print 'Invalid configuration name'
+                  continue 
+
+               result = config_store.makeSnapshot(config_name)
+               if result.status != 0:
+                  print 'Error: Problem saving configuration in store (%d, %s)' % (result.status, result.text)
+               else: 
+                  print 'Configuration saved'
 
          if raw_input('\nActivate the changes [y/N] ? ').lower() == 'y':
             activate_configuration(config_store)

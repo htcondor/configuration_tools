@@ -67,13 +67,12 @@ def main(argv=None):
    config_store = []
    list_alls = []
    edit_objs = []
-   fast = False
 
    # Set signal handlers
    signal.signal(signal.SIGINT, exit_signal_handler)
    signal.signal(signal.SIGTERM, exit_signal_handler)
 
-   long_opts = ['add', 'broker=', 'default-group', 'delete', 'edit', 'fast',
+   long_opts = ['add', 'broker=', 'default-group', 'delete', 'edit',
                 'features=', 'groups=', 'help', 'list', 'list-all-features',
                 'list-all-groups', 'list-all-nodes', 'list-all-params',
                 'list-all-subsystems', 'nodes=', 'params=', 'port=', 'subsys=']
@@ -106,8 +105,6 @@ def main(argv=None):
             print 'Only 1 action may be specified'
             return(1)
          action = 'edit'
-      if option == '--fast':
-         fast = True
       if option in ('-f', '--features'):
          features = arg
       if option in ('-g', '--groups'):
@@ -336,6 +333,7 @@ def main(argv=None):
          file.seek(0, 0)
          file.truncate()
          yaml.dump_all(edit_objs, file, explicit_start=True, default_flow_style=False)
+
          run_cmd('%s %s' % (os.getenv('EDITOR') or '/bin/vi', file.name), inter=True)
          file.flush()
          file.seek(0, 0)

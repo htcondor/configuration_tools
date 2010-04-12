@@ -398,8 +398,8 @@ def main(argv=None):
    schedd_prompts = False
    feature_list = []
    group_obj = []
-   username = 'guest'
-   passwd = 'guest'
+   username = ''
+   passwd = ''
 
    # Set signal handlers
    signal.signal(signal.SIGINT, exit_signal_handler)
@@ -510,7 +510,12 @@ def main(argv=None):
    # Connect to the broker
    session = Session()
    try:
-      broker = session.addBroker('amqp://%s/%s@%s:%s' % (username, passwd, broker_ip, port))
+      if username != '' and passwd != '':
+         broker = session.addBroker('amqp://%s/%s@%s:%s' % (username, passwd, broker_ip, port))
+      elif username != '':
+         broker = session.addBroker('amqp://%s@%s:%s' % (username, broker_ip, port))
+      else:
+         broker = session.addBroker('amqp://%s:%s' % (broker_ip, port))
    except:
       print 'Unable to connect to broker "%s:%s"' % (broker_ip, port)
       return(1)

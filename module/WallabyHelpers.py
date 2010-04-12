@@ -30,7 +30,7 @@ def get_group(sess, store, name):
    else:
       try:
          obj = sess.getObjects(_objectId=result.outArgs['obj'])
-      except RuntimeError, error:
+      except Exception, error:
          print 'Error: %s' % error
          return(None)
 
@@ -52,7 +52,7 @@ def get_feature(sess, store, name):
    else:
       try:
          obj = sess.getObjects(_objectId=result.outArgs['obj'])
-      except RuntimeError, error:
+      except Exception, error:
          print 'Error: %s' % error
          return(None)
 
@@ -74,7 +74,7 @@ def get_param(sess, store, name):
    else:
       try:
          obj = sess.getObjects(_objectId=result.outArgs['obj'])
-      except RuntimeError, error:
+      except Exception, error:
          print 'Error: %s' % error
          return(None)
 
@@ -105,7 +105,7 @@ def get_node(sess, store, name):
             else:
                try:
                   obj = sess.getObjects(_objectId=result.outArgs['obj'])
-               except RuntimeError, error:
+               except Exception, error:
                   print 'Error: %s' % error
                   return(None)
 
@@ -127,7 +127,7 @@ def get_subsys(sess, store, name):
    else:
       try:
          obj = sess.getObjects(_objectId=result.outArgs['obj'])
-      except RuntimeError, error:
+      except Exception, error:
          print 'Error: %s' % error
          return(None)
 
@@ -401,7 +401,7 @@ def add_param(sess, store, name):
    else:
       try:
          obj = sess.getObjects(_objectId=result.outArgs['obj'])
-      except RuntimeError, error:
+      except Exception, error:
          print 'Error: %s' % error
          return(None)
 
@@ -425,7 +425,7 @@ def add_feature(sess, store, name):
    else:
       try:
          obj = sess.getObjects(_objectId=result.outArgs['obj'])
-      except RuntimeError, error:
+      except Exception, error:
          print 'Error: %s' % error
          return(None)
 
@@ -448,7 +448,7 @@ def add_group(sess, store, name):
    else:
       try:
          obj = sess.getObjects(_objectId=result.outArgs['obj'])
-      except RuntimeError, error:
+      except Exception, error:
          print 'Error: %s' % error
          return(None)
 
@@ -471,7 +471,7 @@ def add_node(sess, store, name):
    else:
       try:
          obj = sess.getObjects(_objectId=result.outArgs['obj'])
-      except RuntimeError, error:
+      except Exception, error:
          print 'Error: %s' % error
          return(None)
 
@@ -494,7 +494,7 @@ def add_subsys(sess, store, name):
    else:
       try:
          obj = sess.getObjects(_objectId=result.outArgs['obj'])
-      except RuntimeError, error:
+      except Exception, error:
          print 'Error: %s' % error
          return(None)
 
@@ -514,7 +514,7 @@ def get_id_group_name(obj, sess):
    else:
       try:
          idgroup_ref = sess.getObjects(_objectId=result.outArgs['group'])
-      except RuntimeError, error:
+      except Exception, error:
          print 'Error: %s' % error
 
       if idgroup_ref == []:

@@ -67,6 +67,8 @@ def main(argv=None):
    config_store = []
    list_alls = []
    edit_objs = []
+   username = 'guest'
+   passwd = 'guest'
 
    # Set signal handlers
    signal.signal(signal.SIGINT, exit_signal_handler)
@@ -75,9 +77,10 @@ def main(argv=None):
    long_opts = ['add', 'broker=', 'default-group', 'delete', 'edit',
                 'features=', 'groups=', 'help', 'list', 'list-all-features',
                 'list-all-groups', 'list-all-nodes', 'list-all-params',
-                'list-all-subsystems', 'nodes=', 'params=', 'port=', 'subsys=']
+                'list-all-subsystems', 'nodes=', 'params=', 'password=',
+                'port=', 'subsys=', 'user=']
    try:
-      opts, args = getopt.getopt(argv[1:], 'ab:def:g:hln:p:o:s:', long_opts)
+      opts, args = getopt.getopt(argv[1:], 'ab:def:g:hln:p:P:o:s:U:', long_opts)
    except getopt.GetoptError, error:
       print str(error)
       return(1)
@@ -138,10 +141,14 @@ def main(argv=None):
          nodes = arg
       if option in ('-p', '--params'):
          params = arg
+      if option in ('-P', '--password'):
+         passwd = arg
       if option in ('-o', '--port'):
          port = arg
       if option in ('-s', '--subsys'):
          subsys = arg
+      if option in ('-U', '--user'):
+         username = arg
 
    if action == '':
       print 'No action specified.  Exiting'
@@ -150,15 +157,15 @@ def main(argv=None):
 
    session = Session()
    try:
-      broker = session.addBroker('amqp://%s:%s' % (broker_ip, port))
+      broker = session.addBroker('amqp://%s/%s@%s:%s' % (username, passwd, broker_ip, port))
    except:
-      print 'Unable to connect to broker "%s"' % broker_ip
+      print 'Unable to connect to broker "%s:%s"' % (broker_ip, port)
       return(1)
 
    # Retreive the config store object
    try:
       config_store = session.getObjects(_class='Store', _package='mrg.grid.config')
-   except RuntimeError, error:
+   except Exception, error:
       print 'Error: %s' % error
       return(1)
 
@@ -175,7 +182,7 @@ def main(argv=None):
       for type in list_alls:
          try:
             objs = session.getObjects(_class=type, _package='mrg.grid.config')
-         except RuntimeError, error:
+         except Exception, error:
             print 'Error: %s' % error
             return(1)
          print '\n%ss:' % type

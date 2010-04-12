@@ -22,15 +22,7 @@ from wallabyclient import WallabyHelpers
 from qmf.console import Session
 
 
-feature_list = []
-group_obj = []
-
-
 def exit_signal_handler(signum, frame):
-   if group_obj != []:
-      result = group_obj.modifyFeatures('remove', feature_list, {})
-      if result.status != 0:
-         print 'Error: Problem removing features (%d, %s)' % (result.status, result.text)
    sys.exit(0)
 
 
@@ -389,8 +381,6 @@ def main(argv=None):
    if argv is None:
       argv = sys.argv
 
-   global feature_list
-
    action = ''
    features = ''
    params = ''
@@ -406,6 +396,10 @@ def main(argv=None):
    list_alls = []
    broker_prompts = False
    schedd_prompts = False
+   feature_list = []
+   group_obj = []
+   username = 'guest'
+   passwd = 'guest'
 
    # Set signal handlers
    signal.signal(signal.SIGINT, exit_signal_handler)
@@ -415,10 +409,11 @@ def main(argv=None):
                 'features=', 'group=', 'help', 'list', 'list-all-features',
                 'list-all-groups', 'list-all-nodes', 'list-all-params',
                 'list-all-snapshots', 'load-snapshot=', 'node=', 'params=',
-                'port=', 'qmfbroker', 'remove-snapshot=', 'schedds']
+                'password=', 'port=', 'qmfbroker', 'remove-snapshot=',
+                'schedds', 'user=']
 
    try:
-      opts, args = getopt.gnu_getopt(argv[1:], 'ab:df:g:hln:p:o:', long_opts)
+      opts, args = getopt.gnu_getopt(argv[1:], 'ab:df:g:hln:p:P:o:U:', long_opts)
    except getopt.GetoptError, error:
       print str(error)
       return(1)
@@ -492,6 +487,8 @@ def main(argv=None):
          port = arg
       if option in ('-p', '--params'):
          params = arg
+      if option in ('-P', '--password'):
+         passwd = arg
       if option == '--qmfbroker':
          broker_prompts = True
       if option in ('--remove-snapshot'):
@@ -502,6 +499,8 @@ def main(argv=None):
          snapshot_name = arg
       if option == '--schedds':
          schedd_prompts = True
+      if option in ('-U', '--user'):
+         username = arg
 
    if action == '':
       print 'No action specified.  Exiting'
@@ -511,15 +510,15 @@ def main(argv=None):
    # Connect to the broker
    session = Session()
    try:
-      broker = session.addBroker('amqp://%s:%s' % (broker_ip, port))
+      broker = session.addBroker('amqp://%s/%s@%s:%s' % (username, passwd, broker_ip, port))
    except:
-      print 'Unable to connect to broker "%s"' % broker_ip
+      print 'Unable to connect to broker "%s:%s"' % (broker_ip, port)
       return(1)
 
    # Retreive the config store object
    try:
       config_store = session.getObjects(_class='Store', _package='mrg.grid.config')
-   except RuntimeError, error:
+   except Exception, error:
       print 'Error: %s' % error
       return(1)
 
@@ -543,7 +542,7 @@ def main(argv=None):
       for type in list_alls:
          try:
             objs = session.getObjects(_class=type, _package='mrg.grid.config')
-         except RuntimeError, error:
+         except Exception, error:
             print 'Error: %s' % error
             return(1)
 

@@ -1,5 +1,5 @@
 %{!?python_sitelib: %define python_sitelib %(%{__python} -c "from distutils.sysconfig import get_python_lib; print get_python_lib()")}
-%define rel 0.4
+%define rel 0.5
 
 Name: condor-wallaby
 Summary: Condor configuration using wallaby
@@ -106,6 +106,15 @@ cp -f module/*.py %{buildroot}/%{python_sitelib}/wallabyclient
 %{python_sitelib}/wallabyclient/exceptions.py*
 
 %changelog
+* Wed Apr 14 2010  <rrati@redhat> - 2.6-0.5
+- Added python-devel dep to python-wallabyclient
+- Fixed issue in configd moving new config file across file systems
+- Prevent configd from exiting if it is in the middle of installing the
+  new configuration file
+- Added --take-snapshot to condor_configure_pool
+- Fixed syntax error in condor_configure_store when adding nodes from a
+  configuration that added nodes the store didn't know about
+
 * Fri Apr  9 2010  <rrati@redhat> - 2.6-0.4
 - Logging message cleanup in configd
 - Fixed error when applying configuration w/o features supplied on the

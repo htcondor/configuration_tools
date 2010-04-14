@@ -399,7 +399,7 @@ def main(argv=None):
                         if obj != None:
                            edit_obj = WallabyTypes.Feature(item)
                      elif type == 'Node':
-                        add_node(session, config_store, item)
+                        WallabyHelpers.add_node(session, config_store, item)
                      elif type == 'Group':
                         obj = WallabyHelpers.add_group(session, config_store, item)
                         if obj != None:

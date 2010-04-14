@@ -23,6 +23,7 @@ import threading
 import getopt
 import random
 import tempfile
+import shutil
 from qmf.console import Session, Console
 from condorutils.log import *
 from condorutils.readconfig import *
@@ -218,6 +219,8 @@ class Service:
 
 
 def get_config(node_obj, log_name):
+   global replacing_file
+
    # Retrieve the node's configuration
    result = node_obj.getConfig()
    if result.status != 0:
@@ -247,9 +250,11 @@ def get_config(node_obj, log_name):
       return
 
    file_name = '%s/00wallaby_node.config' % loc['dir']
+   replacing_file = True
    if os.path.exists(file_name):
       os.remove(file_name)
-   os.rename(name, file_name)
+   shutil.move(name, file_name)
+   replacing_file = False
 
    node_obj.checkin()
 
@@ -265,9 +270,10 @@ def exit_signal_handler(signum, frame):
 
 service = Service()
 stop_running = False
+replacing_file = False
 
 def main(argv=None):
-   global service, stop_running
+   global service, stop_running, replacing_file
 
    try:
       size = {}
@@ -324,7 +330,7 @@ def main(argv=None):
       service.setup_timers()
 
       # Loop forever until told to shutdown
-      while stop_running == False:
+      while stop_running == False or replacing_file == True:
          try:
             time.sleep(1)
          except:

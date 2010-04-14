@@ -27,7 +27,7 @@ def exit_signal_handler(signum, frame):
 
 
 def print_help(name):
-   print 'usage: %s [-h|--help] [-b|--broker <broker>] [-o|--port <port>] [--load-snapshot|--remove-snapshot <snapshot>] [--schedds] [--qmfbroker] [-g|--group|-n|--node name] action [-f|--features feature[,feature,...]] [-p|--params param1,param2,...]' % os.path.basename(name)
+   print 'usage: %s [-h|--help] [-b|--broker <broker>] [-o|--port <port>] [--load-snapshot|--remove-snapshot|--take-snapshot <snapshot>] [--schedds] [--qmfbroker] [-g|--group|-n|--node name] action [-f|--features feature[,feature,...]] [-p|--params param1,param2,...]' % os.path.basename(name)
    print '  <broker>    - The ip/hostname of the broker used by the configuration store'
    print '  <port>      - The port of the broker used by the configuration store'
    print '  <snapshot>  - The name of the snapshot'
@@ -377,6 +377,14 @@ def activate_configuration(store):
    return ret_val
 
 
+def save_snapshot(store, name):
+   result = store.makeSnapshot(name)
+   if result.status != 0:
+      print 'Error: Problem saving configuration in store (%d, %s)' % (result.status, result.text)
+   else: 
+      print 'Configuration saved'
+
+
 def main(argv=None):
    if argv is None:
       argv = sys.argv
@@ -410,7 +418,7 @@ def main(argv=None):
                 'list-all-groups', 'list-all-nodes', 'list-all-params',
                 'list-all-snapshots', 'load-snapshot=', 'node=', 'params=',
                 'password=', 'port=', 'qmfbroker', 'remove-snapshot=',
-                'schedds', 'user=']
+                'schedds', 'take-snapshot=', 'user=']
 
    try:
       opts, args = getopt.gnu_getopt(argv[1:], 'ab:df:g:hln:p:P:o:U:', long_opts)
@@ -499,6 +507,12 @@ def main(argv=None):
          snapshot_name = arg
       if option == '--schedds':
          schedd_prompts = True
+      if option  == '--take-snapshot':
+         if action != '':
+            print 'Only 1 action may be specified'
+            return(1)
+         action = 'take-snapshot'
+         snapshot_name = arg
       if option in ('-U', '--user'):
          username = arg
 
@@ -584,6 +598,9 @@ def main(argv=None):
       if result.status != 0:
          print 'Error: Failed to remove snapshot "%s" (%d %s)' % (snapshot_name, result.status, result.text)
          return(1)
+      return(0)
+   elif action == 'take-snapshot':
+      save_snapshot(config_store, snapshot_name)
       return(0)
 
    # If configuring a single node, grab that node's identity group and
@@ -706,12 +723,7 @@ def main(argv=None):
                   retry = True
                   print 'Invalid configuration name'
                   continue 
-
-               result = config_store.makeSnapshot(config_name)
-               if result.status != 0:
-                  print 'Error: Problem saving configuration in store (%d, %s)' % (result.status, result.text)
-               else: 
-                  print 'Configuration saved'
+               save_snapshot(config_store, config_name)
 
          if raw_input('\nActivate the changes [y/N] ? ').lower() == 'y':
             activate_configuration(config_store)

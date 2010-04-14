@@ -55,6 +55,7 @@ This package provides tools to configure condor pools and wallaby
 %package -n python-wallabyclient
 Summary: Tools for interacting with wallaby
 Group: Applications/System
+BuildRequires: python-devel
 Requires: python >= 2.3
 Requires: python-condorutils
 Requires: PyYAML

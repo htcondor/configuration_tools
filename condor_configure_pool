@@ -50,10 +50,11 @@ def print_help(name):
    print '                         the store'
 
 
-def configure_node_schedulers(params):
-   response = 'y'
-
-   if raw_input('Modify which schedulers this group can submit to [y/N] ? ').lower() == 'y':
+def configure_node_schedulers(params, is_delete):
+   if is_delete == True:
+      params['SCHEDD_NAME'] = ''
+      params['SCHEDD_HOST'] = ''
+   else: 
       def_sched = raw_input('Enter the name of the default scheduler: ')
       if def_sched != '':
          if raw_input('Is this a High Available Scheduler [y/N] ? ').lower() == 'y':
@@ -62,12 +63,11 @@ def configure_node_schedulers(params):
             params['SCHEDD_HOST'] = def_sched.split()[0]
 
 
-def configure_qmf_broker(params):
-   response = 'y'
-
-   response = raw_input('Change the broker information this group uses to communicate with the Management Console [y/N] ? ')
-   if response.lower() == 'y':
-      # Remove previous configuration it if exists
+def configure_qmf_broker(params, is_delete):
+   if is_delete == True:
+      params['QMF_BROKER_HOST'] = ''
+      params['QMF_BROKER_PORT'] = ''
+   else:
       value = raw_input('Enter the hostname of the AMQP broker this group will use to communicate with the Management Console: ')
       params['QMF_BROKER_HOST'] = value.split()[0]
 
@@ -665,12 +665,12 @@ def main(argv=None):
 
       # Configure which schedulers the node can submit to
       if schedd_prompts == True:
-         configure_node_schedulers(replace_list)
+         configure_node_schedulers(replace_list, action == 'remove')
 
       # Configure the AMQP broker used to communicate with the Management
       # Console
       if broker_prompts == True:
-         configure_qmf_broker(replace_list)
+         configure_qmf_broker(replace_list, action == 'remove')
 
       if raw_input('\nApply these changes [Y/n] ? ').lower() != 'n':
          if feature_list != []:
@@ -683,6 +683,8 @@ def main(argv=None):
          if action != 'remove':
             check_more_params_needed(session, config_store, feature_list, param_list, replace_list, group_obj)
          else:
+            param_list.update(replace_list)
+            replace_list = {}
             check_delete_params_needed(session, config_store, feature_list, param_list, group_obj)
 
          if param_list != {}:
@@ -699,8 +701,9 @@ def main(argv=None):
             else:
                all_params = result.outArgs['params']
                all_params.update(replace_list)
-               schedd_params = ['SCHEDD_NAME', 'SCHEDD_HOST']
-               for sparam in schedd_params:
+               special = ['SCHEDD_NAME', 'SCHEDD_HOST', 'QMF_BROKER_HOST', \
+                          'QMF_BROKER_PORT']
+               for sparam in special:
                   if sparam in all_params.keys() and \
                      sparam not in replace_list.keys():
                      try:

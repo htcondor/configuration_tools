@@ -140,7 +140,7 @@ def get_ec2e_routes():
       config += ' set_remote_jobuniverse = 5;'
       get_aws_data(config)
       config += ' ]'
-   return config
+   return (config, config == '$(JOB_ROUTER_ENTRIES)')
 
 
 def get_aws_data(info):
@@ -267,41 +267,76 @@ def check_more_params_needed(sess, store, features, params, more_params, gobj):
    # Check for EC2 Enhanced
    if ('NEED_SET_EC2E_ROUTES' in list.keys() and \
       list['NEED_SET_EC2E_ROUTES'].lower() == 'true') or \
+      'EC2Enhanced' in features or \
       ('NEED_SET_EC2E_ROUTES' in params.keys() and \
       params['NEED_SET_EC2E_ROUTES'].lower() == 'true'):
 
-      if 'NEED_SET_EC2E_ROUTES' in params.keys() and \
-         params['NEED_SET_EC2E_ROUTES'].lower() == 'false':
-         skip = True
+      (routes, empty_routes) = get_ec2e_routes()
+      set_param('JOB_ROUTER_ENTRIES', routes, params, unique_params)
+      if empty_routes == False:
+         set_param('NEED_SET_EC2E_ROUTES', 'FALSE', params, unique_params)
       else:
-         skip = False
-
-      if skip == False:
-         answer = 'y'
-         if list['JOB_ROUTER_ENTRIES'] != '':
-            answer = raw_input('Edit the EC2Enhanced Routes [y/N]? ')
-
-         if answer.lower() == 'y':
-            routes = get_ec2e_routes()
-            set_param('JOB_ROUTER_ENTRIES', routes, params, unique_params)
-            set_param('NEED_SET_EC2E_ROUTES', 'FALSE', params, unique_params)
+         set_param('NEED_SET_EC2E_ROUTES', 'TRUE', params, unique_params)
 
    # Check for VM Universe parameters
-   if 'VM_TYPE' in list.keys() and list['VM_TYPE'] == '':
-      input = raw_input('Type of Virtual Machines to run on this node (xen or kvm): ')
-      set_param('VM_TYPE', input.split()[0], params, unique_params)
-      if input.lower().split()[0] == 'xen':
-         set_param('VM_BRIDGE_SCRIPT', '/etc/xen/scripts/network-bridge start bridge=xenbr0', params, unique_params)
+   vm_remove_params = {}
+   if 'VMUniverse' in features:
+      input = ''
+      while input != 'xen' and input != 'kvm':
+         input = raw_input('Type of Virtual Machines to run on this node (xen or kvm): ')
+         if input != '':
+            input = input.lower().split()[0]
+         if input != 'xen' and input != 'kvm':
+            print 'Error: "%s" is not a valid Virtual Machine type.  Please try again' % input
+      
+      set_param('VM_TYPE', input, params, unique_params)
+      if input == 'xen':
          set_param('XEN_BOOTLOADER', '/usr/bin/pygrub', params, unique_params)
-   if 'VM_NETWORKING' in list.keys() and list['VM_NETWORKING'] == '':
+      else:
+         vm_remove_params['XEN_BOOTLOADER'] = False
+   if 'VMUniverse' in features:
       input = raw_input('Enable networking in the VM universe [y/N] ? ')
       if input.lower() == 'y':
          set_param('VM_NETWORKING', 'TRUE', params, unique_params)
-         set_param('VM_NETWORKING_TYPE', 'nat, bridge', params, unique_params)
-         input = raw_input('VM Networking type (nat or bridge): ')
-         set_param('VM_NETWORKING_DEFAULT_TYPE', input.split()[0], params, unique_params)
+         type = ''
+         while type.strip().lower() != 'both' and \
+               type.strip().lower() != 'nat' and \
+               type.strip().lower() != 'bridge':
+            type = raw_input('Supported VM networking type (nat, bridge, both): ')
+            if type.strip() == 'both':
+               set_param('VM_NETWORKING_TYPE', 'nat, bridge', params, unique_params)
+               input = ''
+               while input.strip().lower() != 'nat' and \
+                     input.strip().lower() != 'bridge':
+                  input = raw_input('Default VM networking type (nat or bridge): ')
+                  if input.strip().lower() != 'nat' and \
+                     input.strip().lower() != 'bridge':
+                     print '"%s" is an invalid default VM networking type.  Please try again' % input
+               set_param('VM_NETWORKING_DEFAULT_TYPE', input.strip(), params, unique_params)
+            elif type.strip().lower() == 'nat' or type.strip().lower() == 'bridge':
+               set_param('VM_NETWORKING_TYPE', type.strip(), params, unique_params)
+               vm_remove_params['VM_NETWORKING_DEFAULT_TYPE'] = False
+            else:
+               print 'Invalid input "%s"' % type
       else:
          set_param('VM_NETWORKING', 'FALSE', params, unique_params)
+         vm_remove_params['VM_NETWORKING_DEFAULT_TYPE'] = False
+         vm_remove_params['VM_NETWORKING_TYPE'] = False
+
+      if vm_remove_params != {}:
+         result = gobj.getParams()
+         if result.status != 0:
+            print 'WARNING: Unable to retrieve group set parameters (%d, %s)' % (result.status, result.text)
+            gparams = {}
+         else:
+            gparams = result.outArgs['params']
+        
+         for remove_param in vm_remove_params.keys():
+            if remove_param in gparams.keys():
+               del gparams[remove_param]
+         result = gobj.modifyParams('replace', gparams, {})
+         if result.status != 0:
+            print 'WARNING: Unable to remove VM Universe Networking parameters (%d, %s)' % (result.status, result.text)
 
    # Prompt the user if there are still parameters that need to be set
    if len(unique_params) > 0:

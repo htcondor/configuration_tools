@@ -243,9 +243,10 @@ class Parameter(YAMLObject):
       if result.status != 0:
          errors[result.status] = result.text
 
-      result = obj.setDefault(self.default)
-      if result.status != 0:
-         errors[result.status] = result.text
+      if self.must_change == False:
+         result = obj.setDefault(self.default)
+         if result.status != 0:
+            errors[result.status] = result.text
 
       result = obj.setDescription(self.description)
       if result.status != 0:

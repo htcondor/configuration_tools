@@ -1,11 +1,13 @@
 <schema package="mrg.grid.config">
    <eventArguments>
-      <arg name="AffectedNodes" type="lstr"/>
-      <arg name="Restart" type="bool"/>
-      <arg name="Targets" type="map"
+      <arg name="affectedNodes" type="map"
+           desc="A map(Node, ConfigVersion) of the nodes affected by the event
+                 and their respective configuration version"/>
+      <arg name="restart" type="bool"/>
+      <arg name="targets" type="map"
            desc="A map(Application, Subsystem) of the applications or their
                  subsystems that need to have the specified action performed"/>
    </eventArguments>
 
-   <event name="RestartEvent" sev="alert" args="AffectedNodes,Restart,Targets"/>
+   <event name="WallabyConfigEvent" sev="alert" args="affectedNodes,restart,targets"/>
 </schema>

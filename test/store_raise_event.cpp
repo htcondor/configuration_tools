@@ -1,7 +1,7 @@
 #include <qpid/management/Manageable.h>
 #include <qpid/management/ManagementObject.h>
 #include <qpid/agent/ManagementAgent.h>
-#include "qmf/mrg/grid/config/EventRestartEvent.h"
+#include "qmf/mrg/grid/config/EventWallabyConfigEvent.h"
 #include "qmf/mrg/grid/config/Package.h"
 #include "qpid/framing/FieldTable.h"
 
@@ -57,7 +57,7 @@ int main(int argc, char** argv)
       restart = false;
    }
 
-   EventRestartEvent event(nodes, restart, subsys);
+   EventWallabyConfigEvent event(nodes, restart, subsys);
    event.registerSelf(agent);
    sleep(10);
    agent->raiseEvent(event);

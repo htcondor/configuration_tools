@@ -274,21 +274,24 @@ def list_group_info(sess, store, group):
       print 'Group ID: %s' % value
 
       result = group_obj.getName()
+      name = ''
       if result.status != 0:
          print 'Error: Failed to retrieve group name (%d, %s)' % (result.status, result.text)
       else:
-         value = result.outArgs['name']
-         if value == '+++DEFAULT':
-            value = 'Internal Default Group'
-         print 'Name: %s' % value
+         name = result.outArgs['name']
+         if name == '+++DEFAULT':
+            print 'Name: Internal Default Group'
+         else:
+            print 'Name: %s' % name
 
-      result = group_obj.getMembership()
-      if result.status != 0:
-         print 'Error: Failed to retrieve group membership (%d, %s)' % (result.status, result.text)
-      else:
-         print 'Members:'
-         for key in result.outArgs['nodes']:
-            print '  %s' % key
+      if name != '+++DEFAULT':
+         result = group_obj.getMembership()
+         if result.status != 0:
+            print 'Error: Failed to retrieve group membership (%d, %s)' % (result.status, result.text)
+         else:
+            print 'Members:'
+            for key in result.outArgs['nodes']:
+               print '  %s' % key
 
       result = group_obj.getFeatures()
       if result.status != 0:

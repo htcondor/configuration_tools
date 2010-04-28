@@ -64,19 +64,19 @@ class EventConsole(Console):
 
 
    def event(self, broker, event):
-      if event.getClassKey().getClassName() == 'RestartEvent':
+      if event.getClassKey().getClassName() == 'WallabyConfigEvent':
          args = event.getArguments()
-         affected_hosts = args['AffectedNodes'].split(',')
-         if self.node.getIndex() in affected_hosts:
-            get_config(self.node, self.logger_name)
-            if args['Restart'] == True:
+         affected_hosts = args['affectedNodes']
+         if self.node.getIndex() in affected_hosts.keys():
+            get_config(self.node, self.logger_name, affected_hosts[self.node.getIndex()])
+            if args['restart'] == True:
                cmd = 'condor_restart'
             else:
                cmd = 'condor_reconfig'
 
-            targets = args['Targets'].values()[0]
-            for subsys in targets.split(','):
-               if subsys == 'carod' or subsys == 'qmf_configd':
+            targets = args['Targets']
+            for subsys in targets['condor']:
+               if subsys == 'carod' or subsys == 'condor_configd':
                   (retval, out, err) = run_cmd('condor_restart -subsystem %s' % subsys)
                else:
                   (retval, out, err) = run_cmd('%s -subsystem %s' % (cmd, subsys))
@@ -214,15 +214,16 @@ class Service:
       except ConfigError, error:
          # Never been configured before, so send a bank version
          version = -1
-      if version != self.node_obj.last_updated_version:
-         get_config(self.node_obj, self.logger_name)
+      wallaby_ver = self.node_obj.last_updated_version
+      if version != wallaby_ver:
+         get_config(self.node_obj, self.logger_name, wallaby_ver)
 
 
-def get_config(node_obj, log_name):
+def get_config(node_obj, log_name, version=''):
    global replacing_file
 
    # Retrieve the node's configuration
-   result = node_obj.getConfig()
+   result = node_obj.getConfig(version)
    if result.status != 0:
       # Problem getting the configuration, so do nothing
       log(logging.ERROR, log_name, 'Failed to retrieve configuration from the store (%d, %s)' % (result.status, result.text))

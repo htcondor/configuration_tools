@@ -65,9 +65,11 @@ class EventConsole(Console):
 
    def event(self, broker, event):
       if event.getClassKey().getClassName() == 'WallabyConfigEvent':
+         log(logging.info, self.logger_name, 'Received WallabyConfigEvent')
          args = event.getArguments()
          affected_hosts = args['affectedNodes']
          if self.node.getIndex() in affected_hosts.keys():
+            log(logging.info, self.logger_name, 'Event is for this node')
             get_config(self.node, self.logger_name, affected_hosts[self.node.getIndex()])
             if args['restart'] == True:
                cmd = 'condor_restart'
@@ -83,9 +85,12 @@ class EventConsole(Console):
                if retval != 0:
                   log(logging.ERROR, self.logger_name, 'Failed to send command to subsystem "%s" (stdout: %s, stderr: %s)' % (subsys, out, err))
       elif event.getClassKey().getClassName() == 'NewConfigEvent':
-#         print dir(event)
-#         args = event.getArguments()
+         print 'Recevied NewConfigEvent'
+         print dir(event)
+         print("%s" % str(event.arguments))
+         args = event.getArguments()
 #         affected_hosts = args['nodelist']
+#         print affected_hosts
 #         if self.node.getIndex() in affected_hosts.keys():
          if True:
             get_config(self.node, self.logger_name)
@@ -152,6 +157,7 @@ class Service:
 
       try:
          obj = self.session.getObjects(_class='Store', _package='mrg.grid.config')
+#         obj = self.session.getAgents()
       except:
          obj = []
 
@@ -167,6 +173,7 @@ class Service:
       else:
          try:
             obj = self.session.getObjects(_objectId=result.outArgs['obj'])
+#            obj = self.store.getObjects(_objectId=result.outArgs['obj'])
          except:
             obj = []
 
@@ -223,7 +230,7 @@ def get_config(node_obj, log_name, version=''):
    global replacing_file
 
    # Retrieve the node's configuration
-   result = node_obj.getConfig(version)
+   result = node_obj.getConfig()
    if result.status != 0:
       # Problem getting the configuration, so do nothing
       log(logging.ERROR, log_name, 'Failed to retrieve configuration from the store (%d, %s)' % (result.status, result.text))

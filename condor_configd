@@ -56,11 +56,13 @@ class EventConsole(Console):
       self.node = []
       self.logger_name = ''
       self.name = ''
+      self.managedfile = ''
 
 
-   def config(self, obj, name):
+   def config(self, obj, name, filename):
       self.node = obj
       self.logger_name = name
+      self.managedfile = filename
 
 
    def event(self, broker, event):
@@ -68,7 +70,7 @@ class EventConsole(Console):
          args = event.getArguments()
          affected_hosts = args['AffectedNodes'].split(',')
          if self.node.getIndex() in affected_hosts:
-            get_config(self.node, self.logger_name)
+            get_config(self.node, self.logger_name, self.managedfile)
             if args['Restart'] == True:
                cmd = 'condor_restart'
             else:
@@ -88,7 +90,7 @@ class EventConsole(Console):
 #         affected_hosts = args['nodelist']
 #         if self.node.getIndex() in affected_hosts.keys():
          if True:
-            get_config(self.node, self.logger_name)
+            get_config(self.node, self.logger_name, self.managedfile)
             (retval, out, err) = run_cmd('condor_restart -subsystem master')
             if retval != 0:
                log(logging.ERROR, self.logger_name, 'Failed to send command to subsystem "master" (stdout: %s, stderr: %s)' % (out, err))
@@ -105,16 +107,20 @@ class Service:
       self.interval = 0
       self.node_obj = []
       self.logger_name = ''
+      self.filename = ''
+      self.node_name = ''
       self.timer = None
 
 
-   def init(self, name):
+   def init(self, node, name):
       self.console = EventConsole()
       self.session = Session(self.console, manageConnections=False, rcvObjects=False, rcvHeartbeats=False, rcvEvents=True)
       self.logger_name = name
+      self.node_name = node
+      self.managedfile = ''
 
 
-   def config(self):
+   def config(self, filename):
       if self.broker != None:
          self.session.delBroker(self.broker)
          self.broker = None
@@ -143,6 +149,16 @@ class Service:
       except ConfigError, error:
          log(logging.INFO, self.logger_name, '%s. Node configuration evaluation disabled' % error.msg)
          self.interval = 0
+
+      if filename == '':
+         try:
+            loc = read_condor_config('LOCAL_CONFIG', ['DIR'])
+            self.managedfile = '%s/00wallaby_node.config' % loc['dir']
+         except:
+            log(logging.ERROR, log_name, 'LOCAL_CONFIG_DIR not defined.  Unable to write config')
+            return(False)
+      else:
+         self.managedfile = filename
        
       try:
          self.broker = self.session.addBroker('amqp://%s:%s' % (self.broker_ip, self.broker_port))
@@ -160,7 +176,7 @@ class Service:
          return(False)
 
       self.store = obj[0]
-      result = self.store.getNode(socket.gethostname())
+      result = self.store.getNode(self.node_name)
       if result.status != 0:
          log(logging.CRITICAL, self.logger_name, '(%d, %s): Store does not know about this node' % (result.status, result.text))
          return(False)
@@ -175,7 +191,7 @@ class Service:
             return(False)
          else:
             self.node_obj = obj[0]
-      self.console.config(self.node_obj, self.logger_name)
+      self.console.config(self.node_obj, self.logger_name, self.managedfile)
 
       return(True)
 
@@ -215,10 +231,10 @@ class Service:
          # Never been configured before, so send a bank version
          version = -1
       if version != self.node_obj.last_updated_version:
-         get_config(self.node_obj, self.logger_name)
+         get_config(self.node_obj, self.logger_name, self.managedfile)
 
 
-def get_config(node_obj, log_name):
+def get_config(node_obj, log_name, managedfile):
    global replacing_file
 
    # Retrieve the node's configuration
@@ -243,17 +259,10 @@ def get_config(node_obj, log_name):
       return
 
    # Install the file for condor to use
-   try:
-      loc = read_condor_config('LOCAL_CONFIG', ['DIR'])
-   except:
-      log(logging.ERROR, log_name, 'LOCAL_CONFIG_DIR not defined.  Unable to write config')
-      return
-
-   file_name = '%s/00wallaby_node.config' % loc['dir']
    replacing_file = True
-   if os.path.exists(file_name):
-      os.remove(file_name)
-   shutil.move(name, file_name)
+   if os.path.exists(managedfile):
+      os.remove(managedfile)
+   shutil.move(name, managedfile)
    replacing_file = False
 
    node_obj.checkin()
@@ -275,54 +284,63 @@ replacing_file = False
 def main(argv=None):
    global service, stop_running, replacing_file
 
+   if argv is None:
+      argv = sys.argv
+
    try:
-      size = {}
+      file = {}
+      retrieve = False
+      logger_name = os.path.basename(argv[0])
+      node_name = socket.gethostname()
+      config_file = ''
 
-      if argv is None:
-         argv = sys.argv
-
-      long_opts = ['retrieve']
-
-      # Configure the logging system
+      long_opts = ['hostname=', 'logfile=', 'managedfile=', 'retrieve']
       try:
-         file = read_condor_config('QMF_CONFIGD', ['LOG'])
-      except ConfigError, error:
-         print 'Error: %s.  Exiting' % error.msg
-         return(1)
-
-      try:
-         size = int(read_condor_config('MAX_QMF_CONFIGD', ['LOG'])['log'])
-      except:
-         size = 1000000
-         
-
-      base_logger = create_file_logger(os.path.basename(argv[0]), file['log'], logging.INFO, size=size)
-
-      try:
-         opts, args = getopt.gnu_getopt(argv[1:], 'r', long_opts)
+         opts, args = getopt.gnu_getopt(argv[1:], 'h:l:m:r', long_opts)
       except getopt.GetoptError, error:
          print str(error)
          return(1)
 
       for option, arg in opts:
+         if option in ('-h', '--hostname'):
+            node_name = arg
+         if option in ('-l', '--logfile'):
+            file['log'] = arg
+         if option in ('-m', '--managedfile'):
+            config_file = arg
          if option in ('-r', '--retrieve'):
-            service.init(os.path.basename(argv[0]))
-            if service.config() != True:
-               print 'Error: Unable to retrieve configuration'
-               return(1)
-            else:
-               service.check_config_ver()
-               logging.shutdown()
-               return(0)
+            retrieve = True
+
+      # Configure the logging system
+      if 'log' not in file.keys():
+         try:
+            file = read_condor_config('QMF_CONFIGD', ['LOG'])
+         except ConfigError, error:
+            print 'Error: %s.  Exiting' % error.msg
+            return(1)
+
+      try:
+         size = int(read_condor_config('MAX_QMF_CONFIGD', ['LOG'])['log'])
+      except:
+         size = 1000000
+
+      base_logger = create_file_logger(logger_name, file['log'], logging.INFO, size=size)
 
       # Set signal handlers
       signal.signal(signal.SIGINT, exit_signal_handler)
       signal.signal(signal.SIGTERM, exit_signal_handler)
 
       # Retrieve the broker information from condor's configuration file
-      service.init(os.path.basename(argv[0]))
-      if service.config() != True:
+      service.init(node_name, logger_name)
+      if service.config(config_file) != True:
+         if retrieve == True:
+            print 'Error: Unable to retrieve configuration'
+            base_logger(logging.CRITICAL, os.path.basename(argv[0]), 'Unable to retrieve configuration')
          return(1)
+      elif retrieve == True:
+         service.check_config_ver()
+         logging.shutdown()
+         return(0)
 
       # Delay initial checkin after startup 
       random.seed()

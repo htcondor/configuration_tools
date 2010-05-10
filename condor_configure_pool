@@ -16,7 +16,6 @@
 import getopt
 import os
 import sys
-import re
 import signal
 from wallabyclient import WallabyHelpers
 from qmf.console import Session

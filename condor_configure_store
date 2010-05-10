@@ -15,7 +15,6 @@
 import getopt
 import os
 import sys
-import re
 import signal
 import yaml
 import tempfile

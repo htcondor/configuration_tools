@@ -155,7 +155,7 @@ class Service:
             loc = read_condor_config('LOCAL_CONFIG', ['DIR'])
             self.managedfile = '%s/00wallaby_node.config' % loc['dir']
          except:
-            log(logging.ERROR, log_name, 'LOCAL_CONFIG_DIR not defined.  Unable to write config')
+            log(logging.ERROR, self.logger_name, 'LOCAL_CONFIG_DIR not defined.  Unable to write config')
             return(False)
       else:
          self.managedfile = filename
@@ -191,6 +191,7 @@ class Service:
             return(False)
          else:
             self.node_obj = obj[0]
+            log(logging.INFO, self.logger_name, 'Retrieved node object from store')
       self.console.config(self.node_obj, self.logger_name, self.managedfile)
 
       return(True)
@@ -225,13 +226,19 @@ class Service:
          return(1)
 
       try:
-         val = read_condor_config('WALLABY_CONFIG', ['VERSION'])
+         val = read_condor_config('WALLABY_CONFIG', ['VERSION'], {'CONDOR_CONFIG':self.managedfile})
          version = int(val['version'])
       except ConfigError, error:
          # Never been configured before, so send a bank version
          version = -1
-      if version != self.node_obj.last_updated_version:
+
+      self.node_obj.update()
+      new_version = self.node_obj.last_updated_version
+      if version != new_version:
          get_config(self.node_obj, self.logger_name, self.managedfile)
+         log(logging.INFO, self.logger_name, 'Retrieved new configuration from the store(%d!=%d)' % (version, new_version))
+      else:
+         self.node_obj.checkin()
 
 
 def get_config(node_obj, log_name, managedfile):
@@ -330,12 +337,14 @@ def main(argv=None):
       signal.signal(signal.SIGINT, exit_signal_handler)
       signal.signal(signal.SIGTERM, exit_signal_handler)
 
+      log(logging.INFO, logger_name, 'Starting Up')
+
       # Retrieve the broker information from condor's configuration file
       service.init(node_name, logger_name)
       if service.config(config_file) != True:
          if retrieve == True:
             print 'Error: Unable to retrieve configuration'
-            base_logger(logging.CRITICAL, os.path.basename(argv[0]), 'Unable to retrieve configuration')
+            log(logging.CRITICAL, logger_name, 'Unable to retrieve configuration')
          return(1)
       elif retrieve == True:
          service.check_config_ver()
@@ -345,6 +354,7 @@ def main(argv=None):
       # Delay initial checkin after startup 
       random.seed()
       time.sleep(random.randint(0, 10))
+      service.check_config_ver()
       service.setup_timers()
 
       # Loop forever until told to shutdown

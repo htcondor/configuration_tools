@@ -101,9 +101,9 @@ if result.status != 0:
 else:
    node = session.getObjects(_objectId=result.outArgs['obj'])[0]
 
-#try:
+try:
    # Test 1 - Test the initial checkin
-   print 'Testing initial checkin: \t\t\t',
+   print 'Testing initial checkin: \t\t\t\t\t',
 
    # The configd waits between 0-10 seconds before initial checking, so wait 12
    # seconds to verify configd has checked in with the store for the first time
@@ -117,7 +117,7 @@ else:
 
    # Test 2 - Verify a new config version is in the config file (should be 0
    # since this would be the first checkin)
-   print 'Verifying config file pulled from store: \t\t',
+   print 'Verifying config file pulled from store: \t\t\t',
    try:
       version = int(read_condor_config('WALLABY_CONFIG', ['VERSION'], environ={'CONDOR_CONFIG':config_file})['version'])
    except:
@@ -129,7 +129,7 @@ else:
       print 'FAILED (%d!=0)' % version
 
    # Test 3 - Verify configd checkins in with the store periodically
-   print 'Testing periodic checkin: \t\t\t\t',
+   print 'Testing periodic checkin: \t\t\t\t\t',
    old_checkin = node.last_checkin
    time.sleep(checkin_time+1)
    node.update()
@@ -139,7 +139,7 @@ else:
       print 'FAILED (%d !< %d)' % (old_checkin, node.last_checkin)
 
    # Test 4 - Test config retrieval if new version found at wallaby
-   print 'Testing periodic checkin retrieves new config: \t\t',
+   print 'Testing periodic checkin retrieves new config: \t\t\t',
    node.setLastUpdatedVersion(version+1)
    time.sleep(checkin_time+1)
    old_version = version
@@ -154,7 +154,7 @@ else:
       print 'FAILED (%d == %d)' % (version, old_version)
 
    # Test 5 - Verify older config version causes config retrieval
-   print 'Testing older version causes config retrieval: \t\t',
+   print 'Testing older version causes config retrieval: \t\t\t',
    node.setLastUpdatedVersion(version-1)
    time.sleep(checkin_time+1)
    old_version = version
@@ -168,8 +168,8 @@ else:
    else:
       print 'FAILED (%d == %d)' % (version, old_version)
 
-   # Test 6 - Test event (1 target) causes config file download
-   print 'Testing event with single target causes config retrieval: \t',
+   # Test 6 - Test event (1 target) causes config retrieval
+   print 'Testing event (1 target 1 subsys) causes config retrieval: \t',
    old_version = version
    node.setLastUpdatedVersion(version+1)
    store.raiseEvent([nodename], True, ['master'])
@@ -184,8 +184,8 @@ else:
    else:
       print 'FAILED (%d == %d)' % (version, old_version)
 
-   # Test 7 - Test event (>1 target) causes config file download
-   print 'Testing event with mulitple targets causes config retrieval: \t',
+   # Test 7 - Test event (>1 target) causes config retrieval
+   print 'Testing event (>1 targets 1 subsys) causes config retrieval: \t',
    old_version = version
    node.setLastUpdatedVersion(version+1)
    store.raiseEvent([nodename, 'node1', 'node2'], True, ['master'])
@@ -200,8 +200,8 @@ else:
    else:
       print 'FAILED (%d == %d)' % (version, old_version)
 
-   # Test 8 - Test event (1 target & >1 subsys) causes config file download
-   print 'Testing event with 1 target multiple subsystems causes config retrieval: \t',
+   # Test 8 - Test event (1 target & >1 subsys) causes config retrieval
+   print 'Testing event (1 target >1 subsys) causes config retrieval: \t',
    old_version = version
    node.setLastUpdatedVersion(version+1)
    store.raiseEvent([nodename], True, ['master', 'startd', 'schedd'])
@@ -216,8 +216,8 @@ else:
    else:
       print 'FAILED (%d == %d)' % (version, old_version)
 
-   # Test 9 - Test event (>1 target & >1 subsys) causes config file download
-   print 'Testing event with >1 target mulitple subsystems causes config retrieval: \t',
+   # Test 9 - Test event (>1 target & >1 subsys) causes config retrieval
+   print 'Testing event (>1 target >1 subsys) causes config retrieval: \t',
    old_version = version
    node.setLastUpdatedVersion(version+1)
    store.raiseEvent([nodename, 'node1', 'node2'], True, ['master', 'schedd'])
@@ -232,9 +232,25 @@ else:
    else:
       print 'FAILED (%d == %d)' % (version, old_version)
 
-#except Exception, error:
-#   print 'Error: Exception raised: %s' % error
-#   os.killpg(os.getpgid(store_pid), 15)
+   # Test 10 - Test event not for this node does not cause a config retrieval
+   print 'Testing not all events cause config retrieval: \t\t\t',
+   old_version = version
+   node.setLastUpdatedVersion(version+1)
+   store.raiseEvent(['node1', 'node2'], True, ['master', 'schedd'])
+   time.sleep(1)
+   try:
+      version = int(read_condor_config('WALLABY_CONFIG', ['VERSION'], environ={'CONDOR_CONFIG':config_file})['version'])
+   except:
+      print 'Error: Failed to find WALLABY_CONFIG_VERSION in config file'
+      version = old_version
+   if old_version == version:
+      print 'PASS (%d == %d)' % (version, old_version)
+   else:
+      print 'FAILED (%d != %d)' % (version, old_version)
+
+except Exception, error:
+   print 'Error: Exception raised: %s' % error
+   os.killpg(os.getpgid(store_pid), 15)
 
 # Shut everything down
 os.killpg(os.getpgid(store_pid), 15)

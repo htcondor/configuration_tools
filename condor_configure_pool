@@ -68,7 +68,10 @@ def configure_qmf_broker(params, is_delete):
       params['QMF_BROKER_PORT'] = ''
    else:
       value = raw_input('Enter the hostname of the AMQP broker this group will use to communicate with the Management Console: ')
-      params['QMF_BROKER_HOST'] = value.split()[0]
+      if value != '':
+         params['QMF_BROKER_HOST'] = value.split()[0]
+      else:
+         params['QMF_BROKER_HOST'] = value
 
       valid = False
       while valid == False:
@@ -93,7 +96,7 @@ def get_ec2e_routes():
       config += ' set_gridresource = "amazon";'
       config += ' set_amazoninstancetype = "m1.small";'
       config += ' set_remote_jobuniverse = 5;'
-      get_aws_data(config)
+      config += get_aws_data()
       config += ' ]'
 
    answer = raw_input('Enable EC2 routing to the High-Compute Medium AMI type [y/N] ? ')
@@ -104,7 +107,7 @@ def get_ec2e_routes():
       config += ' set_gridresource = "amazon";'
       config += ' set_amazoninstancetype = "c1.medium";'
       config += ' set_remote_jobuniverse = 5;'
-      get_aws_data(config)
+      config += get_aws_data()
       config += ' ]'
 
    answer = raw_input('Enable EC2 routing to the High-Compute Extra Large AMI type [y/N] ? ')
@@ -115,7 +118,7 @@ def get_ec2e_routes():
       config += ' set_gridresource = "amazon";'
       config += ' set_amazoninstancetype = "c1.xlarge";'
       config += ' set_remote_jobuniverse = 5;'
-      get_aws_data(config)
+      config += get_aws_data()
       config += ' ]'
 
    answer = raw_input('Enable EC2 routing to the XLarge AMI type [y/N] ? ')
@@ -126,7 +129,7 @@ def get_ec2e_routes():
       config += ' set_gridresource = "amazon";'
       config += ' set_amazoninstancetype = "m1.xlarge";'
       config += ' set_remote_jobuniverse = 5;'
-      get_aws_data(config)
+      config += get_aws_data()
       config += ' ]'
 
    answer = raw_input('Enable EC2 routing to the Large AMI type [y/N] ? ')
@@ -137,33 +140,35 @@ def get_ec2e_routes():
       config += ' set_gridresource = "amazon";'
       config += ' set_amazoninstancetype = "m1.large";'
       config += ' set_remote_jobuniverse = 5;'
-      get_aws_data(config)
+      config += get_aws_data()
       config += ' ]'
    return (config, config == '$(JOB_ROUTER_ENTRIES)')
 
 
-def get_aws_data(info):
-      resp = raw_input('Enter a filename containing an AWS Public Key for this route: ')
-      if resp.strip() != '':
-         info += ' set_amazonpublickey = "%s";' % resp.strip()
-      resp = raw_input('Enter a filename containing an AWS Private Key for this route: ')
-      if resp.strip() != '':
-         info += ' set_amazonprivatekey = "%s";' % resp.strip()
-      resp = raw_input('Enter a filename containing an AWS Access Key for this route: ')
-      if resp.strip() != '':
-         info += ' set_amazonaccesskey = "%s";' % resp.strip()
-      resp = raw_input('Enter a filename containing an AWS Secret Key for this route: ')
-      if resp.strip() != '':
-         info += ' set_amazonsecretkey = "%s";' % resp.strip()
-      resp = raw_input('Enter a filename containing an RSA Public Key for this route: ')
-      if resp.strip() != '':
-         info += ' set_rsapublickey = "%s";' % resp.strip()
-      resp = raw_input('Enter an S3 Storage Bucket name for this route: ')
-      info += ' set_amazons3bucketname = "%s";' % resp.strip()
-      resp = raw_input('Enter an SQS Queue name for this route: ')
-      info += ' set_amazonsqsqueuename = "%s";' % resp.strip()
-      resp = raw_input('Enter an AMI ID for use with this route: ')
-      info += ' set_amazonamiid = "%s";' % resp.strip()
+def get_aws_data():
+   info = ''
+   resp = raw_input('Enter a filename containing an AWS Public Key for this route: ')
+   if resp.strip() != '':
+      info += ' set_amazonpublickey = "%s";' % resp.strip()
+   resp = raw_input('Enter a filename containing an AWS Private Key for this route: ')
+   if resp.strip() != '':
+      info += ' set_amazonprivatekey = "%s";' % resp.strip()
+   resp = raw_input('Enter a filename containing an AWS Access Key for this route: ')
+   if resp.strip() != '':
+      info += ' set_amazonaccesskey = "%s";' % resp.strip()
+   resp = raw_input('Enter a filename containing an AWS Secret Key for this route: ')
+   if resp.strip() != '':
+      info += ' set_amazonsecretkey = "%s";' % resp.strip()
+   resp = raw_input('Enter a filename containing an RSA Public Key for this route: ')
+   if resp.strip() != '':
+      info += ' set_rsapublickey = "%s";' % resp.strip()
+   resp = raw_input('Enter an S3 Storage Bucket name for this route: ')
+   info += ' set_amazons3bucketname = "%s";' % resp.strip()
+   resp = raw_input('Enter an SQS Queue name for this route: ')
+   info += ' set_amazonsqsqueuename = "%s";' % resp.strip()
+   resp = raw_input('Enter an AMI ID for use with this route: ')
+   info += ' set_amazonamiid = "%s";' % resp.strip()
+   return info
 
 
 def get_feature_params(sess, store, feature):
@@ -737,8 +742,7 @@ def main(argv=None):
             else:
                all_params = result.outArgs['params']
                all_params.update(replace_list)
-               special = ['SCHEDD_NAME', 'SCHEDD_HOST', 'QMF_BROKER_HOST', \
-                          'QMF_BROKER_PORT']
+               special = ['SCHEDD_NAME', 'SCHEDD_HOST']
                for sparam in special:
                   if sparam in all_params.keys() and \
                      sparam not in replace_list.keys():

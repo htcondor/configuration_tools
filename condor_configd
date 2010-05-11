@@ -67,33 +67,34 @@ class EventConsole(Console):
 
    def event(self, broker, event):
       if event.getClassKey().getClassName() == 'WallabyConfigEvent':
+         log(logging.INFO, self.logger_name, 'Received a WallabyConfigEvent')
          args = event.getArguments()
          affected_hosts = args['affectedNodes']
          if self.node.getIndex() in affected_hosts.keys():
+            log(logging.INFO, self.logger_name, 'The event is for this node')
             get_config(self.node, self.logger_name, self.managedfile, affected_hosts[self.node.getIndex()])
             if args['restart'] == True:
                cmd = 'condor_restart'
             else:
                cmd = 'condor_reconfig'
 
-            targets = args['Targets']
+            targets = args['targets']
+
+            # Convert keys from unicode.  Yuck
+            for subsys in targets:
+               val = targets[subsys]
+               del targets[subsys]
+               targets[str(subsys)] = val
             for subsys in targets['condor']:
+               subsys = str(subsys)
                if subsys == 'carod' or subsys == 'condor_configd':
                   (retval, out, err) = run_cmd('condor_restart -subsystem %s' % subsys)
                else:
                   (retval, out, err) = run_cmd('%s -subsystem %s' % (cmd, subsys))
                if retval != 0:
-                  log(logging.ERROR, self.logger_name, 'Failed to send command to subsystem "%s" (stdout: %s, stderr: %s)' % (subsys, out, err))
-      elif event.getClassKey().getClassName() == 'NewConfigEvent':
-#         print dir(event)
-#         args = event.getArguments()
-#         affected_hosts = args['nodelist']
-#         if self.node.getIndex() in affected_hosts.keys():
-         if True:
-            get_config(self.node, self.logger_name, self.managedfile)
-            (retval, out, err) = run_cmd('condor_restart -subsystem master')
-            if retval != 0:
-               log(logging.ERROR, self.logger_name, 'Failed to send command to subsystem "master" (stdout: %s, stderr: %s)' % (out, err))
+                  log(logging.ERROR, self.logger_name, 'Failed to send command to subsystem "%s" (stdout: "%s", stderr: "%s")' % (subsys, out, err))
+               else:
+                  log(logging.INFO, self.logger_name, 'Sent command to subsystem "%s"' % subsys)
 
 
 class Service:
@@ -229,13 +230,13 @@ class Service:
          val = read_condor_config('WALLABY_CONFIG', ['VERSION'], {'CONDOR_CONFIG':self.managedfile})
          version = int(val['version'])
       except ConfigError, error:
-         # Never been configured before, so send a bank version
+         # Never been configured before
          version = -1
       self.node_obj.update()
       wallaby_ver = self.node_obj.last_updated_version
       if version != wallaby_ver:
          get_config(self.node_obj, self.logger_name, self.managedfile, wallaby_ver)
-         log(logging.INFO, self.logger_name, 'Retrieved new configuration from the store(%d!=%d)' % (version, new_version))
+         log(logging.INFO, self.logger_name, 'Retrieved new configuration from the store(%d!=%d)' % (version, wallaby_ver))
       else:
          self.node_obj.checkin()
 

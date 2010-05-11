@@ -79,13 +79,7 @@ class EventConsole(Console):
                cmd = 'condor_reconfig'
 
             targets = args['targets']
-
-            # Convert keys from unicode.  Yuck
             for subsys in targets:
-               val = targets[subsys]
-               del targets[subsys]
-               targets[str(subsys)] = val
-            for subsys in targets['condor']:
                subsys = str(subsys)
                if subsys == 'carod' or subsys == 'condor_configd':
                   (retval, out, err) = run_cmd('condor_restart -subsystem %s' % subsys)

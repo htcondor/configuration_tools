@@ -68,10 +68,7 @@ module Mrg
                      node_map[name] = 0
                   end
                end
-               event = WallabyConfigEvent.new(node_map, need_restart, {'condor' => subsystems})
-#               event.affectedNodes = node_map
-#               event.restart = need_restart
-#               event.targets = {'condor' => subsystems}
+               event = WallabyConfigEvent.new(node_map, need_restart, subsystems)
                event.bang!
             end
 
@@ -109,7 +106,6 @@ module Mrg
             qmf_property :last_updated_version, :uint64
 
             def getConfig(version)
-#               config["WALLABY_CONFIG_VERSION"] = self.last_updated_version.to_s
                config["WALLABY_CONFIG_VERSION"] = version
                config
             end
@@ -145,7 +141,7 @@ module Mrg
             include ::SPQR::Raiseable
             arg :affectedNodes, :map, ""
             arg :restart, :bool, ""
-            arg :targets, :map, ""
+            arg :targets, :list, ""
 
             qmf_class_name :WallabyConfigEvent
             qmf_package_name :WallabyConfigEvent

@@ -626,12 +626,14 @@ def main(argv=None):
       if result.status != 0:
          print 'Error: Failed to load snapshot "%s" (%d %s)' % (snapshot_name, result.status, result.text)
          return(1)
+      print 'Snapshot loaded'
       return(0)
    elif action == 'remove-snapshot':
       result = config_store.removeSnapshot(snapshot_name)
       if result.status != 0:
          print 'Error: Failed to remove snapshot "%s" (%d %s)' % (snapshot_name, result.status, result.text)
          return(1)
+      print 'Snapshot removed'
       return(0)
    elif action == 'take-snapshot':
       save_snapshot(config_store, snapshot_name)
@@ -691,7 +693,7 @@ def main(argv=None):
             if action == 'add':
                input = raw_input('Value for "%s": ' % param)
                if input != '':
-                  param_list[param] = input.split()[0]
+                  param_list[param] = input.strip()
                else:
                   param_list[param] = input
             else:

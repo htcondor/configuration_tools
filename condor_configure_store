@@ -53,7 +53,7 @@ def main(argv=None):
       argv = sys.argv
 
    broker_ip = '127.0.0.1'
-   port = '5672'
+   port = 5672
    action = ''
    features = ''
    groups = ''
@@ -140,7 +140,11 @@ def main(argv=None):
       if option in ('-P', '--password'):
          passwd = arg
       if option in ('-o', '--port'):
-         port = arg
+         try:
+            port = int(arg)
+         except:
+            print 'Invalid broker port'
+            return(1)
       if option in ('-s', '--subsys'):
          subsys = arg
       if option in ('-U', '--user'):
@@ -154,13 +158,13 @@ def main(argv=None):
    session = Session()
    try:
       if username != '' and passwd != '':
-         broker = session.addBroker('amqp://%s/%s@%s:%s' % (username, passwd, broker_ip, port))
+         broker = session.addBroker('amqp://%s/%s@%s:%d' % (username, passwd, broker_ip, port))
       elif username != '':
-         broker = session.addBroker('amqp://%s@%s:%s' % (username, broker_ip, port))
+         broker = session.addBroker('amqp://%s@%s:%d' % (username, broker_ip, port))
       else:
-         broker = session.addBroker('amqp://%s:%s' % (broker_ip, port))
+         broker = session.addBroker('amqp://%s:%d' % (broker_ip, port))
    except:
-      print 'Unable to connect to broker "%s:%s"' % (broker_ip, port)
+      print 'Unable to connect to broker "%s:%d"' % (broker_ip, port)
       return(1)
 
    # Retreive the config store object
@@ -435,6 +439,7 @@ def main(argv=None):
                   for key in error.errors.keys():
                      print '%s: %s' % (key, error.errors[key])
          file.close()
+   session.delBroker(broker)
 
 
 if __name__ == '__main__':

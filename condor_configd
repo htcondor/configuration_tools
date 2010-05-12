@@ -274,6 +274,7 @@ def exit_signal_handler(signum, frame):
 
    service.shutdown()
    del service
+   service = None
    logging.shutdown()
    stop_running = True
 
@@ -325,7 +326,11 @@ def main(argv=None):
       except:
          size = 1000000
 
-      base_logger = create_file_logger(logger_name, file['log'], logging.INFO, size=size)
+      try:
+         base_logger = create_file_logger(logger_name, file['log'], logging.INFO, size=size)
+      except:
+         print 'Failed to open log file.  Exiting'
+         return(1)
 
       # Set signal handlers
       signal.signal(signal.SIGINT, exit_signal_handler)
@@ -334,22 +339,26 @@ def main(argv=None):
       log(logging.INFO, logger_name, 'Starting Up')
 
       # Retrieve the broker information from condor's configuration file
-      service.init(node_name, logger_name)
-      if service.config(config_file) != True:
+      if service != None:
+         service.init(node_name, logger_name)
+      if service != None and service.config(config_file) != True:
          if retrieve == True:
             print 'Error: Unable to retrieve configuration'
             log(logging.CRITICAL, logger_name, 'Unable to retrieve configuration')
          return(1)
       elif retrieve == True:
-         service.check_config_ver()
+         if service != None:
+            service.check_config_ver()
          logging.shutdown()
          return(0)
 
       # Delay initial checkin after startup 
       random.seed()
       time.sleep(random.randint(0, 10))
-      service.check_config_ver()
-      service.setup_timers()
+      if service != None:
+         service.check_config_ver()
+      if service != None:
+         service.setup_timers()
 
       # Loop forever until told to shutdown
       while stop_running == False or replacing_file == True:

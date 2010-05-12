@@ -12,8 +12,9 @@
 #   See the License for the specific language governing permissions and
 #   limitations under the License.
 import os
+import time
 from wallabyclient.exceptions import WallabyError
-from datetime import datetime
+#from datetime import datetime
 
 def get_group(sess, store, name):
    if name != '':
@@ -325,7 +326,7 @@ def list_node_info(sess, store, name):
          if value == 0:
             print 'Last Check-in Time: Never'
          else:
-            print 'Last Check-in Time: %s' % datetime.fromtimestamp(value/1000000).strftime('%A %B %d, %Y %H:%M:%S')
+            print 'Last Check-in Time: %s' % time.ctime(value/1000000)
 
       result = node_obj.getMemberships()
       if result.status != 0:

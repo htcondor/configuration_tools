@@ -57,9 +57,9 @@ def configure_node_schedulers(params, is_delete):
       def_sched = raw_input('Enter the name of the default scheduler: ')
       if def_sched != '':
          if raw_input('Is this a High Available Scheduler [y/N] ? ').lower() == 'y':
-            params['SCHEDD_NAME'] = def_sched.split()[0]
+            params['SCHEDD_NAME'] = def_sched.strip()
          else:
-            params['SCHEDD_HOST'] = def_sched.split()[0]
+            params['SCHEDD_HOST'] = def_sched.strip()
 
 
 def configure_qmf_broker(params, is_delete):
@@ -69,7 +69,7 @@ def configure_qmf_broker(params, is_delete):
    else:
       value = raw_input('Enter the hostname of the AMQP broker this group will use to communicate with the Management Console: ')
       if value != '':
-         params['QMF_BROKER_HOST'] = value.split()[0]
+         params['QMF_BROKER_HOST'] = value.strip()
       else:
          params['QMF_BROKER_HOST'] = value
 
@@ -80,7 +80,7 @@ def configure_qmf_broker(params, is_delete):
          if value != '':
             try:
                junk = int(value)
-               params['QMF_BROKER_PORT'] = value.split()[0]
+               params['QMF_BROKER_PORT'] = value.strip()
             except ValueError:
                print 'Error: "%s" is not a valid value' % value
                valid = False
@@ -213,7 +213,7 @@ def get_unique_mustchange_params(sess, store, feature_list, group_obj):
             # it is, that means the parameter hasn't been set
             if param in mustchange_list.keys() and \
                feat_params[param] == mustchange_list[param]:
-               candidate_params += ['%s' % param]
+               candidate_params += [param]
 
    # Now, get the parameter list for the features configured on
    # the group
@@ -289,7 +289,7 @@ def check_more_params_needed(sess, store, features, params, more_params, gobj):
       while input != 'xen' and input != 'kvm':
          input = raw_input('Type of Virtual Machines to run on this node (xen or kvm): ')
          if input != '':
-            input = input.lower().split()[0]
+            input = input.lower().strip()
          if input != 'xen' and input != 'kvm':
             print 'Error: "%s" is not a valid Virtual Machine type.  Please try again' % input
       
@@ -345,17 +345,17 @@ def check_more_params_needed(sess, store, features, params, more_params, gobj):
    # Prompt the user if there are still parameters that need to be set
    if len(unique_params) > 0:
       print 'The following parameters need to be set for this configuration to be valid.'
-      for param in unique_params.keys():
+      for param in sorted(unique_params.keys()):
          if param != '' and param not in params.keys() and \
             param not in more_params.keys():
             print param
       answer = raw_input('Set these parameters now ? [y/N] ')
       if answer.lower() == 'y':
-         for param in unique_params.keys():
+         for param in sorted(unique_params.keys()):
             if param != '' and param not in params.keys() and \
                param not in more_params.keys():
                value = raw_input('%s: '% param)
-               set_param(param, value.split()[0], params)
+               set_param(param, value.strip(), params)
       else:
          print 'Electing not to set these parameters now'
          print 'WARNING: This configuration may not be able to be activated'
@@ -378,7 +378,6 @@ def check_delete_params_needed(sess, store, features, params, gobj):
       if 'VM_TYPE' in feat_params.keys():
          # Remove all the VM Universe params that are always set
          params['VM_TYPE'] = False
-         params['VM_BRIDGE_SCRIPT'] = False
          params['XEN_BOOTLOADER'] = False
          params['VM_NETWORKING'] = False
          params['VM_NETWORKING_TYPE'] = False
@@ -399,19 +398,19 @@ def activate_configuration(store):
          print
       if errors != {}:
          print 'The configuration is not valid'
-         for node in errors.keys():
+         for node in sorted(errors.keys()):
             if node == '+++DEFAULT':
                print 'Node: Internal Default Group'
             else:
                print 'Node: %s' % node
             for reason in errors[node].keys():
                print '%s:' % reason
-               for param in errors[node][reason]:
+               for param in sorted(errors[node][reason]):
                   print '  %s' % param
             print
-         ret_val = True
          print 'Configuration not activated'
       else:
+         ret_val = True
          print 'Configuration activated'
    return ret_val
 
@@ -434,7 +433,7 @@ def main(argv=None):
    broker_ip = '127.0.0.1'
    name = ''
    node = ''
-   port = '5672'
+   port = 5672
    param_list = {}
    replace_list = {}
    group_config = {}
@@ -531,7 +530,11 @@ def main(argv=None):
             return(1)
          node = arg
       if option in ('-o', '--port'):
-         port = arg
+         try:
+            port = int(arg)
+         except:
+            print 'Invalid broker port'
+            return(1)
       if option in ('-p', '--params'):
          params = arg
       if option in ('-P', '--password'):
@@ -564,13 +567,13 @@ def main(argv=None):
    session = Session()
    try:
       if username != '' and passwd != '':
-         broker = session.addBroker('amqp://%s/%s@%s:%s' % (username, passwd, broker_ip, port))
+         broker = session.addBroker('amqp://%s/%s@%s:%d' % (username, passwd, broker_ip, port))
       elif username != '':
-         broker = session.addBroker('amqp://%s@%s:%s' % (username, broker_ip, port))
+         broker = session.addBroker('amqp://%s@%s:%d' % (username, broker_ip, port))
       else:
-         broker = session.addBroker('amqp://%s:%s' % (broker_ip, port))
+         broker = session.addBroker('amqp://%s:%d' % (broker_ip, port))
    except:
-      print 'Unable to connect to broker "%s:%s"' % (broker_ip, port)
+      print 'Unable to connect to broker "%s:%d"' % (broker_ip, port)
       return(1)
 
    # Retreive the config store object
@@ -758,22 +761,26 @@ def main(argv=None):
          print 'Configuration applied'
 
          retry = True
+         config_name = ''
          while retry == True:
             retry = False
-            if raw_input('\nSave this configuration [y/N] ? ').lower() == 'y':
-               config_name = raw_input('  Configuration Name: ')
+            if raw_input('\nCreate a named snapshot of this configuration [y/N] ? ').lower() == 'y':
+               config_name = raw_input('  Snapshot Name: ')
                if config_name == '':
                   retry = True
                   print 'Invalid configuration name'
                   continue 
-               save_snapshot(config_store, config_name)
+               save_snapshot(config_store, config_name.strip())
 
          if raw_input('\nActivate the changes [y/N] ? ').lower() == 'y':
-            activate_configuration(config_store)
+            if activate_configuration(config_store) == True and \
+               config_name == '':
+               save_snapshot(config_store, '')
          else: 
             print 'Configuration not activated'
       else:
          print 'Configuration not applied'
+   session.delBroker(broker)
 
 if __name__ == '__main__':
     sys.exit(main())

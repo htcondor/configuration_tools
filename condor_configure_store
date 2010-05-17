@@ -48,6 +48,32 @@ def print_help(name):
    print '                         the store'
 
 
+def print_wallaby_types(data):
+   def key_function((key,value)):
+      # Prioritize name when sorting.
+      prio = {'name':0, 'type':1, 'default':2, 'description':3, 'params':4}.get(key,99)
+      return (prio, key)
+   items = data.dict_as_list()
+   items.sort(key=key_function)
+   return items
+   
+
+def represent_feature(self, data):
+   return self.represent_mapping(u'!Feature', print_wallaby_types(data))
+
+
+def represent_group(self, data):
+   return self.represent_mapping(u'!Group', print_wallaby_types(data))
+
+
+def represent_param(self, data):
+   return self.represent_mapping(u'!Parameter', print_wallaby_types(data))
+
+
+def represent_subsys(self, data):
+   return self.represent_mapping(u'!Subsystem', print_wallaby_types(data))
+
+
 def main(argv=None):
    if argv is None:
       argv = sys.argv
@@ -337,6 +363,11 @@ def main(argv=None):
    # Now modify the params/features/etc
    if edit_objs != []:
       retry = True
+      yaml.add_representer(WallabyTypes.Feature, represent_feature) 
+      yaml.add_representer(WallabyTypes.Group, represent_group) 
+      yaml.add_representer(WallabyTypes.Parameter, represent_param) 
+      yaml.add_representer(WallabyTypes.Subsystem, represent_subsys) 
+      yaml.add_representer(unicode, lambda dumper, value: dumper.represent_scalar(u'tag:yaml.org,2002:str', value))
       file = tempfile.NamedTemporaryFile()
       while retry == True:
          retry = False

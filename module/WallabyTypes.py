@@ -30,17 +30,16 @@ class Feature(YAMLObject):
       return '%s(name=%r, params=%r, includes=%r, conflicts=%r, depends=%r, subsys=%r' % (self.__class__.__name__, self.name, self.params, self.includes, self.conflicts, self.depends, self.subsys)
 
 
+   def dict_as_list(self):
+      return [('name',self.name), ('params',self.params), ('includes',self.includes), ('conflicts',self.conflicts), ('depends',self.depends)]
+
+
    def init_from_obj(self, obj):
       result = obj.getParams()
       if result.status != 0:
          raise WallabyError({result.status:result.text})
       else:
-         # We've got unicode in the map, so remove it.  This is painful
          self.params = dict(result.outArgs['params'])
-         for key in self.params.keys():
-            val = str(self.params[key])
-            del self.params[key]
-            self.params[str(key)] = val
 
       result = obj.getFeatures()
       if result.status != 0:
@@ -94,6 +93,9 @@ class Feature(YAMLObject):
          if result.outArgs['invalidFeatures'] != []:
             invalid['Feature'] = invalid['Feature'] + result.outArgs['invalidFeatures']
 
+      if invalid != {} or errors != {}:
+         raise WallabyValidateError(invalid, errors)
+
 
    def update(self, obj):
       errors = {}
@@ -137,6 +139,10 @@ class Parameter(YAMLObject):
 
    def __repr__(self):
       return '%s(name=%r, type=%r, default_value=%r, description=%r, must_change=%r, expert_level=%r, requires_restart=%r, parameter_dependencies=%r, parameter_conflicts=%r' % (self.__class__.__name__, self.name, self.type, self.default, self.description, self.must_change, self.level, self.restart, self.depends, self.conflicts)
+
+
+   def dict_as_list(self):
+      return [('name',self.name), ('type',self.type), ('default',self.default), ('description',self.description), ('must_change',self.must_change), ('level',self.level), ('restart',self.restart), ('depends',self.depends), ('conflicts',self.conflicts)]
 
 
    def init_from_obj(self, obj):
@@ -266,6 +272,10 @@ class Group(YAMLObject):
       return '%s(name=%r, group_membership=%r' % (self.__class__.__name__, self.name, self.members)
 
 
+   def dict_as_list(self):
+      return [('name',self.name), ('members',self.members)]
+
+
    def init_from_obj(self, obj):
       result = obj.getMembership()
       if result.status != 0:
@@ -337,6 +347,10 @@ class Subsystem(YAMLObject):
 
    def __repr__(self):
       return '%s(name=%r, affecting_parameters=%r' % (self.__class__.__name__, self.name, self.params)
+
+
+   def dict_as_list(self):
+      return [('name',self.name), ('params',self.params)]
 
 
    def init_from_obj(self, obj):

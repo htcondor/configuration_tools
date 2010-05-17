@@ -189,14 +189,6 @@ def list_feature_info(sess, store, feature):
             print '  %s: %s' % (i, key)
             i = i + 1
 
-      result = feat_obj.getSubsys()
-      if result.status != 0:
-         print 'Error: Failed to retrieve Subsystems (%d, %s)' % (result.status, result.text)
-      else:
-         print 'Subsystems:'
-         for key in result.outArgs['subsystems']:
-            print '  %s' % key
-
 
 def list_param_info(sess, store, name):
    param_obj = get_param(sess, store, name)

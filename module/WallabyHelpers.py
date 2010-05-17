@@ -318,15 +318,11 @@ def list_node_info(sess, store, name):
    node_obj = get_node(sess, store, name)
    if node_obj != None:
       print 'Node "%s":' % name
-      result = node_obj.getLastCheckinTime()
-      if result.status != 0:
-         print 'Error: Failed to retrieve LastCheckinTime (%d, %s)' % (result.status, result.text)
+      value = node_obj.last_checkin
+      if value == 0:
+         print 'Last Check-in Time: Never'
       else:
-         value = int(result.outArgs['time'])
-         if value == 0:
-            print 'Last Check-in Time: Never'
-         else:
-            print 'Last Check-in Time: %s' % time.ctime(value/1000000)
+         print 'Last Check-in Time: %s' % time.ctime(value/1000000)
 
       result = node_obj.getMemberships()
       if result.status != 0:
@@ -369,7 +365,7 @@ def list_node_info(sess, store, name):
       for name in feature_list:
          print '  %s' % name 
 
-      result = node_obj.getConfig()
+      result = node_obj.getConfig({})
       if result.status != 0:
          print 'Error: Failed to retrieve configuration (%d, %s)' % (result.status, result.text)
       else:

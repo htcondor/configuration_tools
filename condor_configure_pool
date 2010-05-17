@@ -260,7 +260,7 @@ def check_more_params_needed(sess, store, features, params, more_params, gobj):
    unique_params = get_unique_mustchange_params(sess, store, features, gobj)
 
    # Get the list of parameters for the group
-   result = gobj.getConfig()
+   result = gobj.getConfig({})
    if result.status != 0:
       print 'Error: Unable to determine if special configuration is needed'
    else:
@@ -585,12 +585,10 @@ def main(argv=None):
 
    if config_store == []:
       print 'Unable to contact Configuration Store'
+      return(1)
    else:
       config_store = config_store[0]
        
-   if config_store == []:
-      return(1)
-
    # Attempt to activate the configuration in the store if told to do so
    if action == 'activate':
       if activate_configuration(config_store) == False:

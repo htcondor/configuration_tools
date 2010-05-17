@@ -176,11 +176,9 @@ def main(argv=None):
 
    if config_store == []:
       print 'Unable to contact Configuration Store'
+      return(1)
    else:
       config_store = config_store[0]
-
-   if config_store == []:
-      return(1)
 
    # Process the list-alls, if there are any.
    if action == 'list-all':

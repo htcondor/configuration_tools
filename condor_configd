@@ -48,14 +48,14 @@ class Timer (threading.Thread):
    def run (self):
       while not self.finished.isSet():
          self.finished.wait(self.interval)
-         self.function(*self.args, **self.kwargs)
+         if not self.finished.isSet():
+            self.function(*self.args, **self.kwargs)
 
 
 class EventConsole(Console):
    def __init__(self):
       self.node = []
       self.logger_name = ''
-      self.name = ''
       self.managedfile = ''
 
 
@@ -155,6 +155,20 @@ class Service:
       else:
          self.managedfile = filename
        
+      self.config_qmf_entities()
+      return(True)
+
+
+   def config_qmf_entities(self):
+      if self.broker != None:
+         try:
+            self.session.delBroker(self.broker)
+         except:
+            self.broker = None
+
+      if self.node_obj != None:
+         self.node_obj = None
+
       try:
          self.broker = self.session.addBroker('amqp://%s:%s' % (self.broker_ip, self.broker_port))
       except:
@@ -167,7 +181,7 @@ class Service:
          obj = []
 
       if obj == []:
-         log(logging.CRITICAL, self.logger_name, 'Failed to contact configuration store.  Exiting')
+         log(logging.CRITICAL, self.logger_name, 'Failed to contact configuration store')
          return(False)
 
       self.store = obj[0]
@@ -188,7 +202,6 @@ class Service:
             self.node_obj = obj[0]
             log(logging.INFO, self.logger_name, 'Retrieved node object from store')
       self.console.config(self.node_obj, self.logger_name, self.managedfile)
-
       return(True)
 
 
@@ -218,6 +231,7 @@ class Service:
       log(logging.INFO, self.logger_name, 'Checking version of condor configuration')
       if self.node_obj == []:
          log(logging.ERROR, self.logger_name, 'No node object from the store')
+         self.config_qmf_entities()
          return(1)
 
       try:
@@ -226,7 +240,13 @@ class Service:
       except ConfigError, error:
          # Never been configured before
          version = -1
-      self.node_obj.update()
+      try:
+         self.node_obj.update()
+      except:
+         # Agent/broker has gone away
+         if self.config_qmf_entities() == False:
+            return(1)
+
       wallaby_ver = self.node_obj.last_updated_version
       if version != wallaby_ver:
          get_config(self.node_obj, self.logger_name, self.managedfile, wallaby_ver)
@@ -239,7 +259,12 @@ def get_config(node_obj, log_name, managedfile, version=''):
    global replacing_file
 
    # Retrieve the node's configuration
-   result = node_obj.getConfig(version)
+   try:
+      result = node_obj.getConfig({'version':version})
+   except:
+      # Something has gone away, so fail silently
+      return
+
    if result.status != 0:
       # Problem getting the configuration, so do nothing
       log(logging.ERROR, log_name, 'Failed to retrieve configuration from the store (%d, %s)' % (result.status, result.text))

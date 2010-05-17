@@ -18,13 +18,12 @@ from WallabyHelpers import get_node
 
 class Feature(YAMLObject):
    yaml_tag = u'!Feature'
-   def __init__(self, name, params={}, includes=[], conflicts=[], depends=[], subsys=[]):
+   def __init__(self, name, params={}, includes=[], conflicts=[], depends=[]):
       self.name = name
       self.params = dict(params)
       self.includes = list(includes)
       self.conflicts = list(conflicts)
       self.depends = list(depends)
-      self.subsys = list(subsys)
 
 
    def __repr__(self):
@@ -61,12 +60,6 @@ class Feature(YAMLObject):
       else:
          self.depends = list(result.outArgs['depends'])
 
-      result = obj.getSubsys()
-      if result.status != 0:
-         raise WallabyError({result.status:result.text})
-      else:
-         self.subsys = list(result.outArgs['subsystems'])
-
 
    def store_validate(self, store):
       invalid = {}
@@ -101,16 +94,6 @@ class Feature(YAMLObject):
          if result.outArgs['invalidFeatures'] != []:
             invalid['Feature'] = invalid['Feature'] + result.outArgs['invalidFeatures']
 
-      result = store.checkSubsystemValidity(self.subsys)
-      if result.status != 0:
-         errors[result.status] = result.text
-      else:
-         if result.outArgs['invalidSubsystems'] != []:
-            invalid['Subsystem'] = result.outArgs['invalidSubsystems']
-
-      if invalid != {} or errors != {}:
-         raise WallabyValidateError(invalid, errors)
-
 
    def update(self, obj):
       errors = {}
@@ -131,10 +114,6 @@ class Feature(YAMLObject):
           errors[result.status] = result.text
 
       result = obj.modifyDepends('replace', self.depends, {})
-      if result.status != 0:
-          errors[result.status] = result.text
-
-      result = obj.modifySubsys('replace', self.subsys)
       if result.status != 0:
           errors[result.status] = result.text
 

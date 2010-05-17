@@ -105,13 +105,13 @@ module Mrg
             qmf_property :last_checkin, :uint64
             qmf_property :last_updated_version, :uint64
 
-            def getConfig(version)
-               config["WALLABY_CONFIG_VERSION"] = version
+            def getConfig(options)
+               config["WALLABY_CONFIG_VERSION"] = options['version']
                config
             end
 
             expose :getConfig do |args|
-               args.declare :version, :uint64, :in, {}
+               args.declare :options, :map, :in, {}
                args.declare :config, :map, :out, {}
             end
 

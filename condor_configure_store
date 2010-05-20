@@ -43,7 +43,7 @@ def print_help(name):
    print '  --list-all-groups    - List all groups in the store'
    print '  --list-all-nodes     - List all nodes in the store'
    print '  --list-all-params    - List all params in the store'
-   print '  --list-all-snapshots - List all snapshots in the store'
+   print '  --list-all-subsystems- List all subsystems in the store'
    print '  --default-group      - Perform actions on the Default Group in'
    print '                         the store'
 

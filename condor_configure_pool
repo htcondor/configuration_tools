@@ -260,7 +260,7 @@ def check_more_params_needed(sess, store, features, params, more_params, gobj):
    unique_params = get_unique_mustchange_params(sess, store, features, gobj)
 
    # Get the list of parameters for the group
-   result = gobj.getConfig({})
+   result = gobj.getConfig()
    if result.status != 0:
       print 'Error: Unable to determine if special configuration is needed'
    else:

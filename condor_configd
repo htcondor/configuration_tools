@@ -57,12 +57,14 @@ class EventConsole(Console):
       self.node = []
       self.logger_name = ''
       self.managedfile = ''
+      self.lock = None
 
 
-   def config(self, obj, name, filename):
+   def config(self, obj, name, filename, lock_obj):
       self.node = obj
       self.logger_name = name
       self.managedfile = filename
+      self.lock = lock_obj
 
 
    def event(self, broker, event):
@@ -72,7 +74,7 @@ class EventConsole(Console):
          affected_hosts = args['affectedNodes']
          if self.node.getIndex() in affected_hosts.keys():
             log(logging.INFO, self.logger_name, 'The event is for this node')
-            get_config(self.node, self.logger_name, self.managedfile, affected_hosts[self.node.getIndex()])
+            get_config(self.node, self.lock, self.logger_name, self.managedfile, affected_hosts[self.node.getIndex()])
             if args['restart'] == True:
                cmd = 'condor_restart'
             else:
@@ -105,6 +107,7 @@ class Service:
       self.filename = ''
       self.node_name = ''
       self.timer = None
+      self.lock = threading.Lock()
 
 
    def init(self, node, name):
@@ -201,7 +204,7 @@ class Service:
          else:
             self.node_obj = obj[0]
             log(logging.INFO, self.logger_name, 'Retrieved node object from store')
-      self.console.config(self.node_obj, self.logger_name, self.managedfile)
+      self.console.config(self.node_obj, self.logger_name, self.managedfile, self.lock)
       return(True)
 
 
@@ -228,7 +231,7 @@ class Service:
 
 
    def check_config_ver(self):
-      log(logging.INFO, self.logger_name, 'Checking version of condor configuration')
+      log(logging.INFO, self.logger_name, 'Periodically checking version of condor configuration')
       if self.node_obj == []:
          log(logging.ERROR, self.logger_name, 'No node object from the store')
          self.config_qmf_entities()
@@ -249,49 +252,81 @@ class Service:
 
       wallaby_ver = self.node_obj.last_updated_version
       if version != wallaby_ver:
-         get_config(self.node_obj, self.logger_name, self.managedfile, wallaby_ver)
-         log(logging.INFO, self.logger_name, 'Retrieved new configuration from the store(%d!=%d)' % (version, wallaby_ver))
+         log(logging.INFO, self.logger_name, 'Periodic checkin has discovered a newer configuation version (%d != %d)' % (version, wallaby_ver))
+         get_config(self.node_obj, self.lock, self.logger_name, self.managedfile, wallaby_ver)
       else:
+         log(logging.INFO, self.logger_name, 'Periodic checkin causing store checkin')
+         self.lock.acquire(True)
          self.node_obj.checkin()
+         self.lock.release()
+         log(logging.INFO, self.logger_name, 'Periodic store checkin completed')
 
 
-def get_config(node_obj, log_name, managedfile, version=''):
+def get_config(node_obj, lock_obj, log_name, managedfile, version=''):
    global replacing_file
+
+   log(logging.INFO, log_name, 'Retrieving configuration version "%d" from the store' % version)
+   lock_obj.acquire(True)
 
    # Retrieve the node's configuration
    try:
       result = node_obj.getConfig({'version':version})
    except:
       # Something has gone away, so fail silently
+      log(logging.ERROR, log_name, 'Exception when attempting to retrieve configuration version "%d" from the store' % version)
+      lock_obj.release()
       return
 
    if result.status != 0:
       # Problem getting the configuration, so do nothing
-      log(logging.ERROR, log_name, 'Failed to retrieve configuration from the store (%d, %s)' % (result.status, result.text))
+      log(logging.ERROR, log_name, 'Failed to retrieve configuration "%d" from the store (%d, %s)' % (version, result.status, result.text))
+      lock_obj.release()
       return
    else:
       config = result.outArgs['config']
 
-   (temp_file,name) = tempfile.mkstemp('.tmp', 'condor_config.local', text=True)
-   for key in config.keys():
-      os.write(temp_file, '%s = %s\n' % (key, config[key]))
-   os.close(temp_file)
+   try:
+      (temp_file,name) = tempfile.mkstemp('.tmp', 'condor_config.local', text=True)
+      for key in config.keys():
+         os.write(temp_file, '%s = %s\n' % (key, config[key]))
+      os.close(temp_file)
+   except:
+      log(logging.ERROR, log_name, 'Failed to write configuration to temp file')
+      lock_obj.release()
+      return
 
    # Verify the config file is valid
    (retval, out, err) = run_cmd('condor_config_val -dump', environ={'CONDOR_CONFIG':'%s' % name})
    if retval != 0:
       log(logging.ERROR, log_name, 'Configuration is invalid.  Discarding')
       os.remove(name)
+      lock_obj.release()
       return
 
    # Install the file for condor to use
    replacing_file = True
    if os.path.exists(managedfile):
       os.remove(managedfile)
-   shutil.move(name, managedfile)
+   try:
+      shutil.move(name, managedfile)
+   except:
+      log(logging.ERROR, log_name, 'Error installing new configuration file')
+      os.remove(name)
+      replacing_file = False
+      lock_obj.release()
+      return
+      
    replacing_file = False
-
-   node_obj.checkin()
+   log(logging.INFO, log_name, 'Retrieved configuration from the store')
+   log(logging.INFO, log_name, 'Performing a checkin with the store')
+   try:
+      node_obj.checkin()
+   except:
+      log(logging.INFO, log_name, 'Failed to check in with the store')
+      lock_obj.release()
+      return
+   log(logging.INFO, log_name, 'Checked in with the store')
+   lock_obj.release()
 
 
 def exit_signal_handler(signum, frame):

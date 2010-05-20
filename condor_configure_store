@@ -195,7 +195,7 @@ def main(argv=None):
 
    # Retreive the config store object
    try:
-      config_store = session.getObjects(_class='Store', _package='mrg.grid.config')
+      config_store = session.getObjects(_class='Store', _package='com.redhat.grid.config')
    except Exception, error:
       print 'Error: %s' % error
       return(1)
@@ -210,7 +210,7 @@ def main(argv=None):
    if action == 'list-all':
       for type in list_alls:
          try:
-            objs = session.getObjects(_class=type, _package='mrg.grid.config')
+            objs = session.getObjects(_class=type, _package='com.redhat.grid.config')
          except Exception, error:
             print 'Error: %s' % error
             return(1)

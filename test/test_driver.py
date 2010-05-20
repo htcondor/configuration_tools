@@ -77,7 +77,7 @@ session = Session()
 session.addBroker('amqp://127.0.0.1:5672')
 store = []
 try:
-   store = session.getObjects(_class='Store', _package='mrg.grid.config')
+   store = session.getObjects(_class='Store', _package='com.redhat.grid.config')
 except Exception, error:
    print 'Error: %s' % error
 

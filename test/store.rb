@@ -9,7 +9,7 @@ module Mrg
       module Config
          class Store
             include ::SPQR::Manageable
-            qmf_package_name 'mrg.grid.config'
+            qmf_package_name 'com.redhat.grid.config'
             qmf_class_name 'Store'
 
             def Store.find_by_id(u)

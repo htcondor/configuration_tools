@@ -355,6 +355,10 @@ def check_more_params_needed(sess, store, features, params, more_params, gobj):
             if param != '' and param not in params.keys() and \
                param not in more_params.keys():
                value = raw_input('%s: '% param)
+               if value.strip() == '':
+                  answer = raw_input('Use a value for "%s" defined elsewhere in the pool configuration? [Y/n] ' % param)
+                  if answer.lower() != 'n':
+                     continue
                set_param(param, value.strip(), params)
       else:
          print 'Electing not to set these parameters now'

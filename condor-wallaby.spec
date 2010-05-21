@@ -1,5 +1,5 @@
 %{!?python_sitelib: %define python_sitelib %(%{__python} -c "from distutils.sysconfig import get_python_lib; print get_python_lib()")}
-%define rel 0.1
+%define rel 0.2
 
 Name: condor-wallaby
 Summary: Condor configuration using wallaby
@@ -106,6 +106,11 @@ cp -f module/*.py %{buildroot}/%{python_sitelib}/wallabyclient
 %{python_sitelib}/wallabyclient/exceptions.py*
 
 %changelog
+* Fri May 21 2010  <rrati@redhat> - 2.7-0.2
+- condor_configure_pool will prompt the user to use a value for a param
+  set elsewhere in the pool configuration if a must_change param is not
+  given a value
+
 * Fri May 21 2010  <rrati@redhat> - 2.7-0.1
 - Increased config logging
 - Fixed issues with condor security disallowing the configd to

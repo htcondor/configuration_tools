@@ -1,9 +1,9 @@
 %{!?python_sitelib: %define python_sitelib %(%{__python} -c "from distutils.sysconfig import get_python_lib; print get_python_lib()")}
-%define rel 0.5
+%define rel 0.1
 
 Name: condor-wallaby
 Summary: Condor configuration using wallaby
-Version: 2.6
+Version: 2.7
 Release: %{rel}%{?dist}
 Group: Applications/System
 License: ASL 2.0
@@ -23,7 +23,7 @@ Summary: Wallaby configuration client for condor
 Group: Applications/System
 Requires: condor
 Requires: python >= 2.3
-Requires: python-qmf
+Requires: python-qmf >= 0.7.946106
 Requires: python-condorutils
 Obsoletes: condor-remote-configuration
 
@@ -106,6 +106,39 @@ cp -f module/*.py %{buildroot}/%{python_sitelib}/wallabyclient
 %{python_sitelib}/wallabyclient/exceptions.py*
 
 %changelog
+* Fri May 21 2010  <rrati@redhat> - 2.7-0.1
+- Increased config logging
+- Fixed issues with condor security disallowing the configd to
+  restart/reconfig condor in some cases
+- --schedds and --qmfbroker can now be used in a remove operation
+- Improved VMUniverse and EC2E special case handling
+- Corrected errors in condor_configure_store help message
+- The configd now acts upon the WallabyConfigEvent
+- Support for versioned configurations
+- condor_configure_store will not allow setting a default value for
+  a parameter if the MustChange is True
+- Listing default group will not show the Members field anymore
+- The configd now checkins in with the store after random wait between 0-10
+  seconds instead of waiting another $UPDATE_INTERVAL to do so
+- Fixed issue where the config would always be retrieved even if the version
+  hadn't changed
+- Fixed issues handling user inputed values that contain spaces
+- Fixed issues with qmfbroker and schedds options would step on each other
+- Improved error handling
+- A successful activation will cause an automatic snapshot to be taken
+- If an invalid port is given with -o, an error message is printed
+- Changed how date is displayed for a node's 'Last Check-in Time'
+- Gracefully handle broker/store going away
+- Do not perform final checkin when the configd exits
+- Poll the node's status before checking configuration versions
+- Removed explicit subsystems from Features
+- The metadata for a wallaby type is now presented with important
+  information first.
+- Better handling of unicode strings
+- Moved to the com.redhat.grid.config namespace
+- Added lock mechanism to prevent preiodic checkin and event config
+  retrieval from clashing
+
 * Wed Apr 14 2010  <rrati@redhat> - 2.6-0.5
 - Added python-devel dep to python-wallabyclient
 - Fixed issue in configd moving new config file across file systems

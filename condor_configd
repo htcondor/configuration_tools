@@ -113,7 +113,7 @@ class Service:
    def init(self, node, name):
       self.console = EventConsole()
       self.session = Session(self.console, manageConnections=False, rcvObjects=False, rcvHeartbeats=False, rcvEvents=True)
-      self.session.addEventFilter(_package='com.redhat.grid.config', _event='WallabyConfigEvent')
+      self.session.addEventFilter(package='com.redhat.grid.config', event='WallabyConfigEvent')
       self.logger_name = name
       self.node_name = node
       self.managedfile = ''

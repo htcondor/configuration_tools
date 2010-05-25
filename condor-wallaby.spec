@@ -1,5 +1,5 @@
 %{!?python_sitelib: %define python_sitelib %(%{__python} -c "from distutils.sysconfig import get_python_lib; print get_python_lib()")}
-%define rel 0.3
+%define rel 0.4
 
 Name: condor-wallaby
 Summary: Condor configuration using wallaby
@@ -106,6 +106,9 @@ cp -f module/*.py %{buildroot}/%{python_sitelib}/wallabyclient
 %{python_sitelib}/wallabyclient/exceptions.py*
 
 %changelog
+* Tue May 25 2010  <rrati@redhat> - 2.7-0.4
+- Only events the configd cares about will be received.
+
 * Mon May 24 2010  <rrati@redhat> - 2.7-0.3
 - Catch more signals for clean shutdown
 

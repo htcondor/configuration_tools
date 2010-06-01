@@ -396,11 +396,13 @@ def main(argv=None):
       # Set signal handlers
       signal.signal(signal.SIGINT, exit_signal_handler)
       signal.signal(signal.SIGTERM, exit_signal_handler)
-      signal.signal(signal.SIGQUIT, exit_signal_handler)
-      signal.signal(signal.SIGABRT, exit_signal_handler)
-      signal.signal(signal.SIGILL, exit_signal_handler)
-      signal.signal(signal.SIGFPE, exit_signal_handler)
-      signal.signal(signal.SIGSEGV, exit_signal_handler)
+      if os.name != 'nt' and os.name != 'ce':
+         # These aren't available on windows
+         signal.signal(signal.SIGQUIT, exit_signal_handler)
+         signal.signal(signal.SIGABRT, exit_signal_handler)
+         signal.signal(signal.SIGILL, exit_signal_handler)
+         signal.signal(signal.SIGFPE, exit_signal_handler)
+         signal.signal(signal.SIGSEGV, exit_signal_handler)
 
       log(logging.INFO, logger_name, 'Starting Up')
 

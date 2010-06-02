@@ -159,8 +159,7 @@ class Service:
       else:
          self.managedfile = filename
        
-      self.config_qmf_entities()
-      return(True)
+      return(self.config_qmf_entities())
 
 
    def config_qmf_entities(self):
@@ -333,9 +332,10 @@ def get_config(node_obj, lock_obj, log_name, managedfile, version=''):
 def exit_signal_handler(signum, frame):
    global service, stop_running
 
-   service.shutdown()
-   del service
-   service = None
+   if service != None:
+      service.shutdown()
+      del service
+      service = None
    logging.shutdown()
    stop_running = True
 
@@ -396,13 +396,13 @@ def main(argv=None):
       # Set signal handlers
       signal.signal(signal.SIGINT, exit_signal_handler)
       signal.signal(signal.SIGTERM, exit_signal_handler)
+      signal.signal(signal.SIGABRT, exit_signal_handler)
+      signal.signal(signal.SIGILL, exit_signal_handler)
+      signal.signal(signal.SIGFPE, exit_signal_handler)
+      signal.signal(signal.SIGSEGV, exit_signal_handler)
       if os.name != 'nt' and os.name != 'ce':
          # These aren't available on windows
          signal.signal(signal.SIGQUIT, exit_signal_handler)
-         signal.signal(signal.SIGABRT, exit_signal_handler)
-         signal.signal(signal.SIGILL, exit_signal_handler)
-         signal.signal(signal.SIGFPE, exit_signal_handler)
-         signal.signal(signal.SIGSEGV, exit_signal_handler)
 
       log(logging.INFO, logger_name, 'Starting Up')
 
@@ -413,11 +413,12 @@ def main(argv=None):
          if retrieve == True:
             print 'Error: Unable to retrieve configuration'
             log(logging.CRITICAL, logger_name, 'Unable to retrieve configuration')
+         exit_signal_handler(0, 0)
          return(1)
       elif retrieve == True:
          if service != None:
             service.check_config_ver()
-         logging.shutdown()
+         exit_signal_handler(0, 0)
          return(0)
 
       # Delay initial checkin after startup 

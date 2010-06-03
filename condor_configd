@@ -230,7 +230,7 @@ class Service:
       return self.interval
 
 
-   def check_config_ver(self):
+   def check_config_ver(self, force=False):
       log(logging.INFO, self.logger_name, 'Periodically checking version of condor configuration')
       if self.node_obj == []:
          log(logging.ERROR, self.logger_name, 'No node object from the store')
@@ -251,7 +251,7 @@ class Service:
             return(1)
 
       wallaby_ver = self.node_obj.last_updated_version
-      if version != wallaby_ver:
+      if version != wallaby_ver or force == True:
          log(logging.INFO, self.logger_name, 'Periodic checkin has discovered a newer configuation version (%d != %d)' % (version, wallaby_ver))
          get_config(self.node_obj, self.lock, self.logger_name, self.managedfile, wallaby_ver)
       else:
@@ -262,7 +262,7 @@ class Service:
          log(logging.INFO, self.logger_name, 'Periodic store checkin completed')
 
 
-def get_config(node_obj, lock_obj, log_name, managedfile, version=''):
+def get_config(node_obj, lock_obj, log_name, managedfile, version=0):
    global replacing_file
 
    log(logging.INFO, log_name, 'Retrieving configuration version "%d" from the store' % version)
@@ -270,7 +270,10 @@ def get_config(node_obj, lock_obj, log_name, managedfile, version=''):
 
    # Retrieve the node's configuration
    try:
-      result = node_obj.getConfig({'version':version})
+      if version <= 0:
+         result = node_obj.getConfig({})
+      else:
+         result = node_obj.getConfig({'version':version})
    except:
       # Something has gone away, so fail silently
       log(logging.ERROR, log_name, 'Exception when attempting to retrieve configuration version "%d" from the store' % version)
@@ -286,20 +289,20 @@ def get_config(node_obj, lock_obj, log_name, managedfile, version=''):
       config = result.outArgs['config']
 
    try:
-      (temp_file,name) = tempfile.mkstemp('.tmp', 'condor_config.local', text=True)
+      (file_hdl,file_name) = tempfile.mkstemp('.tmp', 'condor_config.local', text=True)
       for key in config.keys():
-         os.write(temp_file, '%s = %s\n' % (key, config[key]))
-      os.close(temp_file)
+         os.write(file_hdl, '%s = %s\n' % (key, config[key]))
+      os.close(file_hdl)
    except:
       log(logging.ERROR, log_name, 'Failed to write configuration to temp file')
       lock_obj.release()
       return
 
    # Verify the config file is valid
-   (retval, out, err) = run_cmd('condor_config_val -dump', environ={'CONDOR_CONFIG':'%s' % name})
+   (retval, out, err) = run_cmd('condor_config_val -dump', environ={'CONDOR_CONFIG':'%s' % file_name})
    if retval != 0:
       log(logging.ERROR, log_name, 'Configuration is invalid.  Discarding')
-      os.remove(name)
+      os.remove(file_name)
       lock_obj.release()
       return
 
@@ -308,10 +311,10 @@ def get_config(node_obj, lock_obj, log_name, managedfile, version=''):
    if os.path.exists(managedfile):
       os.remove(managedfile)
    try:
-      shutil.move(name, managedfile)
+      shutil.move(file_name, managedfile)
    except:
       log(logging.ERROR, log_name, 'Error installing new configuration file')
-      os.remove(name)
+      os.remove(file_name)
       replacing_file = False
       lock_obj.release()
       return
@@ -417,7 +420,7 @@ def main(argv=None):
          return(1)
       elif retrieve == True:
          if service != None:
-            service.check_config_ver()
+            service.check_config_ver(True)
          exit_signal_handler(0, 0)
          return(0)
 

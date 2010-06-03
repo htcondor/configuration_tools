@@ -1,5 +1,5 @@
 %{!?python_sitelib: %define python_sitelib %(%{__python} -c "from distutils.sysconfig import get_python_lib; print get_python_lib()")}
-%define rel 0.4
+%define rel 0.5
 
 Name: condor-wallaby
 Summary: Condor configuration using wallaby
@@ -106,6 +106,15 @@ cp -f module/*.py %{buildroot}/%{python_sitelib}/wallabyclient
 %{python_sitelib}/wallabyclient/exceptions.py*
 
 %changelog
+* Thu Jun 03 2010  <rrati@redhat> - 2.7-0.5
+- Fixed an issue with the configd asking for a configuration version when a
+  node has never been configured
+- If the configd fails to contact the Store or configure itself, it will
+  result in the configd exiting
+- Only set SIG_QUIT and other signals that would cause a core dump on
+  non-win32 OSes
+- Cleaned up shutdown cases in configd
+
 * Tue May 25 2010  <rrati@redhat> - 2.7-0.4
 - Only events the configd cares about will be received.
 

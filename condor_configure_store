@@ -390,6 +390,7 @@ def main(argv=None):
          # Check for invalid items in the configurations
          invalids = {}
          errors = {}
+         ask_for_default = {}
          for edited in edit_objs:
             try:
                edited.store_validate(config_store)
@@ -399,11 +400,15 @@ def main(argv=None):
                      invalids[type] = invalids[type] + error.invalids[type]
                   except:
                      invalids[type] = error.invalids[type]
-                  errors.update(error.errors)
+               errors.update(error.errors)
+               if error.ask_list != []:
+                  ask_for_default[edited] = error.ask_list
+
          if errors != {}:
             print ' The following errors were reported when checking for configuration validity:'
             for err in errors.key():
                print '  %d: %s' % (err, errors[err])
+
          if invalids != {}:
             print 'The store does not know about the following items:'
             for type in invalids.keys():
@@ -442,6 +447,13 @@ def main(argv=None):
                         edit_objs += [edit_obj]
                continue
 
+         if ask_for_default != {}:
+            for obj in ask_for_default.keys():
+               for param in sorted(ask_for_default[obj]):
+                  answer = raw_input('Use a value for "%s" defined elsewhere in the pool configuration? [Y/n] ' % param)
+                  if answer.lower() != 'n':
+                     obj.set_use_default_val(param)
+
          # Make the changes
          for edited in edit_objs:
             if isinstance(edited, WallabyTypes.Parameter):
@@ -453,20 +465,15 @@ def main(argv=None):
             if isinstance(edited, WallabyTypes.Subsystem):
                obj = WallabyHelpers.get_subsys(session, config_store, edited.name)
 
-            if isinstance(edited, WallabyTypes.Group):
-               try:
+            try:
+               if isinstance(edited, WallabyTypes.Group):
                   edited.update(obj, config_store, session)
-               except WallabyError, error:
-                  print 'The following errors were reported updating "%s":' % edited.name
-                  for key in error.errors.keys():
-                     print '%s: %s' % (key, error.errors[key])
-            else:
-               try:
+               else:
                   edited.update(obj)
-               except WallabyError, error:
-                  print 'The following errors were reported updating "%s":' % edited.name
-                  for key in error.errors.keys():
-                     print '%s: %s' % (key, error.errors[key])
+            except WallabyError, error:
+               print 'The following errors were reported updating "%s":' % edited.get_name()
+               for key in error.errors.keys():
+                  print '%s: %s' % (key, error.errors[key])
          file.close()
    session.delBroker(broker)
 

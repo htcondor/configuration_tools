@@ -34,12 +34,21 @@ class Feature(YAMLObject):
       return [('name',self.name), ('params',self.params), ('includes',self.includes), ('conflicts',self.conflicts), ('depends',self.depends)]
 
 
+   def get_name(self):
+      return self.name
+
+
    def init_from_obj(self, obj):
-      result = obj.getParams()
+      result = obj.getParamMeta()
       if result.status != 0:
          raise WallabyError({result.status:result.text})
       else:
-         self.params = dict(result.outArgs['params'])
+         param_meta = dict(result.outArgs['param_info'])
+         for meta in param_meta.keys():
+            if param_meta[meta]['uses_default'] == True:
+               self.params[meta] = ''
+            else:
+               self.params[meta] = param_meta[meta]['given_value']
 
       result = obj.getFeatures()
       if result.status != 0:
@@ -63,6 +72,7 @@ class Feature(YAMLObject):
    def store_validate(self, store):
       invalid = {}
       errors = {}
+      ask_default = []
 
       result = store.checkParameterValidity(self.params.keys())
       if result.status != 0:
@@ -70,6 +80,10 @@ class Feature(YAMLObject):
       else:
          if result.outArgs['invalidParameters'] != []:
             invalid['Parameter'] = result.outArgs['invalidParameters']
+
+      for p in self.params.keys():
+         if self.params[p].strip() == '':
+            ask_default += [p]
 
       result = store.checkFeatureValidity(self.includes)
       if result.status != 0:
@@ -93,8 +107,12 @@ class Feature(YAMLObject):
          if result.outArgs['invalidFeatures'] != []:
             invalid['Feature'] = invalid['Feature'] + result.outArgs['invalidFeatures']
 
-      if invalid != {} or errors != {}:
-         raise WallabyValidateError(invalid, errors)
+      if invalid != {} or errors != {} or ask_default != []:
+         raise WallabyValidateError(invalid, errors, ask_default)
+
+
+   def set_use_default_val(self, name):
+      self.params[name.strip()] = False
 
 
    def update(self, obj):
@@ -135,6 +153,10 @@ class Parameter(YAMLObject):
       self.restart = restart
       self.depends = list(depends)
       self.conflicts = list(conflicts)
+
+
+   def get_name(self):
+      return self.name
 
 
    def __repr__(self):
@@ -268,6 +290,10 @@ class Group(YAMLObject):
       self.members = list(members)
 
 
+   def get_name(self):
+      return self.name
+
+
    def __repr__(self):
       return '%s(name=%r, group_membership=%r' % (self.__class__.__name__, self.name, self.members)
 
@@ -343,6 +369,10 @@ class Subsystem(YAMLObject):
    def __init__(self, name, params=[]):
       self.name = name
       self.params = list(params)
+
+
+   def get_name(self):
+      return self.name
 
 
    def __repr__(self):

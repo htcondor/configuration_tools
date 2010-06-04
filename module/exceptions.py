@@ -10,9 +10,10 @@
 #   See the License for the specific language governing permissions and
 #   limitations under the License.
 class WallabyValidateError(Exception):
-   def __init__(self, invalids_map, error_map):
+   def __init__(self, invalids_map, error_map, list):
       self.invalids = invalids_map
       self.errors = error_map
+      self.ask_list = list
 
 class WallabyError(Exception):
    def __init__(self, error_map):

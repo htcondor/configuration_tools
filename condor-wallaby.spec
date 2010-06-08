@@ -1,5 +1,5 @@
 %{!?python_sitelib: %define python_sitelib %(%{__python} -c "from distutils.sysconfig import get_python_lib; print get_python_lib()")}
-%define rel 0.5
+%define rel 0.6
 
 Name: condor-wallaby
 Summary: Condor configuration using wallaby
@@ -106,6 +106,11 @@ cp -f module/*.py %{buildroot}/%{python_sitelib}/wallabyclient
 %{python_sitelib}/wallabyclient/exceptions.py*
 
 %changelog
+* Tue Jun 08 2010  <rrati@redhat> - 2.7-0.6
+- Fixed issue with configd's default configuration file
+- Fixed issue using parameter default values when configuring features with
+  condor_configure_store
+
 * Thu Jun 03 2010  <rrati@redhat> - 2.7-0.5
 - Fixed an issue with the configd asking for a configuration version when a
   node has never been configured

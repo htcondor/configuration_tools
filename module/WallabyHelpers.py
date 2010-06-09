@@ -13,8 +13,6 @@
 #   limitations under the License.
 import os
 import time
-from wallabyclient.exceptions import WallabyError
-#from datetime import datetime
 
 def get_group(sess, store, name):
    if name != '':
@@ -142,118 +140,52 @@ def list_feature_info(sess, store, feature):
    feat_obj = get_feature(sess, store, feature)
    if feat_obj != None:
       print 'Feature "%s":' % feature
-      value = feat_obj.getIndex()
-      print 'Feature ID: %s' % value
+      print 'Feature ID: %s' % feat_obj.getIndex()
+      print 'Name: %s' % feat_obj.name
 
-      result = feat_obj.getName()
-      if result.status != 0:
-         print 'Error: Failed to retrieve Feature Name (%d, %s)' % (result.status, result.text)
-      else:
-         value = result.outArgs['name']
-         print 'Name: %s' % value
+      value = feat_obj.params
+      print 'Included Parameters:'
+      for key in value.keys():
+         print '  %s = %s' % (key, value[key])
 
-      result = feat_obj.getParams()
-      if result.status != 0:
-         print 'Error: Failed to retrieve included Parameters (%d, %s)' % (result.status, result.text)
-      else:
-         value = result.outArgs['params']
-         print 'Included Parameters:'
-         for key in value.keys():
-            print '  %s = %s' % (key, value[key])
+      print 'Included Features:'
+      i = 0
+      value = feat_obj.included_features
+      for key in value:
+         print '  %s: %s' % (i, key)
+         i = i + 1
 
-      result = feat_obj.getFeatures()
-      if result.status != 0:
-         print 'Error: Failed to retrieve included Features (%d, %s)' % (result.status, result.text)
-      else:
-         print 'Included Features:'
-         i = 0
-         for key in result.outArgs['features']:
-            print '  %s: %s' % (i, key)
-            i = i + 1
+      print 'Conflicts:'
+      for key in feat_obj.conflicts:
+         print '  %s' % key
 
-      result = feat_obj.getConflicts()
-      if result.status != 0:
-         print 'Error: Failed to retrieve feature Conflicts (%d, %s)' % (result.status, result.text)
-      else:
-         print 'Conflicts:'
-         for key in result.outArgs['conflicts']:
-            print '  %s' % key
-
-      result = feat_obj.getDepends()
-      if result.status != 0:
-         print 'Error: Failed to retrieve feature Dependencies (%d, %s)' % (result.status, result.text)
-      else:
-         print 'Dependencies (order: featureName):'
-         i = 0
-         for key in result.outArgs['depends']:
-            print '  %s: %s' % (i, key)
-            i = i + 1
+      print 'Dependencies:'
+      i = 0
+      value = feat_obj.depends
+      for key in value:
+         print '  %s: %s' % (i, key)
+         i = i + 1
 
 
 def list_param_info(sess, store, name):
    param_obj = get_param(sess, store, name)
    if param_obj != None:
       print 'Parameter "%s":' % name
-      value = param_obj.getIndex()
-      print 'Name: %s' % value
+      print 'Name: %s' % param_obj.getIndex()
+      print 'Type: %s' % param_obj.kind
+      print 'Default: %s' % param_obj.default
+      print 'Description: %s' % param_obj.description
+      print 'MustChange: %s' % param_obj.must_change
+      print 'VisibilityLevel: %s' % param_obj.visibility_level
+      print 'RequiresRestart: %s' % param_obj.requires_restart
 
-      result = param_obj.getType()
-      if result.status != 0:
-         print 'Error: Failed to retrieve parameter\'s Type (%d, %s)' % (result.status, result.text)
-      else:
-         value = result.outArgs['type']
-         print 'Type: %s' % value
+      print 'Dependencies:'
+      for key in param_obj.depends:
+         print '  %s' % key
 
-      result = param_obj.getDefault()
-      if result.status != 0:
-         print 'Error: Failed to retrieve parameter\'s Default value (%d, %s)' % (result.status, result.text)
-      else:
-         value = result.outArgs['default']
-         print 'Default: %s' % value
-
-      result = param_obj.getDescription()
-      if result.status != 0:
-         print 'Error: Failed to retrieve parameter\'s Description (%d, %s)' % (result.status, result.text)
-      else:
-         value = result.outArgs['description']
-         print 'Description: %s' % value
-
-      result = param_obj.getDefaultMustChange()
-      if result.status != 0:
-         print 'Error: Failed to retrieve parameter\'s MustChange (%d, %s)' % (result.status, result.text)
-      else:
-         value = result.outArgs['mustChange']
-         print 'MustChange: %s' % value
-
-      result = param_obj.getVisibilityLevel()
-      if result.status != 0:
-         print 'Error: Failed to retrieve parameter\'s Visibility Level (%d, %s)' % (result.status, result.text)
-      else:
-         value = result.outArgs['level']
-         print 'VisibilityLevel: %s' % value
-
-      result = param_obj.getRequiresRestart()
-      if result.status != 0:
-         print 'Error: Failed to retrieve parameter\'s Requires Restart (%d, %s)' % (result.status, result.text)
-      else:
-         value = result.outArgs['needsRestart']
-         print 'RequiresRestart: %s' % value
-
-      result = param_obj.getDepends()
-      if result.status != 0:
-         print 'Error: Failed to retrieve parameter\'s Dependencies (%d, %s)' % (result.status, result.text)
-      else:
-         print 'Dependencies:'
-         for key in result.outArgs['depends']:
-            print '  %s' % key
-
-      result = param_obj.getConflicts()
-      if result.status != 0:
-         print 'Error: Failed to retrieve parameter\'s Conflicts (%d, %s)' % (result.status, result.text)
-      else:
-         print 'Conflicts:'
-         for key in result.outArgs['conflicts']:
-            print '  %s' % key
+      print 'Conflicts:'
+      for key in param_obj.conflicts:
+         print '  %s' % key
 
 
 def list_group_info(sess, store, group):
@@ -262,48 +194,29 @@ def list_group_info(sess, store, group):
       if group == '+++DEFAULT':
          group = 'Internal Default Group'
       print 'Group "%s":' % group
+      print 'Group ID: %s' % group_obj.getIndex()
 
-      value = group_obj.getIndex()
-      print 'Group ID: %s' % value
-
-      result = group_obj.getName()
-      name = ''
-      if result.status != 0:
-         print 'Error: Failed to retrieve group name (%d, %s)' % (result.status, result.text)
+      name = group_obj.name
+      if name == '+++DEFAULT':
+         print 'Name: Internal Default Group'
       else:
-         name = result.outArgs['name']
-         if name == '+++DEFAULT':
-            print 'Name: Internal Default Group'
-         else:
-            print 'Name: %s' % name
+         print 'Name: %s' % name
 
       if name != '+++DEFAULT':
-         result = group_obj.getMembership()
-         if result.status != 0:
-            print 'Error: Failed to retrieve group membership (%d, %s)' % (result.status, result.text)
-         else:
-            print 'Members:'
-            for key in result.outArgs['nodes']:
-               print '  %s' % key
+         print 'Members:'
+         for key in group_obj.membership:
+            print '  %s' % key
 
-      result = group_obj.getFeatures()
-      if result.status != 0:
-         print 'Error: Failed to retrieve group features (%d, %s)' % (result.status, result.text)
-      else:
-         print 'Features (priority: name):'
-         i = 0
-         for key in result.outArgs['features']:
-            print '  %s: %s' % (i, key)
-            i = i + 1
+      i = 0
+      print 'Features (priority: name):'
+      for key in group_obj.features:
+         print '  %s: %s' % (i, key)
+         i = i + 1
 
-      result = group_obj.getParams()
-      if result.status != 0:
-         print 'Error: Failed to retrieve group parameters (%d, %s)' % (result.status, result.text)
-      else:
-         value = result.outArgs['params']
-         print 'Parameters:'
-         for key in value.keys():
-            print '  %s = %s' % (key, value[key])
+      value = group_obj.params
+      print 'Parameters:'
+      for key in value.keys():
+         print '  %s = %s' % (key, value[key])
 
 
 def list_node_info(sess, store, name):
@@ -316,15 +229,11 @@ def list_node_info(sess, store, name):
       else:
          print 'Last Check-in Time: %s' % time.ctime(value/1000000)
 
-      result = node_obj.getMemberships()
-      if result.status != 0:
-         print 'Error: Failed to retrieve group memberships (%d, %s)' % (result.status, result.text)
-      else:
-         print 'Group Memberships:'
-         value = result.outArgs['groups']
-         for key in value:
-            print '  %s' % key
-         print '  Internal Default Group'
+      value = node_obj.memberships
+      print 'Group Memberships:'
+      for key in value:
+         print '  %s' % key
+      print '  Internal Default Group'
 
       print 'Features Applied:'
       feat_num = 0
@@ -334,25 +243,17 @@ def list_node_info(sess, store, name):
       if id_name != None:
          group_obj = get_group(sess, store, id_name)
          if group_obj != None:
-            result = group_obj.getFeatures()
-            if result.status != 0:
-               print 'Error: Unable to retrieve node specific features (%d, %s)' % (result.status, result.text)
-            else:
-               feature_list = result.outArgs['features']
+            feature_list = group_obj.features
 
       group_list += ['+++DEFAULT']
       num = 0
       for name in group_list:
          group_obj = get_group(sess, store, name)
          if group_obj != None:
-            result = group_obj.getFeatures()
-            if result.status != 0:
-               print 'Error: Unable to retrieve features for group "%s" (%s, %s)' % (group, result.status, result.text)
-            else:
-               value = result.outArgs['features']
-               for key in value:
-                  if key not in feature_list:
-                     feature_list += [key]
+            value = group_obj.features
+            for key in value:
+               if key not in feature_list:
+                  feature_list += [key]
 
       for name in feature_list:
          print '  %s' % name 
@@ -371,13 +272,9 @@ def list_subsys_info(sess, store, name):
    subsys_obj = get_subsys(sess, store, name)
    if subsys_obj != None:
       print 'Subsystem "%s":' % name
-      result = subsys_obj.getParams()
-      if result.status != 0:
-         print 'Error: Failed to retrieve included Parameters (%d, %s)' % (result.status, result.text)
-      else:
-         print 'Included Parameters:'
-         for key in result.outArgs['params']:
-            print '  %s' % key
+      print 'Included Parameters:'
+      for key in subsys_obj.params:
+         print '  %s' % key
 
 
 def add_param(sess, store, name):
@@ -500,22 +397,15 @@ def get_id_group_name(obj, sess):
    name = None
    idgroup_ref = []
 
-   result = obj.getIdentityGroup()
-   if result.status != 0:
-      print 'Error: Unable to retrieve the identity group (%d, %s)' % (result.status, result.text)
-   else:
-      try:
-         idgroup_ref = sess.getObjects(_objectId=result.outArgs['group'])
-      except Exception, error:
-         print 'Error: %s' % error
+   idgroup = obj.identity_group
+   try:
+      idgroup_ref = sess.getObjects(_objectId=idgroup)
+   except Exception, error:
+      print 'Error: %s' % error
 
-      if idgroup_ref == []:
-         print 'Error: Unable to find identity group with id "%s" (%d, %s)' % (result.outArgs['obj'], result.status, result.text)
-      else:
-         result = idgroup_ref[0].getName()
-         if result.status != 0:
-            print 'Error: Unable to retrieve identity group name (5s, %s)' % (result.status, result.text)
-         else:
-            name = result.outArgs['name']
+   if idgroup_ref == []:
+      print 'Error: Unable to find identity group with id "%s" (%d, %s)' % (idgroup, result.status, result.text)
+   else:
+      name = idgroup_ref[0].name
 
    return name

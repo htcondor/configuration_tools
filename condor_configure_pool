@@ -177,11 +177,7 @@ def get_feature_params(sess, store, feature):
    if feature != '':
       obj = WallabyHelpers.get_feature(sess, store, feature)
       if obj != None:
-         result = obj.getParams()
-         if result.status != 0:
-            print 'Error: Unable to retrieve parameters for feature "%s" (%d, %s)' % (feature, result.status, result.text)
-         else:
-            params = result.outArgs['params']
+         params = obj.params
    return params
 
 
@@ -217,22 +213,13 @@ def get_unique_mustchange_params(sess, store, feature_list, group_obj):
 
    # Now, get the parameter list for the features configured on
    # the group
-   result = group_obj.getFeatures()
-   if result.status != 0:
-      print 'Error: Failed to retrieve features configured (%d, %s)' % (result.status, result.text)
-   else:
-      configed_feats = result.outArgs['features']
+   configed_feats = group_obj.features
 
    # Generate the list of parameters for these features
    for feat in configed_feats:
       obj = WallabyHelpers.get_feature(sess, store, feat)
       if obj != None:
-         result = obj.getParams()
-         if result.status != 0:
-            print 'Error: Unable to retrieve parameters for configured feature "%s" (%d, %s)' % (feat, result.status, result.text)
-            continue
-         else:
-            feature_params.update(result.outArgs['params'])
+         feature_params.update(obj.params)
 
    # Now, determine if any of the candidate parameters aren't set for
    # any of the configured features.  If they aren't, add them to
@@ -328,12 +315,7 @@ def check_more_params_needed(sess, store, features, params, more_params, gobj):
          vm_remove_params['VM_NETWORKING_TYPE'] = False
 
       if vm_remove_params != {}:
-         result = gobj.getParams()
-         if result.status != 0:
-            print 'WARNING: Unable to retrieve group set parameters (%d, %s)' % (result.status, result.text)
-            gparams = {}
-         else:
-            gparams = result.outArgs['params']
+         gparams = gobj.params
         
          for remove_param in vm_remove_params.keys():
             if remove_param in gparams.keys():
@@ -615,11 +597,9 @@ def main(argv=None):
                print '  There are no %ss in the store' % type
             else:
                for obj in objs:
-                  result = obj.getName()
-                  if result.status == 0:
-                     name = result.outArgs['name']
-                     if '+++' != name[0:3]:
-                        print '  %s' % name
+                  name = obj.name
+                  if '+++' != name[0:3]:
+                     print '  %s' % name
                if type == 'Group':
                   print '  Internal Default Group'
          if  type == 'Node' or type == 'Parameter' or type == 'Snapshot':
@@ -740,21 +720,16 @@ def main(argv=None):
                return(1)
 
          if replace_list != {}:
-            result = group_obj.getParams()
-            if result.status != 0:
-               print 'Error: Problem retrieving parameters (%d, %s)' % (result.status, result.text)
-               return(1)
-            else:
-               all_params = result.outArgs['params']
-               all_params.update(replace_list)
-               special = ['SCHEDD_NAME', 'SCHEDD_HOST']
-               for sparam in special:
-                  if sparam in all_params.keys() and \
-                     sparam not in replace_list.keys():
-                     try:
-                        del all_params[sparam]
-                     except:
-                        pass
+            all_params = group_obj.params
+            all_params.update(replace_list)
+            special = ['SCHEDD_NAME', 'SCHEDD_HOST']
+            for sparam in special:
+               if sparam in all_params.keys() and \
+                  sparam not in replace_list.keys():
+                  try:
+                     del all_params[sparam]
+                  except:
+                     pass
            
             result = group_obj.modifyParams('replace', all_params, {})
             if result.status != 0:

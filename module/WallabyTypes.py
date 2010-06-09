@@ -39,34 +39,16 @@ class Feature(YAMLObject):
 
 
    def init_from_obj(self, obj):
-      result = obj.getParamMeta()
-      if result.status != 0:
-         raise WallabyError({result.status:result.text})
-      else:
-         param_meta = dict(result.outArgs['param_info'])
-         for meta in param_meta.keys():
-            if param_meta[meta]['uses_default'] == True:
-               self.params[meta] = ''
-            else:
-               self.params[meta] = param_meta[meta]['given_value']
+      param_meta = obj.param_meta
+      for meta in param_meta.keys():
+         if param_meta[meta]['uses_default'] == True:
+            self.params[meta] = ''
+         else:
+            self.params[meta] = param_meta[meta]['given_value']
 
-      result = obj.getFeatures()
-      if result.status != 0:
-         raise WallabyError({result.status:result.text})
-      else:
-         self.includes = list(result.outArgs['features'])
-
-      result = obj.getConflicts()
-      if result.status != 0:
-         raise WallabyError({result.status:result.text})
-      else:
-         self.conflicts = list(result.outArgs['conflicts'])
-
-      result = obj.getDepends()
-      if result.status != 0:
-         raise WallabyError({result.status:result.text})
-      else:
-         self.depends = list(result.outArgs['depends'])
+      self.includes = list(obj.included_features)
+      self.conflicts = list(obj.conflicts)
+      self.depends = list(obj.depends)
 
 
    def store_validate(self, store):
@@ -125,7 +107,7 @@ class Feature(YAMLObject):
       if result.status != 0:
           errors[result.status] = result.text
 
-      result = obj.modifyFeatures('replace', self.includes, {})
+      result = obj.modifyIncludedFeatures('replace', self.includes, {})
       if result.status != 0:
           errors[result.status] = result.text
 
@@ -168,53 +150,14 @@ class Parameter(YAMLObject):
 
 
    def init_from_obj(self, obj):
-      result = obj.getType()
-      if result.status != 0:
-         raise WallabyError({result.status:result.text})
-      else:
-         self.type = str(result.outArgs['type'])
-
-      result = obj.getDefault()
-      if result.status != 0:
-         raise WallabyError({result.status:result.text})
-      else:
-         self.default = str(result.outArgs['default'])
-
-      result = obj.getDescription()
-      if result.status != 0:
-         raise WallabyError({result.status:result.text})
-      else:
-         self.description = str(result.outArgs['description'])
-
-      result = obj.getDefaultMustChange()
-      if result.status != 0:
-         raise WallabyError({result.status:result.text})
-      else:
-         self.must_change = result.outArgs['mustChange']
-
-      result = obj.getVisibilityLevel()
-      if result.status != 0:
-         raise WallabyError({result.status:result.text})
-      else:
-         self.level = result.outArgs['level']
-
-      result = obj.getRequiresRestart()
-      if result.status != 0:
-         raise WallabyError({result.status:result.text})
-      else:
-         self.restart = result.outArgs['needsRestart']
-
-      result = obj.getDepends()
-      if result.status != 0:
-         raise WallabyError({result.status:result.text})
-      else:
-         self.depends = list(result.outArgs['depends'])
-
-      result = obj.getConflicts()
-      if result.status != 0:
-         raise WallabyError({result.status:result.text})
-      else:
-         self.conflicts = list(result.outArgs['conflicts'])
+      self.type = str(obj.kind)
+      self.default = str(obj.default)
+      self.description = str(obj.description)
+      self.must_change = obj.must_change
+      self.level = obj.visibility_level
+      self.restart = obj.requires_restart
+      self.depends = list(obj.depends)
+      self.conflicts = list(obj.conflicts)
 
 
    def store_validate(self, store):
@@ -246,7 +189,7 @@ class Parameter(YAMLObject):
       if obj == None:
          raise WallabyError({-1:'No parameter object to update'})
 
-      result = obj.setType(self.type)
+      result = obj.setKind(self.type)
       if result.status != 0:
          errors[result.status] = result.text
 
@@ -259,7 +202,7 @@ class Parameter(YAMLObject):
       if result.status != 0:
          errors[result.status] = result.text
 
-      result = obj.setDefaultMustChange(self.must_change)
+      result = obj.setMustChange(self.must_change)
       if result.status != 0:
          errors[result.status] = result.text
 
@@ -303,11 +246,8 @@ class Group(YAMLObject):
 
 
    def init_from_obj(self, obj):
-      result = obj.getMembership()
-      if result.status != 0:
-         raise WallabyError({result.status:result.text})
-      else:
-         self.members = list(result.outArgs['nodes'])
+      self.name = str(obj.name)
+      self.members = list(obj.membership)
 
 
    def store_validate(self, store):
@@ -332,11 +272,7 @@ class Group(YAMLObject):
       if obj == None:
          raise WallabyError({-1:'No group object to update'})
 
-      result = obj.getMembership()
-      if result.status != 0:
-         errors[result.status] = result.text
-      else:
-         pre_edit_list = list(result.outArgs['nodes'])
+      pre_edit_list = list(obj.membership)
 
       for node in self.members:
          node = node.strip()
@@ -384,11 +320,8 @@ class Subsystem(YAMLObject):
 
 
    def init_from_obj(self, obj):
-      result = obj.getParams()
-      if result.status != 0:
-         raise WallabyError({result.status:result.text})
-      else:
-         self.params = list(result.outArgs['params'])
+      self.name = obj.name
+      self.params = list(obj.params)
 
 
    def store_validate(self, store):

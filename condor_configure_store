@@ -220,11 +220,9 @@ def main(argv=None):
                print '  There are no %ss in the store' % type
             else:
                for obj in objs:
-                  result = obj.getName()
-                  if result.status == 0:
-                     name = result.outArgs['name']
-                     if '+++' != name[0:3]:
-                        print '  %s' % name
+                  name = obj.name
+                  if '+++' != name[0:3]:
+                     print '  %s' % name
                if type == 'Group':
                   print '  Internal Default Group'
          if  type == 'Node' or type == 'Parameter' or type == 'Subsystem':

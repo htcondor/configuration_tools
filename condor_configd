@@ -342,6 +342,11 @@ def exit_signal_handler(signum, frame):
    logging.shutdown()
    stop_running = True
 
+def test_for_shutdown():
+	pidfile = os.getcwd() + '\\.pid' + str(os.getpid())
+	if os.path.isfile(pidfile):
+		os.remove(pidfile)
+		exit_signal_handler(signal.SIGTERM, None)
 
 service = Service()
 stop_running = False
@@ -406,6 +411,12 @@ def main(argv=None):
       if os.name != 'nt' and os.name != 'ce':
          # These aren't available on windows
          signal.signal(signal.SIGQUIT, exit_signal_handler)
+      if os.name == 'nt':
+         # need to set a Timer for shutdown
+         log(logging.INFO, logger_name, 'Setting windows shutdown Timer')
+         shutdown_interval = int(read_condor_config('QMF_CONFIGD', ['WIN_INTERVAL'])['win_interval'])
+         shutdown_timer = Timer(shutdown_interval,test_for_shutdown)
+         shutdown_timer.start()
 
       log(logging.INFO, logger_name, 'Starting Up')
 

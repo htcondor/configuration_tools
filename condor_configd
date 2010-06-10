@@ -413,12 +413,6 @@ def main(argv=None):
       if os.name != 'nt' and os.name != 'ce':
          # These aren't available on windows
          signal.signal(signal.SIGQUIT, exit_signal_handler)
-      if os.name == 'nt':
-         # need to set a Timer for shutdown
-         log(logging.INFO, logger_name, 'Setting windows shutdown Timer')
-         shutdown_interval = int(read_condor_config('QMF_CONFIGD', ['WIN_INTERVAL'])['win_interval'])
-         shutdown_timer = Timer(shutdown_interval,test_for_shutdown)
-         shutdown_timer.start()
 
       log(logging.INFO, logger_name, 'Starting Up')
 
@@ -444,6 +438,13 @@ def main(argv=None):
          service.check_config_ver()
       if service != None:
          service.setup_timers()
+
+      if os.name == 'nt':
+         # need to set a Timer for shutdown
+         log(logging.INFO, logger_name, 'Setting windows shutdown Timer')
+         shutdown_interval = int(read_condor_config('QMF_CONFIGD', ['WIN_INTERVAL'])['win_interval'])
+         shutdown_timer = Timer(shutdown_interval,test_for_shutdown)
+         shutdown_timer.start()
 
       # Loop forever until told to shutdown
       while stop_running == False or replacing_file == True:

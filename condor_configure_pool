@@ -240,11 +240,11 @@ def set_param(name, value, param_list, unique_list = None):
       except:
          pass
 
-def check_more_params_needed(sess, store, features, params, more_params, gobj):
+def check_more_params_needed(sess, store, feature_list, params, more_params, gobj):
    list = {}
 
    # Get a list of unique must set parameters for the features being added
-   unique_params = get_unique_mustchange_params(sess, store, features, gobj)
+   unique_params = get_unique_mustchange_params(sess, store, feature_list, gobj)
 
    # Get the list of parameters for the group
    result = gobj.getConfig()
@@ -258,7 +258,7 @@ def check_more_params_needed(sess, store, features, params, more_params, gobj):
    # Check for EC2 Enhanced
    if ('NEED_SET_EC2E_ROUTES' in list.keys() and \
       list['NEED_SET_EC2E_ROUTES'].lower() == 'true') or \
-      'EC2Enhanced' in features or \
+      'EC2Enhanced' in feature_list or \
       ('NEED_SET_EC2E_ROUTES' in params.keys() and \
       params['NEED_SET_EC2E_ROUTES'].lower() == 'true'):
 
@@ -271,7 +271,7 @@ def check_more_params_needed(sess, store, features, params, more_params, gobj):
 
    # Check for VM Universe parameters
    vm_remove_params = {}
-   if 'VMUniverse' in features:
+   if 'VMUniverse' in feature_list:
       input = ''
       while input != 'xen' and input != 'kvm':
          input = raw_input('Type of Virtual Machines to run on this node (xen or kvm): ')
@@ -285,7 +285,7 @@ def check_more_params_needed(sess, store, features, params, more_params, gobj):
          set_param('XEN_BOOTLOADER', '/usr/bin/pygrub', params, unique_params)
       else:
          vm_remove_params['XEN_BOOTLOADER'] = False
-   if 'VMUniverse' in features:
+   if 'VMUniverse' in feature_list:
       input = raw_input('Enable networking in the VM universe [y/N] ? ')
       if input.lower() == 'y':
          set_param('VM_NETWORKING', 'TRUE', params, unique_params)
@@ -347,16 +347,16 @@ def check_more_params_needed(sess, store, features, params, more_params, gobj):
          print 'WARNING: This configuration may not be able to be activated'
 
 
-def check_delete_params_needed(sess, store, features, params, gobj):
+def check_delete_params_needed(sess, store, feature_list, params, gobj):
    # Grab the list of unique must set parameters for each feature being removed
-   unique_params = get_unique_mustchange_params(sess, store, features, gobj)
+   unique_params = get_unique_mustchange_params(sess, store, feature_list, gobj)
 
    # Update the list of parameters to include the unique parameters that
    # must be set by the user
    params.update(unique_params)
 
    # Special cases
-   for feat in features:
+   for feat in feature_list:
       feat_params = get_feature_params(sess, store, feat)
       if 'NEED_SET_EC2E_ROUTES' in feat_params.keys():
          # In case this was set
@@ -414,7 +414,7 @@ def main(argv=None):
       argv = sys.argv
 
    action = ''
-   features = ''
+   features = []
    params = ''
    broker_ip = '127.0.0.1'
    name = ''
@@ -428,10 +428,10 @@ def main(argv=None):
    list_alls = []
    broker_prompts = False
    schedd_prompts = False
-   feature_list = []
    group_obj = []
    username = ''
    passwd = ''
+   is_node = False
 
    # Set signal handlers
    signal.signal(signal.SIGINT, exit_signal_handler)
@@ -473,12 +473,13 @@ def main(argv=None):
             return(1)
          action = 'remove'
       if option in ('-f', '--features'):
-         features = arg
+         features = arg.split(',')
       if option in ('-g', '--group'):
-         if name != '' or node != '':
+         if name != '':
             print 'Can only configure 1 node or group at a time'
             return(1)
          name = arg
+         is_node = False
       if option in ('-h', '--help'):
          print_help(argv[0])
          return(0)
@@ -511,10 +512,11 @@ def main(argv=None):
          action = 'load-snapshot'
          snapshot_name = arg
       if option in ('-n', '--node'):
-         if name != '' or node != '':
+         if name != '':
             print 'Can only configure 1 node or group at a time'
             return(1)
-         node = arg
+         name = arg
+         is_node = True
       if option in ('-o', '--port'):
          try:
             port = int(arg)
@@ -629,28 +631,17 @@ def main(argv=None):
       save_snapshot(config_store, snapshot_name)
       return(0)
 
-   # If configuring a single node, grab that node's identity group and
-   # act upon that
-   if node != '':
-      obj = WallabyHelpers.get_node(session, config_store, node)
-      if obj == None:
-         return(1)
-      else:
-         name = WallabyHelpers.get_id_group_name(obj, session)
-         if name == None:
-            return(1)
-
    # Perform list opertions
    if action == 'list':
       if name != '':
          # Provide the configuration for the group/node
-         if node != '':
-            WallabyHelpers.list_node_info(session, config_store, node)
+         if is_node == True:
+            WallabyHelpers.list_node_info(session, config_store, name)
          else:
             WallabyHelpers.list_group_info(session, config_store, name)
-      if features != '':
+      if features != []:
          # Provide the configuration for the features
-         for feat in features.split(','):
+         for feat in features:
             print 'Configuration for feature %s:' % feat
             WallabyHelpers.list_feature_info(session, config_store, feat)
       for param in params.split(','):
@@ -658,11 +649,34 @@ def main(argv=None):
             
       return(0)
 
+   # If configuring a single node, grab that node's identity group and
+   # act upon that
+   if is_node == True:
+      obj = WallabyHelpers.get_node(session, config_store, name)
+      if obj == None:
+         return(1)
+      else:
+         name = WallabyHelpers.get_id_group_name(obj, session)
+         if name == None:
+            return(1)
+
+
+   if 'ConsoleCollector' in features and action == 'add':
+      print 'WARNING: The ConsoleCollector feature should be applied to only '
+      print '         1 node in the pool.  Applying the ConsoleCollector '
+      print '         feature to more than node (or a group of nodes) in the'
+      print '         pool can cause dupliate information in the console.'
+      answer = raw_input('Continue adding the ConsoleCollector feature? [y/N] ')
+      if answer.lower() != 'y':
+         try:
+            features.remove('ConsoleCollector')
+         except:
+            print 'Error: Failed to remove the ConsoleCollector from the feature list.'
    if name == '':
       print 'No name supplied.  Exiting'
       print_help(argv[0])
       return(1)
-   elif features == '' and params == '' and schedd_prompts == False and \
+   elif features == [] and params == '' and schedd_prompts == False and \
         broker_prompts == False:
       print 'No targets specified.  Exiting'
       print_help(argv[0])
@@ -673,10 +687,6 @@ def main(argv=None):
       if group_obj == None:
          return(1)
 
-      # Generate the list of features to act upon
-      if features != '':
-         feature_list = features.split(',')
-         
       # Prompt for param values entered on the command line, if any
       for param in params.split(','):
          if param != '':
@@ -699,19 +709,19 @@ def main(argv=None):
          configure_qmf_broker(replace_list, action == 'remove')
 
       if raw_input('\nApply these changes [Y/n] ? ').lower() != 'n':
-         if feature_list != []:
-            result = group_obj.modifyFeatures(action, feature_list, {})
+         if features != []:
+            result = group_obj.modifyFeatures(action, features, {})
             if result.status != 0:
                print 'Error: Problem modifying features (%d, %s)' % (result.status, result.text)
                return(1)
 
           # Check if any additional params need to be added/removed
          if action != 'remove':
-            check_more_params_needed(session, config_store, feature_list, param_list, replace_list, group_obj)
+            check_more_params_needed(session, config_store, features, param_list, replace_list, group_obj)
          else:
             param_list.update(replace_list)
             replace_list = {}
-            check_delete_params_needed(session, config_store, feature_list, param_list, group_obj)
+            check_delete_params_needed(session, config_store, features, param_list, group_obj)
 
          if param_list != {}:
             result = group_obj.modifyParams(action, param_list, {})

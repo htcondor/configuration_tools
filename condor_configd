@@ -342,10 +342,17 @@ def exit_signal_handler(signum, frame):
    logging.shutdown()
    stop_running = True
 
+def test_for_shutdown():
+	global pidfile
+
+	if os.path.isfile(pidfile):
+		os.remove(pidfile)
+		exit_signal_handler(signal.SIGTERM, None)
 
 service = Service()
 stop_running = False
 replacing_file = False
+pidfile = os.path.normpath(os.getcwd() + '/.pid' + str(os.getpid()))
 
 def main(argv=None):
    global service, stop_running, replacing_file
@@ -431,6 +438,13 @@ def main(argv=None):
          service.check_config_ver()
       if service != None:
          service.setup_timers()
+
+      if os.name == 'nt':
+         # need to set a Timer for shutdown
+         log(logging.INFO, logger_name, 'Setting windows shutdown Timer')
+         shutdown_interval = int(read_condor_config('QMF_CONFIGD', ['WIN_INTERVAL'])['win_interval'])
+         shutdown_timer = Timer(shutdown_interval,test_for_shutdown)
+         shutdown_timer.start()
 
       # Loop forever until told to shutdown
       while stop_running == False or replacing_file == True:

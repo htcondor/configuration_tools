@@ -1,9 +1,9 @@
 %{!?python_sitelib: %define python_sitelib %(%{__python} -c "from distutils.sysconfig import get_python_lib; print get_python_lib()")}
-%define rel 0.6
+%define rel 0.1
 
 Name: condor-wallaby
 Summary: Condor configuration using wallaby
-Version: 2.7
+Version: 2.8
 Release: %{rel}%{?dist}
 Group: Applications/System
 License: ASL 2.0
@@ -106,6 +106,11 @@ cp -f module/*.py %{buildroot}/%{python_sitelib}/wallabyclient
 %{python_sitelib}/wallabyclient/exceptions.py*
 
 %changelog
+* Thu Jun 10 2010  <rrati@redhat> - 2.8-0.1
+- Shutdown/restart fixes in configd on Windows
+- Special handling of ConsoleCollector in condor_configure_pool
+- API transition: get methods replaced with properties
+
 * Tue Jun 08 2010  <rrati@redhat> - 2.7-0.6
 - Fixed issue with configd's default configuration file
 - Fixed issue using parameter default values when configuring features with

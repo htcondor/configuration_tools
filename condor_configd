@@ -343,7 +343,8 @@ def exit_signal_handler(signum, frame):
    stop_running = True
 
 def test_for_shutdown():
-	pidfile = os.getcwd() + '\\.pid' + str(os.getpid())
+	global pidfile
+
 	if os.path.isfile(pidfile):
 		os.remove(pidfile)
 		exit_signal_handler(signal.SIGTERM, None)
@@ -351,6 +352,7 @@ def test_for_shutdown():
 service = Service()
 stop_running = False
 replacing_file = False
+pidfile = os.path.normpath(os.getcwd() + '/.pid' + str(os.getpid()))
 
 def main(argv=None):
    global service, stop_running, replacing_file

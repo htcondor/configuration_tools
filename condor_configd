@@ -84,13 +84,12 @@ class EventConsole(Console):
             for subsys in targets:
                subsys = str(subsys)
                if subsys == 'carod' or subsys == 'condor_configd':
-                  (retval, out, err) = run_cmd('condor_restart -subsystem %s' % subsys)
-               else:
-                  (retval, out, err) = run_cmd('%s -subsystem %s' % (cmd, subsys))
+                  cmd = 'condor_restart'
+               (retval, out, err) = run_cmd('%s -subsystem %s' % (cmd, subsys))
                if retval != 0:
-                  log(logging.ERROR, self.logger_name, 'Failed to send command to subsystem "%s" (stdout: "%s", stderr: "%s")' % (subsys, out, err))
+                  log(logging.ERROR, self.logger_name, 'Failed to send command "%s" to subsystem "%s" (stdout: "%s", stderr: "%s")' % (cmd, subsys, out, err))
                else:
-                  log(logging.INFO, self.logger_name, 'Sent command to subsystem "%s"' % subsys)
+                  log(logging.INFO, self.logger_name, 'Sent command "s" to subsystem "%s"' % (cmd, subsys))
 
 
 class Service:
@@ -274,9 +273,10 @@ def get_config(node_obj, lock_obj, log_name, managedfile, version=0):
          result = node_obj.getConfig({})
       else:
          result = node_obj.getConfig({'version':version})
-   except:
+   except Exception, error:
       # Something has gone away, so fail silently
       log(logging.ERROR, log_name, 'Exception when attempting to retrieve configuration version "%d" from the store' % version)
+      log(logging.ERROR, log_name, error)
       lock_obj.release()
       return
 

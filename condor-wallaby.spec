@@ -3,7 +3,7 @@
 
 Name: condor-wallaby
 Summary: Condor configuration using wallaby
-Version: 2.8
+Version: 2.9
 Release: %{rel}%{?dist}
 Group: Applications/System
 License: ASL 2.0
@@ -106,6 +106,9 @@ cp -f module/*.py %{buildroot}/%{python_sitelib}/wallabyclient
 %{python_sitelib}/wallabyclient/exceptions.py*
 
 %changelog
+* Fri Jun 11 2010  <rrati@redhat> - 2.9-0.1
+- Changes to event handling
+
 * Thu Jun 10 2010  <rrati@redhat> - 2.8-0.1
 - Shutdown/restart fixes in configd on Windows
 - Special handling of ConsoleCollector in condor_configure_pool

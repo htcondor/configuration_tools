@@ -180,7 +180,7 @@ class Parameter(YAMLObject):
             invalid['Parameter'] = invalid['Parameter'] + result.outArgs['invalidParameters']
 
       if invalid != {} or errors != {}:
-         raise WallabyValidateError(invalid, errors)
+         raise WallabyValidateError(invalid, errors, [])
 
 
    def update(self, obj):
@@ -262,7 +262,7 @@ class Group(YAMLObject):
             invalid['Node'] = result.outArgs['invalidNodes']
 
       if invalid != {} or errors != {}:
-         raise WallabyValidateError(invalid, errors)
+         raise WallabyValidateError(invalid, errors, [])
 
 
    def update(self, obj, store, session):
@@ -336,7 +336,7 @@ class Subsystem(YAMLObject):
             invalid['Parameter'] = result.outArgs['invalidParameters']
 
       if invalid != {} or errors != {}:
-         raise WallabyValidateError(invalid, errors)
+         raise WallabyValidateError(invalid, errors, [])
 
 
    def update(self, obj):

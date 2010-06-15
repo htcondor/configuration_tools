@@ -1,5 +1,5 @@
 %{!?python_sitelib: %define python_sitelib %(%{__python} -c "from distutils.sysconfig import get_python_lib; print get_python_lib()")}
-%define rel 0.1
+%define rel 0.2
 
 Name: condor-wallaby
 Summary: Condor configuration using wallaby
@@ -106,6 +106,9 @@ cp -f module/*.py %{buildroot}/%{python_sitelib}/wallabyclient
 %{python_sitelib}/wallabyclient/exceptions.py*
 
 %changelog
+* Mon Jun 15 2010  <rrati@redhat> - 2.9-0.2
+- Fixed issues raising WallabyValidateError event
+
 * Fri Jun 11 2010  <rrati@redhat> - 2.9-0.1
 - Changes to event handling
 

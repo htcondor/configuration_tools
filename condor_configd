@@ -72,15 +72,18 @@ class EventConsole(Console):
          log(logging.INFO, self.logger_name, 'Received a WallabyConfigEvent')
          args = event.getArguments()
          affected_hosts = args['affectedNodes']
+         nondc_daemons = ['ll_daemon', 'configd']
          if self.node.getIndex() in affected_hosts.keys():
             log(logging.INFO, self.logger_name, 'The event is for this node')
             (retval, running_version, err) = run_cmd('condor_config_val -master WALLABY_CONFIG_VERSION')
             (retval, daemons, err) = run_cmd('condor_config_val -master DAEMON_LIST')
             running_version = running_version.strip()
             daemons = daemons.split(',')
+            daemons = daemons.split(' ')
             daemon_list = []
             for daemon in daemons:
-               daemon_list += [daemon.lower().strip()]
+               if daemon.strip() != '':
+                  daemon_list += [daemon.lower().strip()]
 
             new_version = affected_hosts[self.node.getIndex()]
             subsys = str(args['targets'][0])
@@ -98,13 +101,20 @@ class EventConsole(Console):
                else:
                   cmd = 'condor_reconfig'
 
-               if subsys == 'carod' or subsys == 'configd':
-                  cmd = 'condor_restart'
+               if subsys.lower() in nondc_daemons:
+                  cmd = 'condor_off'
                (retval, out, err) = run_cmd('%s -subsystem %s' % (cmd, subsys))
                if retval != 0:
                   log(logging.ERROR, self.logger_name, 'Failed to send command "%s" to subsystem "%s" (stdout: "%s", stderr: "%s")' % (cmd, subsys, out, err))
                else:
                   log(logging.INFO, self.logger_name, 'Sent command "s" to subsystem "%s"' % (cmd, subsys))
+                  if cmd == 'condor_off':
+                     cmd = 'condor_on'
+                     (retval, out, err) = run_cmd('%s -subsystem %s' % (cmd, subsys))
+                     if retval != 0:
+                        log(logging.ERROR, self.logger_name, 'Failed to send command "%s" to subsystem "%s" (stdout: "%s", stderr: "%s")' % (cmd, subsys, out, err))
+                     else:
+                        log(logging.INFO, self.logger_name, 'Sent command "s" to subsystem "%s"' % (cmd, subsys))
 
 
 class Service:
@@ -300,7 +310,10 @@ def get_config(node_obj, log_name, managedfile, version=0):
       try:
          (file_hdl,file_name) = tempfile.mkstemp('.tmp', 'condor_config.local', text=True)
          for key in config.keys():
-            os.write(file_hdl, '%s = %s\n' % (key, config[key]))
+            if key.strip().lower() == 'dc_daemon_list':
+               os.write(file_hdl, '%s =+ %s\n' % (key, config[key]))
+            else:
+               os.write(file_hdl, '%s = %s\n' % (key, config[key]))
          os.close(file_hdl)
       except:
          log(logging.ERROR, log_name, 'Failed to write configuration to temp file')

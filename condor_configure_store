@@ -230,7 +230,7 @@ def main(argv=None):
                print '  There are no %ss in the store' % type
             else:
                for obj in objs:
-                  print '  %s' % obj.getIndex()
+                  print '  %s' % obj.name
       return(0)
 
    # First add all the params/nodes/features/etc the user entered on the

@@ -395,7 +395,7 @@ def activate_configuration(store):
                   print '  %s' % param
             print
          print 'Configuration not activated'
-      else:
+      elif warnings == []:
          ret_val = True
          print 'Configuration activated'
    return ret_val
@@ -562,6 +562,7 @@ def main(argv=None):
          broker = session.addBroker('amqp://%s:%d' % (broker_ip, port))
    except:
       print 'Unable to connect to broker "%s:%d"' % (broker_ip, port)
+      session.delBroker(broker)
       return(1)
 
    # Retreive the config store object
@@ -569,10 +570,12 @@ def main(argv=None):
       config_store = session.getObjects(_class='Store', _package='com.redhat.grid.config')
    except Exception, error:
       print 'Error: %s' % error
+      session.delBroker(broker)
       return(1)
 
    if config_store == []:
       print 'Unable to contact Configuration Store'
+      session.delBroker(broker)
       return(1)
    else:
       config_store = config_store[0]
@@ -580,8 +583,10 @@ def main(argv=None):
    # Attempt to activate the configuration in the store if told to do so
    if action == 'activate':
       if activate_configuration(config_store) == False:
+         session.delBroker(broker)
          return(1)
       else:
+         session.delBroker(broker)
          return(0)
 
    # Process the list-alls, if there are any
@@ -591,6 +596,7 @@ def main(argv=None):
             objs = session.getObjects(_class=type, _package='com.redhat.grid.config')
          except Exception, error:
             print 'Error: %s' % error
+            session.delBroker(broker)
             return(1)
 
          print '\n%ss:' % type
@@ -610,6 +616,7 @@ def main(argv=None):
             else:
                for obj in objs:
                   print '  %s' % obj.name
+      session.delBroker(broker)
       return(0)
 
    # Process snapshots
@@ -617,18 +624,23 @@ def main(argv=None):
       result = config_store.loadSnapshot(snapshot_name)
       if result.status != 0:
          print 'Error: Failed to load snapshot "%s" (%d %s)' % (snapshot_name, result.status, result.text)
+         session.delBroker(broker)
          return(1)
       print 'Snapshot loaded'
+      session.delBroker(broker)
       return(0)
    elif action == 'remove-snapshot':
       result = config_store.removeSnapshot(snapshot_name)
       if result.status != 0:
          print 'Error: Failed to remove snapshot "%s" (%d %s)' % (snapshot_name, result.status, result.text)
+         session.delBroker(broker)
          return(1)
       print 'Snapshot removed'
+      session.delBroker(broker)
       return(0)
    elif action == 'take-snapshot':
       save_snapshot(config_store, snapshot_name)
+      session.delBroker(broker)
       return(0)
 
    # Perform list opertions
@@ -647,6 +659,7 @@ def main(argv=None):
       for param in params.split(','):
          WallabyHelpers.list_param_info(session, config_store, param)
             
+      session.delBroker(broker)
       return(0)
 
    # If configuring a single node, grab that node's identity group and
@@ -654,10 +667,12 @@ def main(argv=None):
    if is_node == True:
       obj = WallabyHelpers.get_node(session, config_store, name)
       if obj == None:
+         session.delBroker(broker)
          return(1)
       else:
          name = WallabyHelpers.get_id_group_name(obj, session)
          if name == None:
+            session.delBroker(broker)
             return(1)
 
 
@@ -675,16 +690,19 @@ def main(argv=None):
    if name == '':
       print 'No name supplied.  Exiting'
       print_help(argv[0])
+      session.delBroker(broker)
       return(1)
    elif features == [] and params == '' and schedd_prompts == False and \
         broker_prompts == False:
       print 'No targets specified.  Exiting'
       print_help(argv[0])
+      session.delBroker(broker)
       return(1)
    else:
       # Query the store to get the group
       group_obj = WallabyHelpers.get_group(session, config_store, name)
       if group_obj == None:
+         session.delBroker(broker)
          return(1)
 
       # Prompt for param values entered on the command line, if any
@@ -713,6 +731,7 @@ def main(argv=None):
             result = group_obj.modifyFeatures(action, features, {})
             if result.status != 0:
                print 'Error: Problem modifying features (%d, %s)' % (result.status, result.text)
+               session.delBroker(broker)
                return(1)
 
           # Check if any additional params need to be added/removed
@@ -727,6 +746,7 @@ def main(argv=None):
             result = group_obj.modifyParams(action, param_list, {})
             if result.status != 0:
                print 'Error: Problem modifying parameters (%d, %s)' % (result.status, result.text)
+               session.delBroker(broker)
                return(1)
 
          if replace_list != {}:
@@ -744,6 +764,7 @@ def main(argv=None):
             result = group_obj.modifyParams('replace', all_params, {})
             if result.status != 0:
                print 'Error: Problem modifying parameters (%d, %s)' % (result.status, result.text)
+               session.delBroker(broker)
                return(1)
          print 'Configuration applied'
 

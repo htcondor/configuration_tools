@@ -21,6 +21,7 @@ import time
 import socket
 import threading
 import getopt
+import Queue
 import random
 import tempfile
 import shutil
@@ -56,65 +57,27 @@ class EventConsole(Console):
    def __init__(self):
       self.node = []
       self.logger_name = ''
-      self.managedfile = ''
-      self.lock = None
 
 
-   def config(self, obj, name, filename, lock_obj):
-      self.node = obj
-      self.logger_name = name
-      self.managedfile = filename
-      self.lock = lock_obj
+   def config(self, node_name, log_name):
+      self.node_name = node_name
+      self.logger_name = log_name
 
 
    def event(self, broker, event):
-      if event.getClassKey().getClassName() == 'WallabyConfigEvent':
-         log(logging.INFO, self.logger_name, 'Received a WallabyConfigEvent')
+      global version_queue
+
+      if event.getClassKey().getClassName() == 'NodeUpdatedNotice':
+         log(logging.DEBUG, self.logger_name, 'Received a NodeUpdatedNotice')
          args = event.getArguments()
-         affected_hosts = args['affectedNodes']
-         nondc_daemons = ['ll_daemon', 'configd']
-         if self.node.getIndex() in affected_hosts.keys():
-            log(logging.INFO, self.logger_name, 'The event is for this node')
-            (retval, running_version, err) = run_cmd('condor_config_val -master WALLABY_CONFIG_VERSION')
-            (retval, daemons, err) = run_cmd('condor_config_val -master DAEMON_LIST')
-            running_version = running_version.strip()
-            daemons = daemons.split(',')
-            daemons = daemons.split(' ')
-            daemon_list = []
-            for daemon in daemons:
-               if daemon.strip() != '':
-                  daemon_list += [daemon.lower().strip()]
-
-            new_version = affected_hosts[self.node.getIndex()]
-            subsys = str(args['targets'][0])
-            if str(new_version) == running_version:
-               log(logging.INFO, self.logger_name, 'Discarding event.  Configuration for version "%s" has already been processed' % new_version)
-            elif subsys.lower() not in daemon_list:
-               log(logging.INFO, self.logger_name, 'Ignoring event for subsystem "%s" that is not currently running' % subsys)
-            else:
-               self.lock.acquire(True)
-               get_config(self.node, self.logger_name, self.managedfile, affected_hosts[self.node.getIndex()])
-               perform_checkin(self.node, self.logger_name)
-               self.lock.release()
-               if args['restart'] == True:
-                  cmd = 'condor_restart'
-               else:
-                  cmd = 'condor_reconfig'
-
-               if subsys.lower() in nondc_daemons:
-                  cmd = 'condor_off'
-               (retval, out, err) = run_cmd('%s -subsystem %s' % (cmd, subsys))
-               if retval != 0:
-                  log(logging.ERROR, self.logger_name, 'Failed to send command "%s" to subsystem "%s" (stdout: "%s", stderr: "%s")' % (cmd, subsys, out, err))
-               else:
-                  log(logging.INFO, self.logger_name, 'Sent command "s" to subsystem "%s"' % (cmd, subsys))
-                  if cmd == 'condor_off':
-                     cmd = 'condor_on'
-                     (retval, out, err) = run_cmd('%s -subsystem %s' % (cmd, subsys))
-                     if retval != 0:
-                        log(logging.ERROR, self.logger_name, 'Failed to send command "%s" to subsystem "%s" (stdout: "%s", stderr: "%s")' % (cmd, subsys, out, err))
-                     else:
-                        log(logging.INFO, self.logger_name, 'Sent command "s" to subsystem "%s"' % (cmd, subsys))
+         nodes = args['nodes']
+         if self.node_name in nodes or '*' in nodes:
+            log(logging.DEBUG, self.logger_name, 'The event is for this node')
+            event_ver = int(args['version'])
+            try:
+               version_queue.put(event_ver, False)
+            except Queue.Full, error:
+               log(logging.INFO, self.logger_name, 'Configuration version queue full.  Discarding event for version "%d"' % event_ver)
 
 
 class Service:
@@ -137,7 +100,7 @@ class Service:
    def init(self, node, name):
       self.console = EventConsole()
       self.session = Session(self.console, manageConnections=False, rcvObjects=False, rcvHeartbeats=False, rcvEvents=True)
-      self.session.addEventFilter(package='com.redhat.grid.config', event='WallabyConfigEvent')
+      self.session.addEventFilter(package='com.redhat.grid.config', event='NodeUpdatedNotice')
       self.logger_name = name
       self.node_name = node
       self.managedfile = ''
@@ -163,7 +126,7 @@ class Service:
          val = read_condor_config('QMF_BROKER', ['PORT'])
          self.broker_port = val['port']
       except ConfigError, error:
-         log(logging.INFO, self.logger_name, '%s. Using default (5672)' % error.msg)
+         log(logging.DEBUG, self.logger_name, '%s. Using default (5672)' % error.msg)
          self.broker_port = 5672
 
       try:
@@ -227,8 +190,8 @@ class Service:
             return(False)
          else:
             self.node_obj = obj[0]
-            log(logging.INFO, self.logger_name, 'Retrieved node object from store')
-      self.console.config(self.node_obj, self.logger_name, self.managedfile, self.lock)
+            log(logging.DEBUG, self.logger_name, 'Retrieved node object from store')
+      self.console.config(self.node_obj.name, self.logger_name)
       return(True)
 
 
@@ -254,105 +217,202 @@ class Service:
       return self.interval
 
 
-   def check_config_ver(self, force=False):
-      log(logging.INFO, self.logger_name, 'Periodically checking version of condor configuration')
+   def check_config_ver(self, ver=0, force=False):
+      log(logging.DEBUG, self.logger_name, 'Checking version of condor configuration')
       if self.node_obj == []:
          log(logging.ERROR, self.logger_name, 'No node object from the store')
          self.config_qmf_entities()
-         return(1)
+         return(False)
 
-      try:
-         self.node_obj.update()
-      except:
-         # Agent/broker has gone away
-         if self.config_qmf_entities() == False:
-            return(1)
-
-      wallaby_ver = self.node_obj.last_updated_version
       self.lock.acquire(True)
-      get_config(self.node_obj, self.logger_name, self.managedfile, wallaby_ver)
-      perform_checkin(self.node_obj, self.logger_name)
-      self.lock.release()
 
+      # If the passed version is 0, look at the last_updated_version
+      if ver == 0:
+         try:
+            self.node_obj.update()
+         except:
+            # Agent/broker has gone away
+            if self.config_qmf_entities() == False:
+               self.lock.release()
+               return(False)
+         ver = int(self.node_obj.last_updated_version)
 
-def get_config(node_obj, log_name, managedfile, version=0):
-   global replacing_file
+      # Install the new configuration (if needed)
+      self.get_config(ver, force)
 
-   try:
-      val = read_condor_config('WALLABY_CONFIG', ['VERSION'], {'CONDOR_CONFIG':managedfile})
-      current_version = int(val['version'])
-   except ConfigError:
-      # Never been configured before
-      current_version = -1
-
-   if version != current_version:
-      log(logging.INFO, log_name, 'Retrieving configuration version "%d" from the store' % version)
-
-      # Retrieve the node's configuration
+      # Check in with the store
+      log(logging.DEBUG, self.logger_name, 'Performing a checkin with the store')
       try:
-         if version <= 0:
-            result = node_obj.getConfig({})
-         else:
-            result = node_obj.getConfig({'version':version})
+         self.node_obj.checkin()
       except Exception, error:
-         # Something has gone away, so fail silently
-         log(logging.ERROR, log_name, 'Exception when attempting to retrieve configuration version "%d" from the store' % version)
-         log(logging.ERROR, log_name, error)
+         log(logging.ERROR, self.logger_name, 'Failed to check in with the store')
+         log(logging.ERROR, self.logger_name, error)
+         self.lock.release()
+         return(False)
+      log(logging.DEBUG, self.logger_name, 'Checked in with the store')
+      self.lock.release()
+      return(True)
+
+
+   def process_version_q(self):
+      global version_queue
+
+      version = -1
+      try:
+         version = version_queue.get(False)
+      except Queue.Empty:
          return
 
-      if result.status != 0:
-         # Problem getting the configuration, so do nothing
-         log(logging.ERROR, log_name, 'Failed to retrieve configuration "%d" from the store (%d, %s)' % (version, result.status, result.text))
+      if version != -1:
+         # There was a new version in the queue
+         if self.check_config_ver(version) == False:
+            if version_queue.empty() == True:
+               # There hasn't been another version to look at, so put
+               # this one back as there was an error installing it
+               version_queue.put(version, False)
+
+
+   def get_config(self, version=0, force=False):
+      global replacing_file
+
+      # Get the WALLABY_CONFIG_VERSION the master is running.  If the master is
+      # running the same version as what we've received, then we know we don't
+      # need do anything
+      (retval, running_version, err) = run_cmd('condor_config_val WALLABY_CONFIG_VERSION')
+      try:
+         running_version = int(running_version.strip())
+      except:
+         running_version = 0
+   
+      if version == running_version and force == False:
+         log(logging.DEBUG, self.logger_name, 'The system is already running configuration version "%d"' % version)
          return
       else:
-         config = result.outArgs['config']
-
-      try:
-         (file_hdl,file_name) = tempfile.mkstemp('.tmp', 'condor_config.local', text=True)
-         for key in config.keys():
-            if key.strip().lower() == 'dc_daemon_list':
-               os.write(file_hdl, '%s =+ %s\n' % (key, config[key]))
+         log(logging.INFO, self.logger_name, 'Retrieving configuration version "%d" from the store' % version)
+   
+         # Retrieve the node's configuration
+         try:
+            if version <= 0:
+               result = self.node_obj.getConfig({})
             else:
-               os.write(file_hdl, '%s = %s\n' % (key, config[key]))
-         os.close(file_hdl)
-      except:
-         log(logging.ERROR, log_name, 'Failed to write configuration to temp file')
-         return
-
-      # Verify the config file is valid
-      (retval, out, err) = run_cmd('condor_config_val -dump', environ={'CONDOR_CONFIG':'%s' % file_name})
-      if retval != 0:
-         log(logging.ERROR, log_name, 'Configuration is invalid.  Discarding')
-         os.remove(file_name)
-         return
-
-      # Install the file for condor to use
-      replacing_file = True
-      if os.path.exists(managedfile):
-         os.remove(managedfile)
-      try:
-         shutil.move(file_name, managedfile)
-      except:
-         log(logging.ERROR, log_name, 'Error installing new configuration file')
-         os.remove(file_name)
+               result = self.node_obj.getConfig({'version':version})
+         except Exception, error:
+            # Something has gone away, so fail silently
+            log(logging.ERROR, self.logger_name, 'Exception when attempting to retrieve configuration version "%d" from the store' % version)
+            log(logging.ERROR, self.logger_name, error)
+            return
+   
+         if result.status != 0:
+            # Problem getting the configuration, so do nothing
+            log(logging.ERROR, self.logger_name, 'Failed to retrieve configuration "%d" from the store (%d, %s)' % (version, result.status, result.text))
+            return
+         else:
+            config = result.outArgs['config']
+   
+         try:
+            (file_hdl,file_name) = tempfile.mkstemp('.tmp', 'condor_config.local', text=True)
+            for key in config.keys():
+               if key.strip().lower() == 'dc_daemon_list':
+                  os.write(file_hdl, '%s =+ %s\n' % (key, config[key]))
+               else:
+                  os.write(file_hdl, '%s = %s\n' % (key, config[key]))
+            os.close(file_hdl)
+         except:
+            log(logging.ERROR, self.logger_name, 'Failed to write configuration to temp file')
+            return
+   
+         # Verify the config file is valid
+         (retval, out, err) = run_cmd('condor_config_val -dump', environ={'CONDOR_CONFIG':'%s' % file_name})
+         if retval != 0:
+            log(logging.ERROR, self.logger_name, 'Configuration is invalid.  Discarding')
+            os.remove(file_name)
+            return
+   
+         # Install the file for condor to use
+         replacing_file = True
+         if os.path.exists(self.managedfile):
+            os.remove(self.managedfile)
+         try:
+            shutil.move(file_name, self.managedfile)
+         except:
+            log(logging.ERROR, self.logger_name, 'Error installing new configuration file')
+            os.remove(file_name)
+            replacing_file = False
+            return
          replacing_file = False
+         log(logging.DEBUG, self.logger_name, 'Retrieved configuration from the store')
+   
+         # Have the store tell us which subsystems to restart/reconfig
+         result = self.node_obj.whatChanged(running_version, version)
+         if result.status != 0:
+            log(logging.ERROR, self.logger_name, 'Store error: %d, %s' % (error.status, error.text))
+            log(logging.ERROR, self.logger_name, 'Failed to retrive differences between versions "%d" and "%d".  No update performed' % (running_version, version))
+            return
+         else:
+            restart_list = result.outArgs['restart']
+            reconfig_list = result.outArgs['affected']
+
+         log(logging.DEBUG, self.logger_name, 'Daemons to restart: %s' % restart_list)
+         log(logging.DEBUG, self.logger_name, 'Daemons to reconfig: %s' % reconfig_list)
+
+         # Determine the list of daemons the master is running, and only send
+         # events to these daemons.  Any new daemons that should be running (or
+         # any daemons that should be stopped) will be handled by commands sent
+         # to the master
+         (retval, daemons, err) = run_cmd('condor_config_val -master DAEMON_LIST')
+         daemons = daemons.split(',')
+         daemon_list = []
+         for daemon in daemons:
+            if daemon.strip() != '':
+               daemon_list += [daemon.lower().strip()]
+   
+         # Process the subsystem lists and act upon them.  Start by processing
+         # the daemons to restart, and if master is listed then don't process
+         # anything else because restarting the master will take care of
+         # everything
+         cmd = 'condor_restart'
+         if 'master' in restart_list:
+            self.send_condor_command(cmd, 'master')
+         else:
+            self.act_upon_subsys_list(cmd, restart_list, daemon_list)
+   
+            # Now process the reconfig list.  Again, if master is listed then
+            # don't do anything else as sending a reconfig event to the master
+            # will handle everything 
+            cmd = 'condor_reconfig'
+            if 'master' in reconfig_list:
+               self.send_condor_command(cmd, 'master')
+            else:
+               self.act_upon_subsys_list(cmd, reconfig_list, daemon_list)
+   
+   
+   def act_upon_subsys_list(self, command, list, running_daemons):
+      nondc_daemons = ['ll_daemon', 'configd']
+
+      if list == []:
          return
 
-      replacing_file = False
-      log(logging.INFO, log_name, 'Retrieved configuration from the store')
-   else:
-      log(logging.INFO, log_name, 'The store does not have a newer version')
+      for subsys in list:
+         subsys = str(subsys.strip())
+         if subsys.lower() not in running_daemons:
+            log(logging.DEBUG, self.logger_name, 'Not sending "%s" to subsystem "%s" since it is not currently running' % (command, subsys))
+         else:
+            if subsys.lower() in nondc_daemons:
+               if self.send_condor_command('condor_off', subsys) == True:
+                  self.send_condor_command('condor_on', subsys)
+            else:
+               self.send_condor_command(command, subsys)
 
 
-def perform_checkin(node, log_name):
-   log(logging.INFO, log_name, 'Performing a checkin with the store')
-   try:
-      node.checkin()
-   except Exception, error:
-      log(logging.INFO, log_name, 'Failed to check in with the store')
-      log(logging.INFO, log_name, error)
-      return
-   log(logging.INFO, log_name, 'Checked in with the store')
+   def send_condor_command(self, command, subsystem):
+      log(logging.DEBUG, self.logger_name, 'Sending command "%s" to subsystem "%s"' % (command, subsystem))
+      (retval, out, err) = run_cmd('%s -subsystem %s' % (command, subsystem))
+      if retval != 0:
+         log(logging.ERROR, self.logger_name, 'Failed to send command "%s" to subsystem "%s" (stdout: "%s", stderr: "%s")' % (command, subsystem, out, err))
+         return False
+      else:
+         log(logging.DEBUG, self.logger_name, 'Sent command "%s" to subsystem "%s"' % (command, subsystem))
+         return True
 
 
 def exit_signal_handler(signum, frame):
@@ -372,6 +432,7 @@ def test_for_shutdown():
 		os.remove(pidfile)
 		exit_signal_handler(signal.SIGTERM, None)
 
+version_queue = Queue.Queue()
 service = Service()
 stop_running = False
 replacing_file = False
@@ -389,15 +450,18 @@ def main(argv=None):
       logger_name = os.path.basename(argv[0])
       node_name = socket.gethostname()
       config_file = ''
+      log_level = logging.INFO
 
-      long_opts = ['hostname=', 'logfile=', 'managedfile=', 'retrieve']
+      long_opts = ['debug', 'hostname=', 'logfile=', 'managedfile=', 'retrieve']
       try:
-         opts, args = getopt.gnu_getopt(argv[1:], 'h:l:m:r', long_opts)
+         opts, args = getopt.gnu_getopt(argv[1:], 'dh:l:m:r', long_opts)
       except getopt.GetoptError, error:
          print str(error)
          return(1)
 
       for option, arg in opts:
+         if option in ('-d', '--debug'):
+            log_level = logging.DEBUG
          if option in ('-h', '--hostname'):
             node_name = arg
          if option in ('-l', '--logfile'):
@@ -421,7 +485,7 @@ def main(argv=None):
          size = 1000000
 
       try:
-         base_logger = create_file_logger(logger_name, file['log'], logging.INFO, size=size)
+         base_logger = create_file_logger(logger_name, file['log'], log_level, size=size)
       except:
          print 'Failed to open log file.  Exiting'
          return(1)
@@ -450,7 +514,7 @@ def main(argv=None):
          return(1)
       elif retrieve == True:
          if service != None:
-            service.check_config_ver(True)
+            service.check_config_ver(force=True)
          exit_signal_handler(0, 0)
          return(0)
 
@@ -473,6 +537,7 @@ def main(argv=None):
       while stop_running == False or replacing_file == True:
          try:
             time.sleep(1)
+            service.process_version_q()
          except:
             pass
    except KeyboardInterrupt:

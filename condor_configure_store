@@ -191,6 +191,7 @@ def main(argv=None):
          broker = session.addBroker('amqp://%s:%d' % (broker_ip, port))
    except:
       print 'Unable to connect to broker "%s:%d"' % (broker_ip, port)
+      session.delBroker(broker)
       return(1)
 
    # Retreive the config store object
@@ -198,10 +199,12 @@ def main(argv=None):
       config_store = session.getObjects(_class='Store', _package='com.redhat.grid.config')
    except Exception, error:
       print 'Error: %s' % error
+      session.delBroker(broker)
       return(1)
 
    if config_store == []:
       print 'Unable to contact Configuration Store'
+      session.delBroker(broker)
       return(1)
    else:
       config_store = config_store[0]
@@ -213,6 +216,7 @@ def main(argv=None):
             objs = session.getObjects(_class=type, _package='com.redhat.grid.config')
          except Exception, error:
             print 'Error: %s' % error
+            session.delBroker(broker)
             return(1)
          print '\n%ss:' % type
          if type == 'Feature' or type == 'Group':
@@ -231,6 +235,7 @@ def main(argv=None):
             else:
                for obj in objs:
                   print '  %s' % obj.name
+      session.delBroker(broker)
       return(0)
 
    # First add all the params/nodes/features/etc the user entered on the
@@ -241,6 +246,7 @@ def main(argv=None):
       subsys == '':
       print 'No targets provided.  Exiting'
       print_help(argv[0])
+      session.delBroker(broker)
       return(1)
 
    # Process the nodes

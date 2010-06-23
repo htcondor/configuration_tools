@@ -1,9 +1,9 @@
 %{!?python_sitelib: %define python_sitelib %(%{__python} -c "from distutils.sysconfig import get_python_lib; print get_python_lib()")}
-%define rel 0.2
+%define rel 1
 
 Name: condor-wallaby
 Summary: Condor configuration using wallaby
-Version: 2.9
+Version: 3.0
 Release: %{rel}%{?dist}
 Group: Applications/System
 License: ASL 2.0
@@ -106,6 +106,15 @@ cp -f module/*.py %{buildroot}/%{python_sitelib}/wallabyclient
 %{python_sitelib}/wallabyclient/exceptions.py*
 
 %changelog
+* Wed Jun 23 2010  <rrati@redhat> - 3.0-1
+- Transitioned to new NodeUpdatedNotice
+- Fixed error messages on tool exits
+- Initial checkin will restart/reconfig daemons as well as pull config
+- Moved some logging to DEBUG level
+- Special casing of non-daemoncore daemons
+- special casing of SC_DAEMON_LIST
+- Minor bug fixes
+
 * Mon Jun 15 2010  <rrati@redhat> - 2.9-0.2
 - Fixed issues raising WallabyValidateError event
 

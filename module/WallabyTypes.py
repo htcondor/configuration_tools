@@ -27,7 +27,7 @@ class Feature(YAMLObject):
 
 
    def __repr__(self):
-      return '%s(name=%r, params=%r, includes=%r, conflicts=%r, depends=%r, subsys=%r' % (self.__class__.__name__, self.name, self.params, self.includes, self.conflicts, self.depends, self.subsys)
+      return '%s(name=%r, params=%r, includes=%r, conflicts=%r, depends=%r' % (self.__class__.__name__, self.name, self.params, self.includes, self.conflicts, self.depends)
 
 
    def dict_as_list(self):
@@ -68,9 +68,9 @@ class Feature(YAMLObject):
             ask_default += [p]
 
       result = store.checkFeatureValidity(self.includes)
+      invalid['Feature'] = []
       if result.status != 0:
          errors[result.status] = result.text
-         invalid['Feature'] = []
       else:
          if result.outArgs['invalidFeatures'] != []:
             invalid['Feature'] = result.outArgs['invalidFeatures']

@@ -382,14 +382,25 @@ def main(argv=None):
          run_cmd('%s %s' % (os.getenv('EDITOR') or '/bin/vi', file.name), inter=True)
          file.flush()
          file.seek(0, 0)
-         yaml_output = yaml.load_all(file)
+         try:
+            yaml_output = yaml.load_all(file)
+         except:
+            input = raw_input('Error: Invalid input.  Press <Enter> to correct the errors')
+            retry = True
+            continue
 
          # load_all returns a stream, so read its data into a python list we
          # can traverse more than once.  Replace the edit_objs so the changes
          # are preserved
-         edit_objs = []
-         for entry in yaml_output:
-            edit_objs += [entry]
+         obj_list = []
+         try:
+            for entry in yaml_output:
+               obj_list += [entry]
+         except:
+            input = raw_input('Error: Invalid input.  Press <Enter> to correct the errors')
+            retry = True
+            continue
+         edit_objs = obj_list
 
          # Check for invalid items in the configurations
          invalids = {}
@@ -400,10 +411,11 @@ def main(argv=None):
                edited.store_validate(config_store)
             except WallabyValidateError, error:
                for type in error.invalids.keys():
-                  try:
-                     invalids[type] = invalids[type] + error.invalids[type]
-                  except:
-                     invalids[type] = error.invalids[type]
+                  if error.invalids[type] != []:
+                     try:
+                        invalids[type] = invalids[type] + error.invalids[type]
+                     except:
+                        invalids[type] = error.invalids[type]
                errors.update(error.errors)
                if error.ask_list != []:
                   ask_for_default[edited] = error.ask_list

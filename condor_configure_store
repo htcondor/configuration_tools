@@ -30,9 +30,9 @@ def exit_signal_handler(signum, frame):
 
 def print_help(name):
    print 'usage: %s [-h|--help] [-b|--broker <broker>] [-o|--port <port>] action [-f|--features feature[,feature,...]] [-p|--params param[,param,...]] [-n|--nodes hostname,hostname] [-g|--groups group[,group]] [-s|--subsys subsystem[,subsystem]]' % os.path.basename(name)
-   print '  <broker> - The ip/hostname of the broker used by the configuration store'
-   print '  <port>   - The port of the broker used by the configuration store'
-   print '  -h - Print help'
+   print '  <broker>  - The ip/hostname of the broker used by the configuration store'
+   print '  <port>    - The port of the broker used by the configuration store'
+   print '  -h|--help - Print help'
    print '\naction:'
    print '  -a|--add             - Add the target(s) to the store'
    print '  -d|--delete          - Remove the target(s) from the store'
@@ -44,8 +44,6 @@ def print_help(name):
    print '  --list-all-nodes     - List all nodes in the store'
    print '  --list-all-params    - List all params in the store'
    print '  --list-all-subsystems- List all subsystems in the store'
-   print '  --default-group      - Perform actions on the Default Group in'
-   print '                         the store'
 
 
 def print_wallaby_types(data):
@@ -64,6 +62,10 @@ def represent_feature(self, data):
 
 def represent_group(self, data):
    return self.represent_mapping(u'!Group', print_wallaby_types(data))
+
+
+def represent_node(self, data):
+   return self.represent_mapping(u'!Node', print_wallaby_types(data))
 
 
 def represent_param(self, data):
@@ -96,7 +98,7 @@ def main(argv=None):
    signal.signal(signal.SIGINT, exit_signal_handler)
    signal.signal(signal.SIGTERM, exit_signal_handler)
 
-   long_opts = ['add', 'broker=', 'default-group', 'delete', 'edit',
+   long_opts = ['add', 'broker=', 'delete', 'edit',
                 'features=', 'groups=', 'help', 'list', 'list-all-features',
                 'list-all-groups', 'list-all-nodes', 'list-all-params',
                 'list-all-subsystems', 'nodes=', 'params=', 'password=',
@@ -115,11 +117,6 @@ def main(argv=None):
          action = 'add'
       if option in ('-b', '--broker'):
          broker_ip = arg
-      if option == '--default-group':
-         if groups == '':
-            groups += '+++DEFAULT,'
-         else:
-            groups += ',+++DEFAULT'
       if option in ('-d', '--delete'):
          if action != '':
             print 'Only 1 action may be specified'
@@ -252,18 +249,26 @@ def main(argv=None):
    # Process the nodes
    if nodes != '':
       for node in nodes.split(','):
+         obj = None
          node = node.strip()
          if action == 'add':
-            WallabyHelpers.add_node(session, config_store, node)
+            obj = WallabyHelpers.add_node(session, config_store, node)
          elif action == 'delete':
             if node != '':
                result = config_store.removeNode(node)
                if result.status != 0:
                   print 'Error: Failed to remove node "%s" (%d, %s)' % (node, result.status, result.text)
                   continue
+         elif action == 'edit':
+            obj = WallabyHelpers.get_node(session, config_store, node)
          elif action == 'list':
             WallabyHelpers.list_node_info(session, config_store, node)
             print
+
+         if obj != None:
+            edit_obj = WallabyTypes.Node(node)
+            edit_obj.init_from_obj(obj)
+            edit_objs += [edit_obj]
 
    # Process the parameters
    if params != '':
@@ -313,33 +318,22 @@ def main(argv=None):
    # Process the groups
    if groups != '':
       for group in groups.split(','):
-         obj = None
          group = group.strip()
          if action == 'add':
-            if group != '+++DEFAULT':
-               obj = WallabyHelpers.add_group(session, config_store, group)
+            if '+++' != group[0:3]:
+               WallabyHelpers.add_group(session, config_store, group)
             else:
-               print 'The default group in the configuration store can not be added'
+               print 'Group names beginning with "+++" are reserved and can not be added'
          elif action == 'delete':
-            if group != '+++DEFAULT':
+            if '+++' != group[0:3]:
                result = config_store.removeGroup(group)
                if result.status != 0:
                   print 'Error: Failed to remove group "%s" (%d, %s)' % (group, result.status, result.text)
             else:
-               print 'The default group in the configuration store can not be deleted'
+               print 'Group names beginning with "+++" are reserved and can not be deleted'
          elif action == 'list':
             WallabyHelpers.list_group_info(session, config_store, group)
             print
-         elif action == 'edit':
-            if group != '+++DEFAULT':
-               obj = WallabyHelpers.get_group(session, config_store, group)
-            else:
-               print 'The nodes included in the default group in the configuration store can not be modified'
-
-         if obj != None:
-            edit_obj = WallabyTypes.Group(group)
-            edit_obj.init_from_obj(obj)
-            edit_objs += [edit_obj]
 
    # Process the subsystems
    if subsys != '':
@@ -368,7 +362,7 @@ def main(argv=None):
    if edit_objs != []:
       retry = True
       yaml.add_representer(WallabyTypes.Feature, represent_feature) 
-      yaml.add_representer(WallabyTypes.Group, represent_group) 
+      yaml.add_representer(WallabyTypes.Node, represent_node) 
       yaml.add_representer(WallabyTypes.Parameter, represent_param) 
       yaml.add_representer(WallabyTypes.Subsystem, represent_subsys) 
       yaml.add_representer(unicode, lambda dumper, value: dumper.represent_scalar(u'tag:yaml.org,2002:str', value))
@@ -449,11 +443,11 @@ def main(argv=None):
                         if obj != None:
                            edit_obj = WallabyTypes.Feature(item)
                      elif type == 'Node':
-                        WallabyHelpers.add_node(session, config_store, item)
-                     elif type == 'Group':
-                        obj = WallabyHelpers.add_group(session, config_store, item)
+                        obj = WallabyHelpers.add_node(session, config_store, item)
                         if obj != None:
-                           edit_obj = WallabyTypes.Group(item)
+                           edit_obj = WallabyTypes.Node(item)
+                     elif type == 'Group':
+                        WallabyHelpers.add_group(session, config_store, item)
                      elif type == 'Subsystem':
                         obj = WallabyHelpers.add_subsys(session, config_store, item)
                         if obj != None:
@@ -476,16 +470,13 @@ def main(argv=None):
                obj = WallabyHelpers.get_param(session, config_store, edited.name)
             if isinstance(edited, WallabyTypes.Feature):
                obj = WallabyHelpers.get_feature(session, config_store, edited.name)
-            if isinstance(edited, WallabyTypes.Group):
-               obj = WallabyHelpers.get_group(session, config_store, edited.name)
+            if isinstance(edited, WallabyTypes.Node):
+               obj = WallabyHelpers.get_node(session, config_store, edited.name)
             if isinstance(edited, WallabyTypes.Subsystem):
                obj = WallabyHelpers.get_subsys(session, config_store, edited.name)
 
             try:
-               if isinstance(edited, WallabyTypes.Group):
-                  edited.update(obj, config_store, session)
-               else:
-                  edited.update(obj)
+               edited.update(obj)
             except WallabyError, error:
                print 'The following errors were reported updating "%s":' % edited.get_name()
                for key in error.errors.keys():

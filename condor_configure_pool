@@ -26,13 +26,14 @@ def exit_signal_handler(signum, frame):
 
 
 def print_help(name):
-   print 'usage: %s [-h|--help] [-b|--broker <broker>] [-o|--port <port>] [--load-snapshot|--remove-snapshot|--take-snapshot <snapshot>] [--schedds] [--qmfbroker] [-g|--group|-n|--node name] action [-f|--features feature[,feature,...]] [-p|--params param1,param2,...]' % os.path.basename(name)
-   print '  <broker>    - The ip/hostname of the broker used by the configuration store'
-   print '  <port>      - The port of the broker used by the configuration store'
-   print '  <snapshot>  - The name of the snapshot'
-   print '  --schedds   - Prompt for scheduler information when configuring'
-   print '  --qmfbroker - Prompt for QMF broker information when configuring'
-   print '  -h - Print help'
+   print 'usage: %s [-h|--help] [-b|--broker <broker>] [-o|--port <port>] [--load-snapshot|--remove-snapshot|--take-snapshot <name>] [--schedds] [--qmfbroker] [-g|--group|-n|--node name] action [-f|--features feature[,feature,...]] [-p|--params param1,param2,...]' % os.path.basename(name)
+   print '  <broker>        - The ip/hostname of the broker used by the configuration store'
+   print '  <port>          - The port of the broker used by the configuration store'
+   print '  <snapshot>      - The name of the snapshot'
+   print '  --schedds       - Prompt for scheduler information'
+   print '  --qmfbroker     - Prompt for QMF broker information'
+   print '  --default-group - Perform actions on the Internal Default Group in the store'
+   print '  -h|--help       - Print help'
    print '\naction:'
    print '  -a|--add             - Add to the group/node'
    print '  -d|--delete          - Remove from the group/node'
@@ -40,13 +41,14 @@ def print_help(name):
    print '                         configuration'
    print '  --activate           - Attempt to activate the configuration in'
    print '                         the store'
+   print '  --load-snapshot      - Load snapshot with the given name'
+   print '  --take-snapshot      - Create snapshot with the given name'
+   print '  --remove-snapshot    - Remove snapshot with the given name'
    print '  --list-all-features  - List all features in the store'
    print '  --list-all-groups    - List all groups in the store'
    print '  --list-all-nodes     - List all nodes in the store'
    print '  --list-all-params    - List all params in the store'
    print '  --list-all-snapshots - List all snapshots in the store'
-   print '  --default-group      - Perform actions on the Default Group in'
-   print '                         the store'
 
 
 def configure_node_schedulers(params, is_delete):

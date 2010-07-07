@@ -226,11 +226,11 @@ class Parameter(YAMLObject):
          raise WallabyError(errors)
 
 
-class Group(YAMLObject):
-   yaml_tag = u'!Group'
-   def __init__(self, name, members=[]):
+class Node(YAMLObject):
+   yaml_tag = u'!Node'
+   def __init__(self, name, memberships=[]):
       self.name = name
-      self.members = list(members)
+      self.memberships = list(memberships)
 
 
    def get_name(self):
@@ -238,63 +238,42 @@ class Group(YAMLObject):
 
 
    def __repr__(self):
-      return '%s(name=%r, group_membership=%r' % (self.__class__.__name__, self.name, self.members)
+      return '%s(name=%r, group_membership=%r' % (self.__class__.__name__, self.name, self.memberships)
 
 
    def dict_as_list(self):
-      return [('name',self.name), ('members',self.members)]
+      return [('name',self.name), ('memberships',self.memberships)]
 
 
    def init_from_obj(self, obj):
       self.name = str(obj.name)
-      self.members = list(obj.membership)
+      self.memberships = list(obj.memberships)
 
 
    def store_validate(self, store):
       invalid = {}
       errors = {}
 
-      result = store.checkNodeValidity(self.members)
+      result = store.checkGroupValidity(self.memberships)
       if result.status != 0:
          errors[result.status] = result.text
       else:
-         if result.outArgs['invalidNodes'] != []:
-            invalid['Node'] = result.outArgs['invalidNodes']
+         if result.outArgs['invalidGroups'] != []:
+            invalid['Group'] = result.outArgs['invalidGroups']
 
       if invalid != {} or errors != {}:
          raise WallabyValidateError(invalid, errors, [])
 
 
-   def update(self, obj, store, session):
+   def update(self, obj):
       errors = {}
-      pre_edit_list = []
 
       if obj == None:
-         raise WallabyError({-1:'No group object to update'})
+         raise WallabyError({-1:'No node object to update'})
 
-      pre_edit_list = list(obj.membership)
-
-      for node in self.members:
-         node = node.strip()
-         should_add = True
-         if pre_edit_list != [] and node in pre_edit_list:
-            should_add = False
-         if should_add == True:
-            node_obj = get_node(session, store, node)
-            if node_obj != None:
-               result = node_obj.modifyMemberships('add', [self.name], {})
-               if result.status != 0:
-                  errors[result.status] = result.text
-
-      if pre_edit_list != []:
-         for node in pre_edit_list:
-            node = node.strip()
-            if node not in self.members:
-               node_obj = get_node(session, store, node)
-               if node_obj != None:
-                  result = node_obj.modifyMemberships('remove', [self.name], {})
-                  if result.status != 0:
-                     errors[result.status] = result.text
+      result = obj.modifyMemberships('replace', self.memberships, {})
+      if result.status != 0:
+         errors[result.status] = result.text
 
       if errors != {}:
          raise WallabyError(errors)

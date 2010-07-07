@@ -324,6 +324,9 @@ def main(argv=None):
                WallabyHelpers.add_group(session, config_store, group)
             else:
                print 'Group names beginning with "+++" are reserved and can not be added'
+         elif action == 'edit':
+            print 'Groups can not be edited'
+            break
          elif action == 'delete':
             if '+++' != group[0:3]:
                result = config_store.removeGroup(group)

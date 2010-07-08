@@ -26,9 +26,11 @@ def exit_signal_handler(signum, frame):
 
 
 def print_help(name):
-   print 'usage: %s [-h|--help] [-b|--broker <broker>] [-o|--port <port>] [--load-snapshot|--remove-snapshot|--take-snapshot <name>] [--schedds] [--qmfbroker] [-g|--group|-n|--node name] action [-f|--features feature[,feature,...]] [-p|--params param1,param2,...]' % os.path.basename(name)
+   print 'usage: %s [-h|--help] [-b|--broker <broker>] [-o|--port <port>] [-U|--user <user>] [-P|--password <password>] [--load-snapshot|--remove-snapshot|--take-snapshot <name>] [--schedds] [--qmfbroker] [-g|--group|-n|--node name] action [-f|--features feature[,feature,...]] [-p|--params param1,param2,...]' % os.path.basename(name)
    print '  <broker>        - The ip/hostname of the broker used by the configuration store'
    print '  <port>          - The port of the broker used by the configuration store'
+   print '  <user>          - The username used to authenticate with the broker'
+   print '  <password>      - The password used to authenticate with the broker'
    print '  <snapshot>      - The name of the snapshot'
    print '  --schedds       - Prompt for scheduler information'
    print '  --qmfbroker     - Prompt for QMF broker information'

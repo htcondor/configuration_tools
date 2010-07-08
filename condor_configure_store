@@ -29,10 +29,12 @@ def exit_signal_handler(signum, frame):
 
 
 def print_help(name):
-   print 'usage: %s [-h|--help] [-b|--broker <broker>] [-o|--port <port>] action [-f|--features feature[,feature,...]] [-p|--params param[,param,...]] [-n|--nodes hostname,hostname] [-g|--groups group[,group]] [-s|--subsys subsystem[,subsystem]]' % os.path.basename(name)
-   print '  <broker>  - The ip/hostname of the broker used by the configuration store'
-   print '  <port>    - The port of the broker used by the configuration store'
-   print '  -h|--help - Print help'
+   print 'usage: %s [-h|--help] [-b|--broker <broker>] [-o|--port <port>] [-U|--user <user>] [-P|--password <password>] action [-f|--features feature[,feature,...]] [-p|--params param[,param,...]] [-n|--nodes hostname,hostname] [-g|--groups group[,group]] [-s|--subsys subsystem[,subsystem]]' % os.path.basename(name)
+   print '  <broker>   - The ip/hostname of the broker used by the configuration store'
+   print '  <port>     - The port of the broker used by the configuration store'
+   print '  <user>     - The username used to authenticate with the broker'
+   print '  <password> - The password used to authenticate with the broker'
+   print '  -h|--help  - Print help'
    print '\naction:'
    print '  -a|--add             - Add the target(s) to the store'
    print '  -d|--delete          - Remove the target(s) from the store'

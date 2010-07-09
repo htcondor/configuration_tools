@@ -557,16 +557,17 @@ def main(argv=None):
 
    # Connect to the broker
    session = Session()
+   if username != '' and passwd != '':
+      broker_str = '%s/%s@%s:%d' % (username, passwd, broker_ip, port)
+   elif username != '':
+      broker_str = '%s@%s:%d' % (username, broker_ip, port)
+   else:
+      broker_str = '%s:%d' % (broker_ip, port)
+
    try:
-      if username != '' and passwd != '':
-         broker = session.addBroker('amqp://%s/%s@%s:%d' % (username, passwd, broker_ip, port))
-      elif username != '':
-         broker = session.addBroker('amqp://%s@%s:%d' % (username, broker_ip, port))
-      else:
-         broker = session.addBroker('amqp://%s:%d' % (broker_ip, port))
+      broker = session.addBroker('amqp://%s' % broker_str)
    except:
-      print 'Unable to connect to broker "%s:%d"' % (broker_ip, port)
-      session.delBroker(broker)
+      print 'Unable to connect to broker "%s"' % broker_str
       return(1)
 
    # Retreive the config store object

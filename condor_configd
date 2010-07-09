@@ -104,9 +104,14 @@ class Service:
       self.logger_name = name
       self.node_name = node
       self.managedfile = ''
+      self.user = ''
+      self.password = ''
 
 
-   def config(self, filename):
+   def config(self, filename, user='', password=''):
+      self.user = user
+      self.password = password
+
       if self.broker != None:
          self.session.delBroker(self.broker)
          self.broker = None
@@ -124,7 +129,7 @@ class Service:
 
       try:
          val = read_condor_config('QMF_BROKER', ['PORT'])
-         self.broker_port = val['port']
+         self.broker_port = int(val['port'])
       except ConfigError, error:
          log(logging.DEBUG, self.logger_name, '%s. Using default (5672)' % error.msg)
          self.broker_port = 5672
@@ -159,10 +164,18 @@ class Service:
       if self.node_obj != None:
          self.node_obj = None
 
+      if self.user != '' and self.password != '':
+         broker_str = '%s/%s@%s:%d' % (self.user, self.password, self.broker_ip, self.broker_port)
+      elif self.user != '':
+         broker_str = '%s@%s:%d' % (self.user, self.broker_ip, self.broker_port)
+      else:
+         broker_str = '%s:%d' % (self.broker_ip, self.broker_port)
+
       try:
-         self.broker = self.session.addBroker('amqp://%s:%s' % (self.broker_ip, self.broker_port))
+         self.broker = self.session.addBroker('amqp://%s' % broker_str)
+         log(logging.DEBUG, self.logger_name, 'Connected to broker "%s"' % broker_str)
       except:
-         log(logging.CRITICAL, self.logger_name, 'Unable to connect to broker "%s"' % self.broker_ip)
+         log(logging.CRITICAL, self.logger_name, 'Unable to connect to broker "%s"' % broker_str)
          return(False)
 
       try:
@@ -283,7 +296,7 @@ class Service:
          running_version = int(running_version.strip())
       except:
          running_version = 0
-   
+ 
       if version == running_version and force == False:
          log(logging.DEBUG, self.logger_name, 'The system is already running configuration version "%d"' % version)
          return
@@ -360,11 +373,12 @@ class Service:
          # any daemons that should be stopped) will be handled by commands sent
          # to the master
          (retval, daemons, err) = run_cmd('condor_config_val -master DAEMON_LIST')
-         daemons = daemons.split(',')
          daemon_list = []
-         for daemon in daemons:
-            if daemon.strip() != '':
-               daemon_list += [daemon.lower().strip()]
+         if daemons != None:
+            for daemon in daemons.split(','):
+               daemon = daemon.strip()
+               if daemon != '':
+                  daemon_list += [daemon.lower()]
    
          # Process the subsystem lists and act upon them.  Start by processing
          # the daemons to restart, and if master is listed then don't process
@@ -450,11 +464,14 @@ def main(argv=None):
       logger_name = os.path.basename(argv[0])
       node_name = socket.gethostname()
       config_file = ''
+      username = ''
+      passwd = ''
       log_level = logging.INFO
 
-      long_opts = ['debug', 'hostname=', 'logfile=', 'managedfile=', 'retrieve']
+      long_opts = ['debug', 'hostname=', 'logfile=', 'managedfile=', 
+                   'password=', 'retrieve', 'user=']
       try:
-         opts, args = getopt.gnu_getopt(argv[1:], 'dh:l:m:r', long_opts)
+         opts, args = getopt.gnu_getopt(argv[1:], 'dh:l:m:rP:U:', long_opts)
       except getopt.GetoptError, error:
          print str(error)
          return(1)
@@ -468,8 +485,13 @@ def main(argv=None):
             file['log'] = arg
          if option in ('-m', '--managedfile'):
             config_file = arg
+         if option in ('-P', '--password'):
+            passwd = arg
          if option in ('-r', '--retrieve'):
             retrieve = True
+         if option in ('-U', '--user'):
+            username = arg
+
 
       # Configure the logging system
       if 'log' not in file.keys():
@@ -506,7 +528,7 @@ def main(argv=None):
       # Retrieve the broker information from condor's configuration file
       if service != None:
          service.init(node_name, logger_name)
-      if service != None and service.config(config_file) != True:
+      if service != None and service.config(config_file, username, passwd) != True:
          if retrieve == True:
             print 'Error: Unable to retrieve configuration'
             log(logging.CRITICAL, logger_name, 'Unable to retrieve configuration')

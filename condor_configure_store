@@ -181,16 +181,17 @@ def main(argv=None):
       return(1)
 
    session = Session()
+   if username != '' and passwd != '':
+      broker_str = '%s/%s@%s:%d' % (username, passwd, broker_ip, port)
+   elif username != '':
+      broker_str = '%s@%s:%d' % (username, broker_ip, port)
+   else:
+      broker_str = '%s:%d' % (broker_ip, port)
+
    try:
-      if username != '' and passwd != '':
-         broker = session.addBroker('amqp://%s/%s@%s:%d' % (username, passwd, broker_ip, port))
-      elif username != '':
-         broker = session.addBroker('amqp://%s@%s:%d' % (username, broker_ip, port))
-      else:
-         broker = session.addBroker('amqp://%s:%d' % (broker_ip, port))
+      broker = session.addBroker('amqp://%s' % broker_str)
    except:
-      print 'Unable to connect to broker "%s:%d"' % (broker_ip, port)
-      session.delBroker(broker)
+      print 'Unable to connect to broker "%s"' % broker_str
       return(1)
 
    # Retreive the config store object
@@ -253,17 +254,22 @@ def main(argv=None):
       for node in nodes.split(','):
          obj = None
          node = node.strip()
-         if action == 'add':
-            obj = WallabyHelpers.add_node(session, config_store, node)
-         elif action == 'delete':
-            if node != '':
+         if action == 'add' and node != '':
+            if '+++' != node[0:3]:
+               obj = WallabyHelpers.add_node(session, config_store, node)
+            else:
+               print 'Node names beginning with "+++" are reserved and can not be added'
+         elif action == 'delete' and node != '':
+            if '+++' != node[0:3]:
                result = config_store.removeNode(node)
                if result.status != 0:
                   print 'Error: Failed to remove node "%s" (%d, %s)' % (node, result.status, result.text)
                   continue
-         elif action == 'edit':
+            else:
+               print 'Node names beginning with "+++" are reserved and can not be deleted'
+         elif action == 'edit' and node != '':
             obj = WallabyHelpers.get_node(session, config_store, node)
-         elif action == 'list':
+         elif action == 'list' and node != '':
             WallabyHelpers.list_node_info(session, config_store, node)
             print
 
@@ -277,17 +283,22 @@ def main(argv=None):
       for param in params.split(','):
          obj = None
          param = param.strip()
-         if action == 'add':
-            obj = WallabyHelpers.add_param(session, config_store, param)
-         elif action == 'delete':
-            if param.strip() != '':
+         if action == 'add' and param != '':
+            if '+++' != param[0:3]:
+               obj = WallabyHelpers.add_param(session, config_store, param)
+            else:
+               print 'Parameter names beginning with "+++" are reserved and can not be added'
+         elif action == 'delete' and param != '':
+            if '+++' != param[0:3]:
                result = config_store.removeParam(param)
                if result.status != 0:
                   print 'Error: Failed to remove parameter "%s" (%d, %s)' % (param, result.status, result.text)
-         elif action == 'list':
+            else:
+               print 'Parameter names beginning with "+++" are reserved and can not be deleted'
+         elif action == 'list' and param != '':
             WallabyHelpers.list_param_info(session, config_store, param)
             print
-         elif action == 'edit':
+         elif action == 'edit' and param != '':
             obj = WallabyHelpers.get_param(session, config_store, param)
 
          if obj != None:
@@ -300,16 +311,22 @@ def main(argv=None):
       for feat in features.split(','):
          obj = None
          feat = feat.strip()
-         if action == 'add':
-            obj = WallabyHelpers.add_feature(session, config_store, feat)
-         elif action == 'delete':
-            result = config_store.removeFeature(feat)
-            if result.status != 0:
-               print 'Error: Failed to remove feature "%s" (%d, %s)' % (feat, result.status, result.text)
-         elif action == 'list':
+         if action == 'add' and feat != '':
+            if '+++' != feat[0:3]:
+               obj = WallabyHelpers.add_feature(session, config_store, feat)
+            else:
+               print 'Feature names beginning with "+++" are reserved and can not be added'
+         elif action == 'delete' and feat != '':
+            if '+++' != feat[0:3]:
+               result = config_store.removeFeature(feat)
+               if result.status != 0:
+                  print 'Error: Failed to remove feature "%s" (%d, %s)' % (feat, result.status, result.text)
+            else:
+               print 'Feature names beginning with "+++" are reserved and can not be deleted'
+         elif action == 'list' and feat != '':
             WallabyHelpers.list_feature_info(session, config_store, feat)
             print
-         elif action == 'edit':
+         elif action == 'edit' and feat != '':
             obj = WallabyHelpers.get_feature(session, config_store, feat)
 
          if obj != None:
@@ -321,22 +338,22 @@ def main(argv=None):
    if groups != '':
       for group in groups.split(','):
          group = group.strip()
-         if action == 'add':
+         if action == 'add' and group != '':
             if '+++' != group[0:3]:
                WallabyHelpers.add_group(session, config_store, group)
             else:
                print 'Group names beginning with "+++" are reserved and can not be added'
-         elif action == 'edit':
+         elif action == 'edit' and group != '':
             print 'Groups can not be edited'
             break
-         elif action == 'delete':
+         elif action == 'delete' and group != '':
             if '+++' != group[0:3]:
                result = config_store.removeGroup(group)
                if result.status != 0:
                   print 'Error: Failed to remove group "%s" (%d, %s)' % (group, result.status, result.text)
             else:
                print 'Group names beginning with "+++" are reserved and can not be deleted'
-         elif action == 'list':
+         elif action == 'list' and group != '':
             WallabyHelpers.list_group_info(session, config_store, group)
             print
 
@@ -345,17 +362,22 @@ def main(argv=None):
       for sub in subsys.split(','):
          obj = None
          sub = sub.strip()
-         if action == 'add':
-            obj = WallabyHelpers.add_subsys(session, config_store, sub)
-         elif action == 'delete':
-            if sub != '':
+         if action == 'add' and sub != '':
+            if '+++' != sub[0:3]:
+               obj = WallabyHelpers.add_subsys(session, config_store, sub)
+            else:
+               print 'Subsystem names beginning with "+++" are reserved and can not be added'
+         elif action == 'delete' and sub != '':
+            if '+++' != sub[0:3]:
                result = config_store.removeSubsys(sub)
                if result.status != 0:
                   print 'Error: Failed to remove subsystem "%s" (%d, %s)' % (sub, result.status, result.text)
-         elif action == 'list':
+            else:
+               print 'Subsystem names beginning with "+++" are reserved and can not be deleted'
+         elif action == 'list' and sub != '':
             WallabyHelpers.list_subsys_info(session, config_store, sub)
             print
-         elif action == 'edit':
+         elif action == 'edit' and sub != '':
             obj = WallabyHelpers.get_subsys(session, config_store, sub)
 
          if obj != None:

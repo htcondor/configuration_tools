@@ -18,7 +18,7 @@ import sys
 import signal
 import yaml
 import tempfile
-from wallabyclient.exceptions import WallabyError, WallabyValidateError
+from wallabyclient.exceptions import *
 from wallabyclient import WallabyHelpers, WallabyTypes
 from condorutils.osutil import run_cmd
 from qmf.console import Session
@@ -398,6 +398,7 @@ def main(argv=None):
          retry = False
          file.seek(0, 0)
          file.truncate()
+         pre_edit_objs = edit_objs
          yaml.dump_all(edit_objs, file, explicit_start=True, default_flow_style=False)
 
          run_cmd('%s %s' % (os.getenv('EDITOR') or '/bin/vi', file.name), inter=True)
@@ -410,17 +411,36 @@ def main(argv=None):
             retry = True
             continue
 
+
          # load_all returns a stream, so read its data into a python list we
-         # can traverse more than once.  Replace the edit_objs so the changes
-         # are preserved
+         # can traverse more than once.  Do validation on the input to ensure
+         # the user hasn't changed the order of the objects, added objects,
+         # removed params, etc.  If eveything checks out, replace the
+         # edit_objs so the changes are preserved
          obj_list = []
+         total_objs = 0
          try:
             for entry in yaml_output:
-               obj_list += [entry]
+               if total_objs < len(pre_edit_objs) and \
+                  entry.__class__ == pre_edit_objs[total_objs].__class__ and \
+                  entry.get_name() == pre_edit_objs[total_objs].get_name():
+                  try:
+                     entry.validate(pre_edit_objs[total_objs])
+                  except ValidateWarning, warning:
+                     for msg in warning.warnings.keys():
+                        print 'WARNING: %s - %s' % (msg, warning.warnings[msg])
+                  obj_list += [entry]
+                  total_objs += 1
+               else:
+                  raw_input('Error: Corrupted object list.  Press <Enter> to re-edit the objects from scratch')
+                  retry = True
+                  break
          except:
-            input = raw_input('Error: Invalid input.  Press <Enter> to correct the errors')
+            raw_input('Error: Invalid input.  Press <Enter> to correct the errors')
             retry = True
+         if retry == True:
             continue
+
          edit_objs = obj_list
 
          # Check for invalid items in the configurations

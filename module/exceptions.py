@@ -18,3 +18,7 @@ class WallabyValidateError(Exception):
 class WallabyError(Exception):
    def __init__(self, error_map):
       self.errors = error_map
+
+class ValidateWarning(Exception):
+   def __init__(self, warnings):
+      self.warnings = warnings

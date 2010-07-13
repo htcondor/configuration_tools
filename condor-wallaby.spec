@@ -1,6 +1,6 @@
 %{!?python_sitelib: %define python_sitelib %(%{__python} -c "from distutils.sysconfig import get_python_lib; print get_python_lib()")}
 %define rel 1
-%define ver 3.0
+%define ver 3.1
 
 Name: condor-wallaby
 Summary: Condor configuration using wallaby
@@ -41,7 +41,7 @@ Summary: Wallaby configuration tools for configuring condor
 Group: Applications/System
 Requires: python >= 2.4
 Requires: python-qmf >= 0.7.946106
-Requires: python-wallabyclient >= %{ver}
+Requires: python-wallabyclient = %{ver}
 Requires: PyYAML
 Obsoletes: condor-remote-configuration-server
 
@@ -107,6 +107,13 @@ cp -f module/*.py %{buildroot}/%{python_sitelib}/wallabyclient
 %{python_sitelib}/wallabyclient/exceptions.py*
 
 %changelog
+* Tue Jul 13 2010  <rrati@redhat> - 3.1-1
+- Updated dependency versions 
+- Improved error handling
+- Added support for broker user/password in configd
+- Fixed crash/deadlock issue in the configd
+- Group membership is handled as part of a node object, allowing for priorities
+
 * Wed Jun 23 2010  <rrati@redhat> - 3.0-1
 - Transitioned to new NodeUpdatedNotice
 - Fixed error messages on tool exits

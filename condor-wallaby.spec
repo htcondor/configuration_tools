@@ -1,9 +1,10 @@
 %{!?python_sitelib: %define python_sitelib %(%{__python} -c "from distutils.sysconfig import get_python_lib; print get_python_lib()")}
 %define rel 1
+%define ver 3.0
 
 Name: condor-wallaby
 Summary: Condor configuration using wallaby
-Version: 3.0
+Version: %{ver}
 Release: %{rel}%{?dist}
 Group: Applications/System
 License: ASL 2.0
@@ -24,7 +25,7 @@ Group: Applications/System
 Requires: condor
 Requires: python >= 2.3
 Requires: python-qmf >= 0.7.946106
-Requires: python-condorutils
+Requires: python-condorutils >= 1.4
 Obsoletes: condor-remote-configuration
 
 %description client
@@ -39,8 +40,8 @@ This package provides the tools needed for managed clients
 Summary: Wallaby configuration tools for configuring condor
 Group: Applications/System
 Requires: python >= 2.4
-Requires: python-qmf
-Requires: python-wallabyclient
+Requires: python-qmf >= 0.7.946106
+Requires: python-wallabyclient >= %{ver}
 Requires: PyYAML
 Obsoletes: condor-remote-configuration-server
 
@@ -57,7 +58,7 @@ Summary: Tools for interacting with wallaby
 Group: Applications/System
 BuildRequires: python-devel
 Requires: python >= 2.3
-Requires: python-condorutils
+Requires: python-condorutils >= 1.4
 Requires: PyYAML
 
 %description -n python-wallabyclient

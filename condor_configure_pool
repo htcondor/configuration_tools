@@ -344,6 +344,7 @@ def check_more_params_needed(sess, store, feature_list, params, more_params, gob
                if value.strip() == '':
                   answer = raw_input('Use a value for "%s" defined elsewhere in the pool configuration? [Y/n] ' % param)
                   if answer.lower() != 'n':
+                     print 'Adding a parameter that uses a default value is not permitted.  This parameter change will be discarded'
                      continue
                set_param(param, value.strip(), params)
       else:

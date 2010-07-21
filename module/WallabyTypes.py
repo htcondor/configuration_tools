@@ -120,7 +120,7 @@ class Feature(WallabyBaseObject):
 
 
    def set_use_default_val(self, name):
-      self.params[name.strip()] = False
+      self.params[name.strip()] = 0
 
 
    def update(self, obj):

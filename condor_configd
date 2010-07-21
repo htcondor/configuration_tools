@@ -25,9 +25,14 @@ import Queue
 import random
 import tempfile
 import shutil
+import stat
 from qmf.console import Session, Console
 from condorutils.log import *
 from condorutils.readconfig import *
+try:
+   import pwd
+except:
+   pass
 
 
 class Timer (threading.Thread):
@@ -352,6 +357,7 @@ class Service:
             os.remove(file_name)
             replacing_file = False
             return
+         os.chmod(self.managedfile, stat.S_IRUSR|stat.S_IWUSR|stat.S_IRGRP|stat.S_IWGRP|stat.S_IROTH)
          replacing_file = False
          log(logging.DEBUG, self.logger_name, 'Retrieved configuration from the store')
    
@@ -506,12 +512,6 @@ def main(argv=None):
       except:
          size = 1000000
 
-      try:
-         base_logger = create_file_logger(logger_name, file['log'], log_level, size=size)
-      except:
-         print 'Failed to open log file.  Exiting'
-         return(1)
-
       # Set signal handlers
       signal.signal(signal.SIGINT, exit_signal_handler)
       signal.signal(signal.SIGTERM, exit_signal_handler)
@@ -522,6 +522,20 @@ def main(argv=None):
       if os.name != 'nt' and os.name != 'ce':
          # These aren't available on windows
          signal.signal(signal.SIGQUIT, exit_signal_handler)
+
+         # Run as the user condor if running as root
+         if os.geteuid() == 0:
+            # Get the uid and gid for the condor user
+            pw_data = pwd.getpwnam('condor')
+            os.setregid(pw_data[3], pw_data[3])
+            os.setreuid(pw_data[2], pw_data[2])
+
+      # Create the log file
+      try:
+         base_logger = create_file_logger(logger_name, file['log'], log_level, size=size)
+      except:
+         print 'Failed to open log file.  Exiting'
+         return(1)
 
       log(logging.INFO, logger_name, 'Starting Up')
 

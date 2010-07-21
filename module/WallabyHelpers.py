@@ -349,7 +349,7 @@ def add_group(sess, store, name):
 
 def add_node(sess, store, name):
    if name != '':
-      print 'Adding Node "%s"' % name
+      print 'Adding node "%s"' % name
    else:
       return(None)
 

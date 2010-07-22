@@ -453,10 +453,13 @@ def main(argv=None):
             except WallabyValidateError, error:
                for type in error.invalids.keys():
                   if error.invalids[type] != []:
-                     try:
-                        invalids[type] = invalids[type] + error.invalids[type]
-                     except:
-                        invalids[type] = error.invalids[type]
+                     for item in error.invalids[type]:
+                        try:
+                           if item not in invalids[type]:
+                              invalids[type] = invalids[type] + [item]
+                        except:
+                           invalids[type] = error.invalids[type]
+                           break
                errors.update(error.errors)
                if error.ask_list != []:
                   ask_for_default[edited] = error.ask_list
@@ -507,7 +510,7 @@ def main(argv=None):
          if ask_for_default != {}:
             for obj in ask_for_default.keys():
                for param in sorted(ask_for_default[obj]):
-                  answer = raw_input('Use the default value for "%s"? [Y/n] ' % param)
+                  answer = raw_input('Use the default value for "%s" for "%s"? [Y/n] ' % (param, obj.get_name()))
                   if answer.lower() != 'n':
                      obj.set_use_default_val(param)
 

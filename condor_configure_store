@@ -196,7 +196,11 @@ def main(argv=None):
 
    # Retreive the config store object
    try:
-      config_store = session.getObjects(_class='Store', _package='com.redhat.grid.config')
+      objs = session.getAgents()
+      for agent in objs:
+         if agent.label == 'Wallaby configuration service':
+            config_store = agent
+            break
    except Exception, error:
       print 'Error: %s' % error
       session.delBroker(broker)
@@ -206,14 +210,12 @@ def main(argv=None):
       print 'Unable to contact Configuration Store'
       session.delBroker(broker)
       return(1)
-   else:
-      config_store = config_store[0]
 
    # Process the list-alls, if there are any.
    if action == 'list-all':
       for type in list_alls:
          try:
-            objs = session.getObjects(_class=type, _package='com.redhat.grid.config')
+            objs = config_store.getObjects(_class=type, _package='com.redhat.grid.config')
          except Exception, error:
             print 'Error: %s' % error
             session.delBroker(broker)

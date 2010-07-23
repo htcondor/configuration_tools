@@ -184,7 +184,12 @@ class Service:
          return(False)
 
       try:
-         obj = self.session.getObjects(_class='Store', _package='com.redhat.grid.config')
+         objs = self.session.getAgents()
+         obj = []
+         for agent in objs:
+            if agent.label == 'Wallaby configuration service':
+               obj = agent
+               break
       except:
          obj = []
 
@@ -192,14 +197,14 @@ class Service:
          log(logging.CRITICAL, self.logger_name, 'Failed to contact configuration store')
          return(False)
 
-      self.store = obj[0]
+      self.store = obj
       result = self.store.getNode(self.node_name)
       if result.status != 0:
          log(logging.CRITICAL, self.logger_name, '(%d, %s): Store does not know about this node' % (result.status, result.text))
          return(False)
       else:
          try:
-            obj = self.session.getObjects(_objectId=result.outArgs['obj'])
+            obj = self.store.getObjects(_objectId=result.outArgs['obj'])
          except:
             obj = []
 
@@ -428,7 +433,7 @@ class Service:
       log(logging.DEBUG, self.logger_name, 'Sending command "%s" to subsystem "%s"' % (command, subsystem))
       (retval, out, err) = run_cmd('%s -subsystem %s' % (command, subsystem))
       if retval != 0:
-         log(logging.ERROR, self.logger_name, 'Failed to send command "%s" to subsystem "%s" (stdout: "%s", stderr: "%s")' % (command, subsystem, out, err))
+         log(logging.ERROR, self.logger_name, 'Failed to send command "%s" to subsystem "%s" (retval: %d, stdout: "%s", stderr: "%s")' % (command, subsystem, retval, out, err))
          return False
       else:
          log(logging.DEBUG, self.logger_name, 'Sent command "%s" to subsystem "%s"' % (command, subsystem))

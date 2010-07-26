@@ -199,10 +199,20 @@ def get_unique_mustchange_params(sess, store, feature_list, group_obj):
       print 'Error: Failed to retrieve list of MustChange parameters from the Configuration Store'
    else:
       mustchange_list = result.outArgs['params']
-   
-   # Iterate over the list of features and check each parameter included
+
+   # Iterate over the provided list of features and check each
+   # to see if it is a paramter that must have its value changed.  The end
+   # result will be a list of parameters that that are must change and using
+   # the default value in the store (ie parameters that must be chagned, but
+   # haven't been).  This list will be compared against the parameters from the
+   # list of features already configured on the group to see if the param is
+   # set by another feature.  If not, then it is unique.
    for feat in feature_list:
-      feat_params = get_feature_params(sess, store, feat)
+      feat_obj = WallabyHelpers.get_feature(sess, store, feat)
+      if feat_obj == None:
+         print 'Error: Failed to retrieve feature "%s" from the Configuration Store' % feat
+         continue
+      feat_params = feat_obj.params
 
       # For each list of parameters, check to see if the MustChange is
       # true.
@@ -212,7 +222,7 @@ def get_unique_mustchange_params(sess, store, feature_list, group_obj):
             # see if it's value is the same as the parameter's default.  If
             # it is, that means the parameter hasn't been set
             if param in mustchange_list.keys() and \
-               feat_params[param] == mustchange_list[param]:
+               feat_obj.param_meta[param]['uses_default'] == True:
                candidate_params += [param]
 
    # Now, get the parameter list for the features configured on
@@ -223,14 +233,14 @@ def get_unique_mustchange_params(sess, store, feature_list, group_obj):
    for feat in configed_feats:
       obj = WallabyHelpers.get_feature(sess, store, feat)
       if obj != None:
-         feature_params.update(obj.params)
+         feature_params.update(obj.param_meta)
 
-   # Now, determine if any of the candidate parameters aren't set for
+   # Now, determine if any of the candidate parameters aren't set by
    # any of the configured features.  If they aren't, add them to
    # the list of unique must set parameters
    for param in candidate_params:
       if param not in feature_params.keys() or \
-         feature_params[param] == mustchange_list[param]:
+         feature_params[param]['uses_default'] == True:
          unique_params[param] = False
 
    return unique_params
@@ -574,9 +584,8 @@ def main(argv=None):
    # Retreive the config store object
    try:
       objs = session.getAgents()
-      print objs
       for agent in objs:
-         if agent.label == 'Wallaby configuration service':
+         if agent.label == 'com.redhat.grid.config:Store':
             config_store = agent
             break
    except Exception, error:

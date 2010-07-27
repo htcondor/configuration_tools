@@ -91,6 +91,7 @@ def main(argv=None):
    params = ''
    subsys = ''
    config_store = []
+   store_agent = []
    list_alls = []
    edit_objs = []
    username = ''
@@ -199,8 +200,10 @@ def main(argv=None):
       objs = session.getAgents()
       for agent in objs:
          if agent.label == 'com.redhat.grid.config:Store':
-            config_store = agent
+            store_agent = agent
             break
+      if store_agent != []:
+         config_store = store_agent.getObjects(_class='Store', _package='com.redhat.grid.config')
    except Exception, error:
       print 'Error: %s' % error
       session.delBroker(broker)
@@ -210,12 +213,14 @@ def main(argv=None):
       print 'Unable to contact Configuration Store'
       session.delBroker(broker)
       return(1)
+   else:
+      config_store = config_store[0]
 
    # Process the list-alls, if there are any.
    if action == 'list-all':
       for type in list_alls:
          try:
-            objs = config_store.getObjects(_class=type, _package='com.redhat.grid.config')
+            objs = store_agent.getObjects(_class=type, _package='com.redhat.grid.config')
          except Exception, error:
             print 'Error: %s' % error
             session.delBroker(broker)

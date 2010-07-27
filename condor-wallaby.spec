@@ -1,6 +1,6 @@
 %{!?python_sitelib: %define python_sitelib %(%{__python} -c "from distutils.sysconfig import get_python_lib; print get_python_lib()")}
 %define rel 1
-%define ver 3.1
+%define ver 3.2
 
 Name: condor-wallaby
 Summary: Condor configuration using wallaby
@@ -107,6 +107,13 @@ cp -f module/*.py %{buildroot}/%{python_sitelib}/wallabyclient
 %{python_sitelib}/wallabyclient/exceptions.py*
 
 %changelog
+* Tue Jul 27 2010  <rrati@redhat> - 3.2-1
+- Store detection performance improvements
+- Improved detection of parameters that much be changed
+- Fixed multiple additions of unknown entities when using the store tool
+- The configd drops perms on linux, sets perms of config file to 664
+- Changed wording when asking to use the default value in store tool
+
 * Tue Jul 13 2010  <rrati@redhat> - 3.1-1
 - Updated dependency versions 
 - Improved error handling

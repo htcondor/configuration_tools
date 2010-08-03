@@ -1,6 +1,6 @@
 %{!?python_sitelib: %define python_sitelib %(%{__python} -c "from distutils.sysconfig import get_python_lib; print get_python_lib()")}
 %define rel 1
-%define ver 3.2
+%define ver 3.3
 
 Name: condor-wallaby
 Summary: Condor configuration using wallaby
@@ -107,6 +107,10 @@ cp -f module/*.py %{buildroot}/%{python_sitelib}/wallabyclient
 %{python_sitelib}/wallabyclient/exceptions.py*
 
 %changelog
+* Tue Aug 03 2010  <rrati@redhat> - 3.3-1
+- Added API version check
+- Cleaned up some error messages reported from the store
+
 * Tue Jul 27 2010  <rrati@redhat> - 3.2-1
 - Store detection performance improvements
 - Improved detection of parameters that much be changed

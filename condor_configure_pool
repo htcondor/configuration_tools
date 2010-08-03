@@ -603,6 +603,12 @@ def main(argv=None):
    else:
       config_store = config_store[0]
        
+   # Check API version number
+   if config_store.apiVersionNumber > 20100804:
+      print 'The store is using a newer API version than this tool supports'
+      session.delBroker(broker)
+      return(1)
+
    # Attempt to activate the configuration in the store if told to do so
    if action == 'activate':
       if activate_configuration(config_store) == False:

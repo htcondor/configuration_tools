@@ -216,6 +216,12 @@ def main(argv=None):
    else:
       config_store = config_store[0]
 
+   # Check API version number
+   if config_store.apiVersionNumber > 20100804:
+      print 'The store is using a newer API version than this tool supports'
+      session.delBroker(broker)
+      return(1)
+
    # Process the list-alls, if there are any.
    if action == 'list-all':
       for type in list_alls:
@@ -473,8 +479,10 @@ def main(argv=None):
 
          if errors != {}:
             print ' The following errors were reported when checking for configuration validity:'
-            for err in errors.key():
-               print '  %d: %s' % (err, errors[err])
+            for err in errors.keys():
+               print '  %d: ' % err,
+               for line in errors[err].split('\\n'):
+                  print '%s' % line
 
          if invalids != {}:
             print 'The store does not know about the following items:'
@@ -537,7 +545,9 @@ def main(argv=None):
             except WallabyError, error:
                print 'The following errors were reported updating "%s":' % edited.get_name()
                for key in error.errors.keys():
-                  print '%s: %s' % (key, error.errors[key])
+                  print '%d: ' % key,
+                  for line in error.errors[key].split('\\n'):
+                     print '%s' % line
          file.close()
    session.delBroker(broker)
 

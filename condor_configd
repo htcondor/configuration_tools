@@ -152,14 +152,14 @@ class Service:
 
       if filename == '':
          try:
-            loc = read_condor_config('LOCAL_CONFIG', ['DIR'])
-            self.managedfile = '%s/00wallaby_node.config' % loc['dir']
+            self.managedfile = read_condor_config('LOCAL_CONFIG', ['FILE'])['file']
          except:
-            log(logging.ERROR, self.logger_name, 'LOCAL_CONFIG_DIR not defined.  Unable to write config')
+            log(logging.ERROR, self.logger_name, 'LOCAL_CONFIG_FILE not defined.  Unable to write configuration file')
             self.session.delBroker(self.broker)
             return(False)
       else:
          self.managedfile = filename
+      log(logging.DEBUG, self.logger_name, 'Writing configuration file to "%s"' % self.managedfile)
        
       return(self.config_qmf_entities())
 

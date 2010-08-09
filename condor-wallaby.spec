@@ -22,7 +22,7 @@ and apply them to nodes using wallaby.
 %package client
 Summary: Wallaby configuration client for condor
 Group: Applications/System
-Requires: condor
+Requires: condor >= 7.4.4-0.9
 Requires: python >= 2.3
 Requires: python-qmf >= 0.7.946106
 Requires: python-condorutils >= 1.4
@@ -71,13 +71,13 @@ Tools for interacting with wallaby
 rm -rf %{buildroot}
 mkdir -p %{buildroot}/%{python_sitelib}/wallabyclient
 mkdir -p %{buildroot}/%_sbindir
-mkdir -p %{buildroot}/%_var/lib/condor/config
+mkdir -p %{buildroot}/%_sysconfdir/condor/config.d
 %if 0%{?rhel} != 4
 cp -f condor_configure_pool %{buildroot}/%_sbindir
 cp -f condor_configure_store %{buildroot}/%_sbindir
 %endif
 cp -f condor_configd %{buildroot}/%_sbindir
-cp -f 99configd.config %{buildroot}/%_var/lib/condor/config
+cp -f 99configd.config %{buildroot}/%_sysconfdir/condor/config.d
 cp -f module/*.py %{buildroot}/%{python_sitelib}/wallabyclient
 
 %files client
@@ -85,8 +85,8 @@ cp -f module/*.py %{buildroot}/%{python_sitelib}/wallabyclient
 %doc LICENSE-2.0.txt
 %defattr(0755,root,root,-)
 %_sbindir/condor_configd
-%defattr(0644,condor,condor,-)
-%_var/lib/condor/config/99configd.config
+%defattr(0644,root,root,-)
+%_sysconfdir/condor/config.d/99configd.config
 
 %if 0%{?rhel} != 4
 %files tools

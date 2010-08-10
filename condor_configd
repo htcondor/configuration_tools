@@ -356,12 +356,32 @@ class Service:
    
          try:
             (file_hdl,file_name) = tempfile.mkstemp('.tmp', 'condor_config.local', text=True)
+            # Write the config from the store into the file
             for key in config.keys():
                if key.strip().lower() == 'dc_daemon_list':
                   os.write(file_hdl, '%s =+ %s\n' % (key, config[key]))
                else:
                   os.write(file_hdl, '%s = %s\n' % (key, config[key]))
+
+            # Now append the configuration from the configd configuration
+            # file
+            try:
+               dir = read_condor_config('LOCAL_CONFIG', ['DIR'])['dir']
+            except:
+               log(logging.ERROR, self.logger_name, 'Failed to find the configd configuration.  Not writing configuration file')
+               os.close(file_hdl)
+               os.remove(file_name)
+               return
+            
+            cfg_name = os.path.normpath('%s/99configd.config' % dir)
+            cfg_file = open(cfg_name, 'r')
+            for line in cfg_file:
+               os.write(file_hdl, line)
+            cfg_file.close()
             os.close(file_hdl)
+         except IOError:
+            log(logging.ERROR, self.logger_name, 'Failed to read configd configuration.  Not writing configuration file')
+            return
          except:
             log(logging.ERROR, self.logger_name, 'Failed to write configuration to temp file')
             return

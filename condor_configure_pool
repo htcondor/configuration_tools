@@ -448,6 +448,8 @@ def main(argv=None):
    username = ''
    passwd = ''
    is_node = False
+   special_commands = ['activate', 'help', 'list', 'list-all', 'load-snapshot',
+                       'remove-snapshot', 'take-snapshot']
 
    # Set signal handlers
    signal.signal(signal.SIGINT, exit_signal_handler)
@@ -567,13 +569,13 @@ def main(argv=None):
       print_help(argv[0])
       return(1)
 
-   if name == '' and action != 'list' and action != 'list-all':
+   if name == '' and action not in special_commands:
       print 'No node name or group supplied.  Exiting'
       print_help(argv[0])
       return(1)
 
    if features == [] and params == '' and schedd_prompts == False and \
-      broker_prompts == False and list_alls == []:
+      broker_prompts == False and action not in special_commands:
       print 'No targets specified.  Exiting'
       print_help(argv[0])
       return(1)
@@ -593,7 +595,7 @@ def main(argv=None):
       print 'Unable to connect to broker "%s"' % broker_str
       return(1)
 
-   # Retreive the config store object
+   # Retrieve the config store object
    try:
       objs = session.getAgents()
       for agent in objs:

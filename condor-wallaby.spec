@@ -1,6 +1,6 @@
 %{!?python_sitelib: %define python_sitelib %(%{__python} -c "from distutils.sysconfig import get_python_lib; print get_python_lib()")}
 %define rel 1
-%define ver 3.3
+%define ver 3.4
 
 Name: condor-wallaby
 Summary: Condor configuration using wallaby
@@ -25,7 +25,7 @@ Group: Applications/System
 Requires: condor >= 7.4.4-0.9
 Requires: python >= 2.3
 Requires: python-qmf >= 0.7.946106
-Requires: python-condorutils >= 1.4
+Requires: python-condorutils >= 1.4-3
 Obsoletes: condor-remote-configuration
 
 %description client
@@ -58,7 +58,7 @@ Summary: Tools for interacting with wallaby
 Group: Applications/System
 BuildRequires: python-devel
 Requires: python >= 2.3
-Requires: python-condorutils >= 1.4
+Requires: python-condorutils >= 1.4-3
 Requires: PyYAML
 
 %description -n python-wallabyclient
@@ -107,6 +107,13 @@ cp -f module/*.py %{buildroot}/%{python_sitelib}/wallabyclient
 %{python_sitelib}/wallabyclient/exceptions.py*
 
 %changelog
+* Wed Aug 11 2010  <rrati@redhat> - 3.4-1
+- Updated dependency versions
+- Fixed issue in error log message
+- Fixed issues with pool param verification
+- New configuration file system
+- pool command line error cases reported before attempting to contact store
+
 * Tue Aug 03 2010  <rrati@redhat> - 3.3-1
 - Added API version check
 - Cleaned up some error messages reported from the store

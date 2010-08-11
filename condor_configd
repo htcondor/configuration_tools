@@ -411,7 +411,7 @@ class Service:
          # Have the store tell us which subsystems to restart/reconfig
          result = self.node_obj.whatChanged(running_version, version)
          if result.status != 0:
-            log(logging.ERROR, self.logger_name, 'Store error: %d, %s' % (error.status, error.text))
+            log(logging.ERROR, self.logger_name, 'Store error: %d, %s' % (result.status, result.text))
             log(logging.ERROR, self.logger_name, 'Failed to retrive differences between versions "%d" and "%d".  No update performed' % (running_version, version))
             return
          else:

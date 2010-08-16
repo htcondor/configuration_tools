@@ -378,6 +378,10 @@ class Service:
             for line in cfg_file:
                os.write(file_hdl, line)
             cfg_file.close()
+
+            # Lastly, set LOCAL_CONFIG_DIR so it can't be overriden and close
+            # the file handle
+            os.write(file_hdl, 'LOCAL_CONFIG_DIR =')
             os.close(file_hdl)
          except IOError:
             log(logging.ERROR, self.logger_name, 'Failed to read configd configuration.  Not writing configuration file')

@@ -33,6 +33,7 @@ class WallabyBaseObject(YAMLObject):
             warnings[key] = 'Field missing.  Resetting to pre-edit value'
          elif getattr(self, key).__class__ != getattr(orig, key).__class__:
             warnings[key] = 'Invalid value.  Resetting to pre-edit value'
+            
 
          if key in warnings.keys():
             setattr(self, key, getattr(orig, key))
@@ -72,6 +73,12 @@ class Feature(WallabyBaseObject):
       self.depends = list(obj.depends)
 
 
+   def validate(self, orig):
+      for param in self.params:
+         self.params[param] = str(self.params[param])
+      WallabyBaseObject.validate(self, orig)
+
+
    def store_validate(self, store):
       invalid = {}
       errors = {}
@@ -87,7 +94,9 @@ class Feature(WallabyBaseObject):
                invalid['Parameter'] = result.outArgs['invalidParameters']
 
          for p in self.params.keys():
-            if self.params[p] != None and self.params[p].strip() == '':
+            if self.params[p] != None and \
+               isinstance(self.params[p], str) and \
+               self.params[p].strip() == '':
                ask_default += [p]
 
       invalid['Feature'] = []
@@ -182,6 +191,15 @@ class Parameter(WallabyBaseObject):
       self.conflicts = list(obj.conflicts)
 
 
+   def validate(self, orig):
+      self.type = str(self.type)
+      self.default = str(self.default)
+      self.description = str(self.description)
+      self.must_change = bool(self.must_change)
+      self.restart = bool(self.restart)
+      WallabyBaseObject.validate(self, orig)
+
+
    def store_validate(self, store):
       invalid = {}
       errors = {}
@@ -213,6 +231,13 @@ class Parameter(WallabyBaseObject):
       if obj == None:
          raise WallabyError({-1:'No parameter object to update'})
 
+      if self.must_change == None:
+         self.must_change = False
+
+      result = obj.setMustChange(self.must_change)
+      if result.status != 0:
+         errors[result.status] = result.text
+
       result = obj.setKind(self.type)
       if result.status != 0:
          errors[result.status] = result.text
@@ -223,12 +248,6 @@ class Parameter(WallabyBaseObject):
             errors[result.status] = result.text
 
       result = obj.setDescription(self.description)
-      if result.status != 0:
-         errors[result.status] = result.text
-
-      if self.must_change == None:
-         self.must_change = False
-      result = obj.setMustChange(self.must_change)
       if result.status != 0:
          errors[result.status] = result.text
 
@@ -280,6 +299,11 @@ class Node(WallabyBaseObject):
       self.memberships = list(obj.memberships)
 
 
+   def validate(self, orig):
+      self.name = str(self.name)
+      WallabyBaseObject.validate(self, orig)
+
+
    def store_validate(self, store):
       invalid = {}
       errors = {}
@@ -328,6 +352,11 @@ class Subsystem(WallabyBaseObject):
    def init_from_obj(self, obj):
       self.name = str(obj.name)
       self.params = list(obj.params)
+
+
+   def validate(self, orig):
+      self.name = str(self.name)
+      WallabyBaseObject.validate(self, orig)
 
 
    def store_validate(self, store):

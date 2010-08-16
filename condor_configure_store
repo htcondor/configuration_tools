@@ -449,7 +449,7 @@ def main(argv=None):
                   retry = True
                   break
          except:
-            raw_input('Error: Invalid input.  Press <Enter> to correct the errors')
+            raw_input('Error: Invalid formatting.  Press <Enter> to start over')
             retry = True
          if retry == True:
             continue

@@ -173,7 +173,10 @@ def list_param_info(sess, store, name):
       print 'Parameter "%s":' % name
       print 'Name: %s' % param_obj.getIndex()
       print 'Type: %s' % param_obj.kind
-      print 'Default: %s' % param_obj.default
+      if param_obj.must_change == True:
+         print 'Default: '
+      else:
+         print 'Default: %s' % param_obj.default
       print 'Description: %s' % param_obj.description
       print 'MustChange: %s' % param_obj.must_change
       print 'VisibilityLevel: %s' % param_obj.visibility_level

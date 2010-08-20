@@ -392,10 +392,6 @@ class Service:
             for line in cfg_file:
                os.write(file_hdl, line)
             cfg_file.close()
-
-            # Lastly, set LOCAL_CONFIG_DIR so it can't be overriden and close
-            # the file handle
-            os.write(file_hdl, 'LOCAL_CONFIG_DIR =')
             os.close(file_hdl)
          except IOError:
             try:
@@ -655,10 +651,11 @@ def main(argv=None):
             log(logging.WARNING, logger_name, 'Unable to access the store')
          service.lock.release()
 
-         if retrieve == True and reconnect_qmf == False and \
-            service.check_config_ver(force=True) == False:
-            print 'Error: Unable to retrieve configuration'
-            log(logging.CRITICAL, logger_name, 'Unable to retrieve configuration')
+         if retrieve == True:
+            if reconnect_qmf == False and \
+               service.check_config_ver(force=True) == False:
+               print 'Error: Unable to retrieve configuration'
+               log(logging.CRITICAL, logger_name, 'Unable to retrieve configuration')
             exit_signal_handler(0, 0)
             return(0)
 

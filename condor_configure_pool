@@ -590,7 +590,7 @@ def main(argv=None):
       broker_str = '%s:%d' % (broker_ip, port)
 
    try:
-      broker = session.addBroker('amqp://%s' % broker_str)
+      broker = session.addBroker('amqp://%s' % broker_str, mechanisms='ANONYMOUS')
    except:
       print 'Unable to connect to broker "%s"' % broker_str
       return(1)

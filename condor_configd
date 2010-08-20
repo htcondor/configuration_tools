@@ -62,11 +62,26 @@ class EventConsole(Console):
    def __init__(self):
       self.node = []
       self.logger_name = ''
+      self.agent = []
 
 
    def config(self, node_name, log_name):
       self.node_name = node_name
       self.logger_name = log_name
+
+
+   def newAgent(self, agent):
+      global reconnect_qmf
+      if agent.label == 'com.redhat.grid.config:Store':
+         log(logging.DEBUG, self.logger_name, 'Established connecton to the configuration store')
+         self.agent = agent
+         reconnect_qmf = True
+
+
+   def delAgent(self, agent):
+      if agent.label == 'com.redhat.grid.config:Store':
+         log(logging.DEBUG, self.logger_name, 'Lost connecton to the configuration store')
+         self.agent = []
 
 
    def event(self, broker, event):
@@ -84,16 +99,15 @@ class EventConsole(Console):
             except Queue.Full, error:
                log(logging.INFO, self.logger_name, 'Configuration version queue full.  Discarding event for version "%d"' % event_ver)
 
+   def get_store_agent(self):
+      return self.agent
+
 
 class Service:
    def __init__(self):
-      self.broker_ip = ''
-      self.broker_port = 5672
       self.broker = None
       self.console = None
       self.session = None
-      self.store = []
-      self.agent = []
       self.interval = 0
       self.node_obj = []
       self.logger_name = ''
@@ -106,32 +120,21 @@ class Service:
    def init(self, node, name):
       self.console = EventConsole()
       self.session = Session(self.console, manageConnections=True, rcvObjects=True, rcvHeartbeats=False, rcvEvents=True, userBindings=True)
-      self.session.bindEvents('com.redhat.grid.config', 'NodeUpdatedNotice')
+      self.session.bindEvent('com.redhat.grid.config', 'NodeUpdatedNotice')
       self.session.bindAgent('com.redhat.grid.config', 'Store')
       self.logger_name = name
       self.node_name = node
       self.managedfile = ''
-      self.user = ''
-      self.password = ''
 
 
    def config(self, filename, user='', password=''):
-      self.user = user
-      self.password = password
-
       if self.broker != None:
          self.session.delBroker(self.broker)
          self.broker = None
 
-      if self.store != []:
-         self.store = []
-
-      if self.agent != []:
-         self.agent = []
-
       try:
          val = read_condor_config('QMF_BROKER', ['HOST'])
-         self.broker_ip = val['host']
+         broker_ip = val['host']
       except ConfigError, error:
          # Broker host not defined, so exit
          log(logging.ERROR, self.logger_name, '%s.  Exiting' % error.msg)
@@ -139,10 +142,10 @@ class Service:
 
       try:
          val = read_condor_config('QMF_BROKER', ['PORT'])
-         self.broker_port = int(val['port'])
+         broker_port = int(val['port'])
       except ConfigError, error:
          log(logging.DEBUG, self.logger_name, '%s. Using default (5672)' % error.msg)
-         self.broker_port = 5672
+         broker_port = 5672
 
       try:
          val = read_condor_config('QMF_CONFIGD', ['CHECK_INTERVAL'])
@@ -161,52 +164,36 @@ class Service:
       else:
          self.managedfile = filename
       log(logging.DEBUG, self.logger_name, 'Writing configuration file to "%s"' % self.managedfile)
-       
-      return(self.config_qmf_entities())
 
-
-   def config_qmf_entities(self):
       if self.broker != None:
          try:
             self.session.delBroker(self.broker)
          except:
             self.broker = None
 
-      if self.node_obj != None:
-         self.node_obj = None
-
-      if self.user != '' and self.password != '':
-         broker_str = '%s/%s@%s:%d' % (self.user, self.password, self.broker_ip, self.broker_port)
-      elif self.user != '':
-         broker_str = '%s@%s:%d' % (self.user, self.broker_ip, self.broker_port)
+      if user != '' and password != '':
+         broker_str = '%s/%s@%s:%d' % (user, password, broker_ip, broker_port)
+      elif user != '':
+         broker_str = '%s@%s:%d' % (user, broker_ip, broker_port)
       else:
-         broker_str = '%s:%d' % (self.broker_ip, self.broker_port)
+         broker_str = '%s:%d' % (broker_ip, broker_port)
 
       try:
-         self.broker = self.session.addBroker('amqp://%s' % broker_str)
+         self.broker = self.session.addBroker('amqp://%s' % broker_str, mechanisms='ANONYMOUS')
          log(logging.DEBUG, self.logger_name, 'Connected to broker "%s"' % broker_str)
       except:
          log(logging.CRITICAL, self.logger_name, 'Unable to connect to broker "%s"' % broker_str)
          return(False)
+      return(True)
 
+
+   def config_qmf_entities(self):
+      if self.node_obj != None:
+         self.node_obj = None
+
+      agent = self.console.get_store_agent()
       try:
-         objs = self.session.getAgents()
-         obj = []
-         for agent in objs:
-            if agent.label == 'com.redhat.grid.config:Store':
-               obj = agent
-               break
-      except:
-         obj = []
-
-      if obj == []:
-         log(logging.CRITICAL, self.logger_name, 'Failed to find configuration store agent')
-         return(False)
-
-      self.agent = obj
-
-      try:
-         obj = self.agent.getObjects(_class='Store', _package='com.redhat.grid.config')
+         obj = agent.getObjects(_class='Store', _package='com.redhat.grid.config')
       except:
          obj = []
 
@@ -214,20 +201,20 @@ class Service:
          log(logging.CRITICAL, self.logger_name, 'Failed to contact configuration store')
          return(False)
 
-      self.store = obj[0]
+      store = obj[0]
 
       # Check API version number
-      if self.store.apiVersionNumber > 20100804:
+      if store.apiVersionNumber > 20100804:
          log(logging.CRITICAL, self.logger_name, 'The store is using a newer API version than is supported.  Exiting')
          return(False)
 
-      result = self.store.getNode(self.node_name)
+      result = store.getNode(self.node_name)
       if result.status != 0:
          log(logging.CRITICAL, self.logger_name, '(%d, %s): Store does not know about this node' % (result.status, result.text))
          return(False)
       else:
          try:
-            obj = self.agent.getObjects(_objectId=result.outArgs['obj'])
+            obj = agent.getObjects(_objectId=result.outArgs['obj'])
          except:
             obj = []
 
@@ -264,13 +251,20 @@ class Service:
 
 
    def check_config_ver(self, ver=0, force=False):
-      log(logging.DEBUG, self.logger_name, 'Checking version of condor configuration')
+      global reconnect_qmf
+      log(logging.DEBUG, self.logger_name, 'Checking version of configuration')
+      self.lock.acquire(True)
       if self.node_obj == []:
          log(logging.ERROR, self.logger_name, 'No node object from the store')
-         self.config_qmf_entities()
-         return(False)
-
-      self.lock.acquire(True)
+         if reconnect_qmf == True:
+            if self.config_qmf_entities() == False:
+               self.lock.release()
+               return(False)
+            else:
+               reconnect_qmf = False
+         else:
+            self.lock.release()
+            return(False)
 
       # If the passed version is 0, look at the last_updated_version
       if ver == 0:
@@ -278,7 +272,15 @@ class Service:
             self.node_obj.update()
          except:
             # Agent/broker has gone away
-            if self.config_qmf_entities() == False:
+            if reconnect_qmf == True:
+               if self.config_qmf_entities() == False:
+                  log(logging.ERROR, self.logger_name, 'Unable to access configuration store')
+                  self.lock.release()
+                  return(False)
+               else:
+                  reconnect_qmf = False
+            else:
+               log(logging.ERROR, self.logger_name, 'Failed to update the node object')
                self.lock.release()
                return(False)
          ver = int(self.node_obj.last_updated_version)
@@ -294,7 +296,7 @@ class Service:
       # Check in with the store
       log(logging.DEBUG, self.logger_name, 'Performing a checkin with the store')
       try:
-         self.node_obj.checkin()
+         self.node_obj.checkin(_timeout=20)
       except Exception, error:
          log(logging.ERROR, self.logger_name, 'Failed to check in with the store')
          log(logging.ERROR, self.logger_name, error)
@@ -310,10 +312,12 @@ class Service:
       global num_attempts
 
       version = -1
-      try:
-         version = version_queue.get(False)
-      except Queue.Empty:
-         return
+      # Pull all versions off the queue and only process the latest
+      while version_queue.empty() == False:
+         try:
+            version = version_queue.get(False)
+         except Queue.Empty:
+            break
 
       if version != -1:
          # There was a new version in the queue
@@ -430,7 +434,7 @@ class Service:
             return(False)
          os.chmod(self.managedfile, stat.S_IRUSR|stat.S_IWUSR|stat.S_IRGRP|stat.S_IWGRP|stat.S_IROTH)
          replacing_file = False
-         log(logging.DEBUG, self.logger_name, 'Retrieved configuration from the store')
+         log(logging.INFO, self.logger_name, 'Retrieved configuration from the store')
    
          # Have the store tell us which subsystems to restart/reconfig
          try:
@@ -541,10 +545,11 @@ num_attempts = 0
 service = Service()
 stop_running = False
 replacing_file = False
+reconnect_qmf = False
 pidfile = os.path.normpath(os.getcwd() + '/.pid' + str(os.getpid()))
 
 def main(argv=None):
-   global service, stop_running, replacing_file
+   global service, stop_running, replacing_file, reconnect_qmf
 
    if argv is None:
       argv = sys.argv
@@ -633,22 +638,38 @@ def main(argv=None):
             log(logging.CRITICAL, logger_name, 'Unable to retrieve configuration')
          exit_signal_handler(0, 0)
          return(1)
-      elif retrieve == True:
-         if service != None:
-            service.check_config_ver(force=True)
-         exit_signal_handler(0, 0)
-         return(0)
 
-      # Delay initial checkin after startup 
-      random.seed()
-      time.sleep(random.randint(0, 10))
+      # Wait for connection to the store
+      log(logging.DEBUG, logger_name, 'Looking for the store agent')
+      while reconnect_qmf == False and stop_running == False:
+         time.sleep(1)
+
+      if reconnect_qmf == True:
+         log(logging.DEBUG, logger_name, 'Found the store agent')
+
       if service != None:
+         service.lock.acquire(True)
+         if service.config_qmf_entities() == True:
+            reconnect_qmf = False
+         else:
+            log(logging.WARNING, logger_name, 'Unable to access the store')
+         service.lock.release()
+
+         if retrieve == True and reconnect_qmf == False and \
+            service.check_config_ver(force=True) == False:
+            print 'Error: Unable to retrieve configuration'
+            log(logging.CRITICAL, logger_name, 'Unable to retrieve configuration')
+            exit_signal_handler(0, 0)
+            return(0)
+
+         # Delay initial checkin after startup 
+         random.seed()
+         time.sleep(random.randint(0, 10))
          service.check_config_ver()
-      if service != None:
          service.setup_timers()
 
       if os.name == 'nt' or os.name == 'ce':
-         # need to set a Timer for shutdown
+         # Need to set a Timer for shutdown on windows
          log(logging.INFO, logger_name, 'Setting windows shutdown Timer')
          shutdown_interval = int(read_condor_config('QMF_CONFIGD', ['WIN_INTERVAL'])['win_interval'])
          shutdown_timer = Timer(shutdown_interval,test_for_shutdown)
@@ -658,13 +679,19 @@ def main(argv=None):
       while stop_running == False or replacing_file == True:
          try:
             time.sleep(1)
+            if reconnect_qmf == True:
+               service.lock.acquire(True)
+               if service.config_qmf_entities() == True:
+                  reconnect_qmf = False
+               service.lock.release()
+
             # If there was an issue retrieving the new configuration, wait
             # 5 seconds before each retry
             if num_attempts % 5 == 0:
                service.process_version_q()
          except:
             pass
-   except KeyboardInterrupt:
+   except:
       pass
 
 if __name__ == '__main__':

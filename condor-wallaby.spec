@@ -1,6 +1,6 @@
 %{!?python_sitelib: %define python_sitelib %(%{__python} -c "from distutils.sysconfig import get_python_lib; print get_python_lib()")}
 %define rel 1
-%define ver 3.4
+%define ver 3.5
 
 Name: condor-wallaby
 Summary: Condor configuration using wallaby
@@ -107,6 +107,15 @@ cp -f module/*.py %{buildroot}/%{python_sitelib}/wallabyclient
 %{python_sitelib}/wallabyclient/exceptions.py*
 
 %changelog
+* Thu Aug 26 2010  <rrati@redhat> - 3.5-1
+- Improved reconnection time to the configuration store
+- The node checkin method call timeout set to 20 seconds
+- Only latest configuration version is processed
+- Reduce performance hit when qmf broker is backed up
+- must_change params won't display a default value
+- Fixed issue changing param from must_change to not being one
+- Cast user input strings/booleans
+
 * Wed Aug 11 2010  <rrati@redhat> - 3.4-1
 - Updated dependency versions
 - Fixed issue in error log message

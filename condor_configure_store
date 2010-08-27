@@ -181,6 +181,12 @@ def main(argv=None):
       print_help(argv[0])
       return(1)
 
+   if nodes == '' and params == '' and features == '' and groups == '' and \
+      subsys == '' and action != 'list-all':
+      print 'No targets specified.  Exiting'
+      print_help(argv[0])
+      return(1)
+
    session = Session()
    if username != '' and passwd != '':
       broker_str = '%s/%s@%s:%d' % (username, passwd, broker_ip, port)

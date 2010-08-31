@@ -624,6 +624,7 @@ def main(argv=None):
          return(1)
 
       log(logging.INFO, logger_name, 'Starting Up')
+      log(logging.INFO, logger_name, 'Hostname is "%s"' % node_name)
 
       # Retrieve the broker information from condor's configuration file
       if service != None:

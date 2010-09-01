@@ -309,13 +309,14 @@ class Service:
 
    def process_version_q(self):
       global version_queue
-      global num_attempts
 
-      version = -1
       # Pull all versions off the queue and only process the latest
+      version = -1
+      size = 0
       while version_queue.empty() == False:
          try:
             version = version_queue.get(False)
+            size = version_queue.qsize()
          except Queue.Empty:
             break
 
@@ -326,9 +327,8 @@ class Service:
                # There hasn't been another version to look at, so put
                # this one back as there was an error installing it
                version_queue.put(version, False)
-            num_attempts += 1
-         else:
-            num_attempts = 0
+               size += 1
+      return size
 
 
    def get_config(self, version=0, force=False):
@@ -537,7 +537,6 @@ def test_for_shutdown():
 		exit_signal_handler(signal.SIGTERM, None)
 
 version_queue = Queue.Queue()
-num_attempts = 0
 service = Service()
 stop_running = False
 replacing_file = False
@@ -559,6 +558,8 @@ def main(argv=None):
       username = ''
       passwd = ''
       log_level = logging.INFO
+      num_attempts = 0
+      first_attempt = 0
 
       long_opts = ['debug', 'hostname=', 'logfile=', 'managedfile=', 
                    'password=', 'retrieve', 'user=']
@@ -597,6 +598,16 @@ def main(argv=None):
          size = int(read_condor_config('MAX_QMF_CONFIGD', ['LOG'])['log'])
       except:
          size = 1000000
+
+      try:
+         backoff_factor = int(read_condor_config('QMF_CONFIGD', ['BACKOFF_FACTOR']))
+      except:
+         backoff_factor = 2
+
+      try:
+         backoff_const = int(read_condor_config('QMF_CONFIGD', ['BACKOFF_CONSTANT']))
+      except:
+         backoff_const = 9
 
       # Set signal handlers
       signal.signal(signal.SIGINT, exit_signal_handler)
@@ -683,10 +694,29 @@ def main(argv=None):
                   reconnect_qmf = False
                service.lock.release()
 
-            # If there was an issue retrieving the new configuration, wait
-            # 5 seconds before each retry
-            if num_attempts % 5 == 0:
-               service.process_version_q()
+            # Check to see if there is a new configuration version to install
+            if version_queue.qsize() > 0:
+               # There is a new configuration version, so trying to install it.
+               # Grab the time the first installation attempt was tried for
+               # exponential backoff.
+               if first_attempt == 0:
+                  first_attempt = time.time()
+               next_attempt_time = (backoff_const + pow(backoff_factor, num_attempts))
+               check_interval = service.get_interval()
+               if num_attempts == 0 or \
+                  time.time() - first_attempt >= next_attempt_time or \
+                  (next_attempt_time > check_interval and check_interval > 0):
+
+                  if service.process_version_q() > 0:
+                     # There's still a version in the queue, so there was a
+                     # problem installing the configuruation.  This could be
+                     # an OS hiccup, a store communcation issue, or that the
+                     # configuration is just not valid.
+                     num_attempts += 1
+                  else:
+                     # Installation was successful
+                     num_attempts = 0
+                     first_attempt = 0
          except:
             pass
    except:

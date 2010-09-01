@@ -544,7 +544,7 @@ reconnect_qmf = False
 pidfile = os.path.normpath(os.getcwd() + '/.pid' + str(os.getpid()))
 
 def main(argv=None):
-   global service, stop_running, replacing_file, reconnect_qmf
+   global service, stop_running, replacing_file, reconnect_qmf, version_queue
 
    if argv is None:
       argv = sys.argv
@@ -559,7 +559,7 @@ def main(argv=None):
       passwd = ''
       log_level = logging.INFO
       num_attempts = 0
-      first_attempt = 0
+      last_attempt = 0
 
       long_opts = ['debug', 'hostname=', 'logfile=', 'managedfile=', 
                    'password=', 'retrieve', 'user=']
@@ -697,14 +697,13 @@ def main(argv=None):
             # Check to see if there is a new configuration version to install
             if version_queue.qsize() > 0:
                # There is a new configuration version, so trying to install it.
-               # Grab the time the first installation attempt was tried for
+               # Record the time the last installation attempt was tried for
                # exponential backoff.
-               if first_attempt == 0:
-                  first_attempt = time.time()
-               next_attempt_time = (backoff_const + pow(backoff_factor, num_attempts))
+               if last_attempt == 0:
+                  last_attempt = time.time()
                check_interval = service.get_interval()
                if num_attempts == 0 or \
-                  time.time() - first_attempt >= next_attempt_time or \
+                  (time.time() - last_attempt) >= next_attempt_interval or \
                   (next_attempt_time > check_interval and check_interval > 0):
 
                   if service.process_version_q() > 0:
@@ -712,11 +711,15 @@ def main(argv=None):
                      # problem installing the configuruation.  This could be
                      # an OS hiccup, a store communcation issue, or that the
                      # configuration is just not valid.
+
+                     # Subract a second to account to the sleep in the
+                     # main loop
+                     next_attempt_interval = (backoff_const + pow(backoff_factor, num_attempts))-1
                      num_attempts += 1
                   else:
                      # Installation was successful
                      num_attempts = 0
-                     first_attempt = 0
+                  last_attempt = 0
          except:
             pass
    except:

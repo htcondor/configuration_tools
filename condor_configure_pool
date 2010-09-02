@@ -179,7 +179,12 @@ def get_feature_params(sess, store, feature):
    params = {}
 
    if feature != '':
-      obj = WallabyHelpers.get_feature(sess, store, feature)
+      try:
+         obj = WallabyHelpers.get_feature(sess, store, feature)
+      except WallabyHelperError, error:
+         print error.error
+         obj = None
+
       if obj != None:
          params = obj.params
    return params
@@ -209,7 +214,13 @@ def get_unique_mustchange_params(sess, store, feature_list, group_obj):
    # set by another feature.  If not, then it is unique.
    feat_params = {}
    for feat in feature_list:
-      feat_obj = WallabyHelpers.get_feature(sess, store, feat)
+      try:
+         feat_obj = WallabyHelpers.get_feature(sess, store, feat)
+      except WallabyHelperError, error:
+         print 'Error: Exception when retrieving feature "%s"' % feat
+         print error.error
+         feat_obj = None
+
       if feat_obj == None:
          print 'Error: Failed to retrieve feature "%s" from the Configuration Store' % feat
          continue
@@ -233,7 +244,13 @@ def get_unique_mustchange_params(sess, store, feature_list, group_obj):
    # Generate the list of parameters for features not being acted upon
    for feat in configed_feats:
       if feat not in feature_list:
-         obj = WallabyHelpers.get_feature(sess, store, feat)
+         try:
+            obj = WallabyHelpers.get_feature(sess, store, feat)
+         except WallabyFeatureError, error:
+            print 'Error: Exception when retrieving feature "%s"' % feat
+            print error.error
+            obj = None
+
          if obj != None:
             meta_list = obj.param_meta
             for param in meta_list.keys():
@@ -694,17 +711,29 @@ def main(argv=None):
    if action == 'list':
       if name != '':
          # Provide the configuration for the group/node
-         if is_node == True:
-            WallabyHelpers.list_node_info(session, config_store, name)
-         else:
-            WallabyHelpers.list_group_info(session, config_store, name)
+         try:
+            if is_node == True:
+               WallabyHelpers.list_node_info(session, config_store, name)
+            else:
+               WallabyHelpers.list_group_info(session, config_store, name)
+         except WallabyHelperError, error:
+            print 'Error: Exception while listing "%s"' %s name
+            print error.error
       if features != []:
          # Provide the configuration for the features
          for feat in features:
             print 'Configuration for feature %s:' % feat
-            WallabyHelpers.list_feature_info(session, config_store, feat)
+            try:
+               WallabyHelpers.list_feature_info(session, config_store, feat)
+            except WallabyHelperError, error:
+               print 'Error: Exception while listing "%s"' % feat
+               print error.error
       for param in params.split(','):
-         WallabyHelpers.list_param_info(session, config_store, param)
+         try:
+            WallabyHelpers.list_param_info(session, config_store, param)
+         except WallabyHelperError, error:
+            print 'Error: Exception while listing "%s"' % param
+            print error.error
             
       session.delBroker(broker)
       return(0)
@@ -712,12 +741,24 @@ def main(argv=None):
    # If configuring a single node, grab that node's identity group and
    # act upon that
    if is_node == True:
-      obj = WallabyHelpers.get_node(session, config_store, name)
+      try:
+         obj = WallabyHelpers.get_node(session, config_store, name)
+      except WallabyHelperError, error:
+         print 'Error: Exception while retrieving "%s"' % name
+         print error.error
+         obj = None
+
       if obj == None:
          session.delBroker(broker)
          return(1)
       else:
-         name = WallabyHelpers.get_id_group_name(obj, session)
+         try:
+            name = WallabyHelpers.get_id_group_name(obj, session)
+         except WallabyHelperError, error:
+            print 'Error: Execption while retrieving id group for "%s"' % name
+            print error.error
+            name = None
+
          if name == None:
             session.delBroker(broker)
             return(1)
@@ -736,7 +777,13 @@ def main(argv=None):
             print 'Error: Failed to remove the ConsoleCollector from the feature list.'
 
    # Query the store to get the group
-   group_obj = WallabyHelpers.get_group(session, config_store, name)
+   try:
+      group_obj = WallabyHelpers.get_group(session, config_store, name)
+   except WallabyHelperError, error:
+      print 'Error: Exception while retrieving group/node'
+      print error.error
+      group_obj = None
+
    if group_obj == None:
       session.delBroker(broker)
       return(1)

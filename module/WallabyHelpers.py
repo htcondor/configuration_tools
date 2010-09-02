@@ -13,25 +13,27 @@
 #   limitations under the License.
 import os
 import time
+from wallabyclient.exceptions import WallabyHelperError
 
 def get_group(sess, store, name):
    if name != '':
-      if name == '+++DEFAULT':
-         result = store.getDefaultGroup()
-      else:
-         result = store.getGroup({'Name': name})
+      try:
+         if name == '+++DEFAULT':
+            result = store.getDefaultGroup()
+         else:
+            result = store.getGroup({'Name': name})
+      except Exception, error:
+         raise WallabyHelperError(error)
    else:
       return(None)
 
    if result.status != 0:
-      print 'Error: Failed to find group "%s" (%d, %s)' % (name, result.status, result.text)
-      return(None)
+      raise WallabyHelperError('Error: Failed to find group "%s" (%d, %s)' % (name, result.status, result.text))
    else:
       try:
          obj = sess.getObjects(_objectId=result.outArgs['obj'])
       except Exception, error:
-         print 'Error: %s' % error
-         return(None)
+         raise WallabyHelperError(error)
 
       if obj != []:
          return(obj[0])
@@ -41,19 +43,20 @@ def get_group(sess, store, name):
 
 def get_feature(sess, store, name):
    if name != '':
-      result = store.getFeature(name)
+      try:
+         result = store.getFeature(name)
+      except Execption, error:
+         raise WallabyHelperError(error)
    else:
       return(None)
 
    if result.status != 0:
-      print 'Error: Failed to find feature "%s" (%d, %s)' % (name, result.status, result.text)
-      return(None)
+      raise WallabyHelperError('Error: Failed to find feature "%s" (%d, %s)' % (name, result.status, result.text))
    else:
       try:
          obj = sess.getObjects(_objectId=result.outArgs['obj'])
       except Exception, error:
-         print 'Error: %s' % error
-         return(None)
+         raise WallabyHelperError(error)
 
       if obj != []:
          return(obj[0])
@@ -63,19 +66,20 @@ def get_feature(sess, store, name):
 
 def get_param(sess, store, name):
    if name != '':
-      result = store.getParam(name)
+      try:
+         result = store.getParam(name)
+      except Exception, error:
+         raise WallabyHelperError(error)
    else:
       return(None)
 
    if result.status != 0:
-      print 'Error: Failed to find parameter "%s" (%d, %s)' % (name, result.status, result.text)
-      return(None)
+      raise WallabyHelperError('Error: Failed to find parameter "%s" (%d, %s)' % (name, result.status, result.text))
    else:
       try:
          obj = sess.getObjects(_objectId=result.outArgs['obj'])
       except Exception, error:
-         print 'Error: %s' % error
-         return(None)
+         raise WallabyHelperError(error)
 
       if obj != []:
          return(obj[0])
@@ -88,25 +92,25 @@ def get_node(sess, store, name):
    if name != '':
       # store.GetNode will create a node object if the give name doesn't exist,
       # so look to see if a node exists to avoid creating one
-      result = store.checkNodeValidity([name])
+      try:
+         result = store.checkNodeValidity([name])
+      except Exception, error:
+         raise WallabyHelperError(error)
+
       if result.status != 0:
-         print 'Error: Unable to verify node validity'
-         return(None)
+         raise WallabyHelperError('Error: Unable to verify node validity')
       else:
          if result.outArgs['invalidNodes'] != []:
-            print 'Error: Failed to find node "%s"' % name
-            return(None)
+            raise WallabyHelperError('Error: Failed to find node "%s"' % name)
          else:
             result = store.getNode(name)
             if result.status != 0:
-               print 'Error: Failed to get object for node "%s"' % name
-               return(None)
+               raise WallabyHelperError('Error: Failed to get object for node "%s"' % name)
             else:
                try:
                   obj = sess.getObjects(_objectId=result.outArgs['obj'])
                except Exception, error:
-                  print 'Error: %s' % error
-                  return(None)
+                  raise WallabyHelperError(error)
 
                if obj != []:
                   return(obj[0])
@@ -116,19 +120,20 @@ def get_node(sess, store, name):
 
 def get_subsys(sess, store, name):
    if name != '':
-      result = store.getSubsys(name)
+      try:
+         result = store.getSubsys(name)
+      except Exception, error:
+         raise WallabyHelperError(error)
    else:
       return(None)
 
    if result.status != 0:
-      print 'Error: Failed to find subsystem "%s" (%d, %s)' % (name, result.status, result.text)
-      return(None)
+      raise WallabyHelperError('Error: Failed to find subsystem "%s" (%d, %s)' % (name, result.status, result.text))
    else:
       try:
          obj = sess.getObjects(_objectId=result.outArgs['obj'])
       except Exception, error:
-         print 'Error: %s' % error
-         return(None)
+         raise WallabyHelperError(error)
 
       if obj != []:
          return(obj[0])
@@ -137,7 +142,11 @@ def get_subsys(sess, store, name):
 
 
 def list_feature_info(sess, store, feature):
-   feat_obj = get_feature(sess, store, feature)
+   try:
+      feat_obj = get_feature(sess, store, feature)
+   except WallabyHelperError, error:
+      raise WallabyHelperError(error.error)
+
    if feat_obj != None:
       print 'Feature "%s":' % feature
       print 'Feature ID: %s' % feat_obj.getIndex()
@@ -168,7 +177,11 @@ def list_feature_info(sess, store, feature):
 
 
 def list_param_info(sess, store, name):
-   param_obj = get_param(sess, store, name)
+   try:
+      param_obj = get_param(sess, store, name)
+   except WallabyHelperError, error:
+      raise WallabyHelperError(error.error)
+
    if param_obj != None:
       print 'Parameter "%s":' % name
       print 'Name: %s' % param_obj.getIndex()
@@ -192,7 +205,11 @@ def list_param_info(sess, store, name):
 
 
 def list_group_info(sess, store, group):
-   group_obj = get_group(sess, store, group)
+   try:
+      group_obj = get_group(sess, store, group)
+   except WallabyHelperError, error:
+      raise WallabyHelperError(error.error)
+
    if group_obj != None:
       if group == '+++DEFAULT':
          group = 'Internal Default Group'
@@ -223,7 +240,11 @@ def list_group_info(sess, store, group):
 
 
 def list_node_info(sess, store, name):
-   node_obj = get_node(sess, store, name)
+   try:
+      node_obj = get_node(sess, store, name)
+   except WallabyHelperError, error:
+      raise WallabyHelperError(error.error)
+
    if node_obj != None:
       print 'Node "%s":' % name
       value = node_obj.last_checkin
@@ -242,16 +263,30 @@ def list_node_info(sess, store, name):
       feat_num = 0
       group_list = value
       feature_list = {}
-      id_name = get_id_group_name(node_obj, sess)
+      try:
+         id_name = get_id_group_name(node_obj, sess)
+      except WallabyHelperError, error:
+         print error.error
+         id_name = None
+         
       if id_name != None:
-         group_obj = get_group(sess, store, id_name)
+         try:
+            group_obj = get_group(sess, store, id_name)
+         except WallabyHelperError, error:
+            print error.error
+            group_obj = None
          if group_obj != None:
             feature_list = group_obj.features
 
       group_list += ['+++DEFAULT']
       num = 0
       for name in group_list:
-         group_obj = get_group(sess, store, name)
+         try:
+            group_obj = get_group(sess, store, name)
+         except WallabyHelperError, error:
+            print error.error
+            group_obj = None
+
          if group_obj != None:
             value = group_obj.features
             for key in value:
@@ -261,9 +296,13 @@ def list_node_info(sess, store, name):
       for name in feature_list:
          print '  %s' % name 
 
-      result = node_obj.getConfig({})
+      try:
+         result = node_obj.getConfig({})
+      except WallabyHelperError, error:
+         raise WallabyHelperError('Error: Failed to retrieve configuration (%s)' % error.error)
+
       if result.status != 0:
-         print 'Error: Failed to retrieve configuration (%d, %s)' % (result.status, result.text)
+         raise WallabyHelperError('Error: Failed to retrieve configuration (%d, %s)' % (result.status, result.text))
       else:
          print 'Configuration:'
          value = result.outArgs['config']
@@ -272,7 +311,11 @@ def list_node_info(sess, store, name):
 
 
 def list_subsys_info(sess, store, name):
-   subsys_obj = get_subsys(sess, store, name)
+   try:
+      subsys_obj = get_subsys(sess, store, name)
+   except WallabyHelperError, error:
+      raise WallabyHelperError(error.error)
+
    if subsys_obj != None:
       print 'Subsystem "%s":' % name
       print 'Included Parameters:'
@@ -286,16 +329,18 @@ def add_param(sess, store, name):
    else:
       return(None)
 
-   result = store.addParam(name)
+   try:
+      result = store.addParam(name)
+   except WallabyHelperError, error:
+      raise WallabyHelperError(error.error)
+
    if result.status != 0:
-      print 'Error: Failed to add parameter "%s" (%d, %s)' % (name, result.status, result.text)
-      return(None)
+      raise WallabyHelperError('Error: Failed to add parameter "%s" (%d, %s)' % (name, result.status, result.text))
    else:
       try:
          obj = sess.getObjects(_objectId=result.outArgs['obj'])
       except Exception, error:
-         print 'Error: %s' % error
-         return(None)
+         raise WallabyHelperError(error)
 
       if obj != []:
          return(obj[0])
@@ -310,16 +355,19 @@ def add_feature(sess, store, name):
    else:
       return(None)
 
-   result = store.addFeature(name)
+   try:
+      result = store.addFeature(name)
+   except WallabyHelperError, error:
+      raise WallabyHelperError(error.error)
+
    if result.status != 0:
-      print 'Error: Failed to add feature "%s" (%d, %s)' % (name, result.status, result.text)
+      raise WallabyHelperError('Error: Failed to add feature "%s" (%d, %s)' % (name, result.status, result.text))
       return(None)
    else:
       try:
          obj = sess.getObjects(_objectId=result.outArgs['obj'])
       except Exception, error:
-         print 'Error: %s' % error
-         return(None)
+         raise WallabyHelperError(error)
 
       if obj != []:
          return(obj[0])
@@ -333,16 +381,18 @@ def add_group(sess, store, name):
    else:
       return(None)
 
-   result = store.addExplicitGroup(name)
+   try:
+      result = store.addExplicitGroup(name)
+   except WallabyHelperError, error:
+      raise WallabyHelperError(error.error)
+
    if result.status != 0:
-      print 'Error: Failed to add group "%s" (%d, %s)' % (name, result.status, result.text)
-      return(None)
+      raise WallabyHelperError('Error: Failed to add group "%s" (%d, %s)' % (name, result.status, result.text))
    else:
       try:
          obj = sess.getObjects(_objectId=result.outArgs['obj'])
       except Exception, error:
-         print 'Error: %s' % error
-         return(None)
+         raise WallabyHelperError(error)
 
       if obj != []:
          return(obj[0])
@@ -356,16 +406,19 @@ def add_node(sess, store, name):
    else:
       return(None)
 
-   result = store.addNode(name)
+   try:
+      result = store.addNode(name)
+   except WallabyHelperError, error:
+      raise WallabyHelperError(error.error)
+
    if result.status != 0:
-      print 'Error: Failed to add node "%s" (%d, %s)' % (name, result.status, result.text)
+      raise WallabyHelperError('Error: Failed to add node "%s" (%d, %s)' % (name, result.status, result.text))
       return(None)
    else:
       try:
          obj = sess.getObjects(_objectId=result.outArgs['obj'])
       except Exception, error:
-         print 'Error: %s' % error
-         return(None)
+         raise WallabyHelperError(error)
 
       if obj != []:
          return(obj[0])
@@ -379,16 +432,18 @@ def add_subsys(sess, store, name):
    else:
       return(None)
 
-   result = store.addSubsys(name)
+   try:
+      result = store.addSubsys(name)
+   except WallabyHelperError, error:
+      raise WallabyHelperError(error.error)
+
    if result.status != 0:
-      print 'Error: Failed to add subsystem "%s" (%d, %s)' % (name, result.status, result.text)
-      return(None)
+      raise WallabyHelperError('Error: Failed to add subsystem "%s" (%d, %s)' % (name, result.status, result.text))
    else:
       try:
          obj = sess.getObjects(_objectId=result.outArgs['obj'])
       except Exception, error:
-         print 'Error: %s' % error
-         return(None)
+         raise WallabyHelperError(error)
 
       if obj != []:
          return(obj[0])
@@ -404,10 +459,10 @@ def get_id_group_name(obj, sess):
    try:
       idgroup_ref = sess.getObjects(_objectId=idgroup)
    except Exception, error:
-      print 'Error: %s' % error
+      raise WallabyHelperError(error)
 
    if idgroup_ref == []:
-      print 'Error: Unable to find identity group with id "%s" (%d, %s)' % (idgroup, result.status, result.text)
+      raise WallabyHelperError('Error: Unable to find identity group with id "%s" (%d, %s)' % (idgroup, result.status, result.text))
    else:
       name = idgroup_ref[0].name
 

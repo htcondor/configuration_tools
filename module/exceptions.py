@@ -22,3 +22,7 @@ class WallabyError(Exception):
 class ValidateWarning(Exception):
    def __init__(self, warnings):
       self.warnings = warnings
+
+class WallabyHelperError(Exception):
+   def __init__(self, error):
+      self.error = error

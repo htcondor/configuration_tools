@@ -621,210 +621,218 @@ def main(argv=None):
    else:
       config_store = config_store[0]
        
-   # Check API version number
-   if config_store.apiVersionNumber > 20100804:
-      print 'The store is using a newer API version than this tool supports'
-      session.delBroker(broker)
-      return(1)
-
-   # Attempt to activate the configuration in the store if told to do so
-   if action == 'activate':
-      if activate_configuration(config_store) == False:
+   try:
+      # Check API version number
+      if config_store.apiVersionNumber > 20100804:
+         print 'The store is using a newer API version than this tool supports'
          session.delBroker(broker)
          return(1)
-      else:
+ 
+      # Attempt to activate the configuration in the store if told to do so
+      if action == 'activate':
+         if activate_configuration(config_store) == False:
+            session.delBroker(broker)
+            return(1)
+         else:
+            session.delBroker(broker)
+            return(0)
+ 
+      # Process the list-alls, if there are any
+      if action == 'list-all':
+         for type in list_alls:
+            try:
+               objs = store_agent.getObjects(_class=type, _package='com.redhat.grid.config')
+            except Exception, error:
+               print 'Error: %s' % error
+               session.delBroker(broker)
+               return(1)
+   
+            print '\n%ss:' % type
+            if type == 'Feature' or type == 'Group':
+               if objs == []:
+                  print '  There are no %ss in the store' % type
+               else:
+                  for obj in objs:
+                     name = obj.name
+                     if '+++' != name[0:3]:
+                        print '  %s' % name
+                  if type == 'Group':
+                     print '  Internal Default Group'
+            if  type == 'Node' or type == 'Parameter' or type == 'Snapshot':
+               if objs == []:
+                  print '  There are no %ss in the store' % type
+               else:
+                  for obj in objs:
+                     print '  %s' % obj.name
+         session.delBroker(broker)
+         return(0)
+ 
+      # Process snapshots
+      if action == 'load-snapshot':
+         result = config_store.loadSnapshot(snapshot_name)
+         if result.status != 0:
+            print 'Error: Failed to load snapshot "%s" (%d %s)' % (snapshot_name, result.status, result.text)
+            session.delBroker(broker)
+            return(1)
+         print 'Snapshot loaded'
+         session.delBroker(broker)
+         return(0)
+      elif action == 'remove-snapshot':
+         result = config_store.removeSnapshot(snapshot_name)
+         if result.status != 0:
+            print 'Error: Failed to remove snapshot "%s" (%d %s)' % (snapshot_name, result.status, result.text)
+            session.delBroker(broker)
+            return(1)
+         print 'Snapshot removed'
+         session.delBroker(broker)
+         return(0)
+      elif action == 'take-snapshot':
+         save_snapshot(config_store, snapshot_name)
          session.delBroker(broker)
          return(0)
 
-   # Process the list-alls, if there are any
-   if action == 'list-all':
-      for type in list_alls:
-         try:
-            objs = store_agent.getObjects(_class=type, _package='com.redhat.grid.config')
-         except Exception, error:
-            print 'Error: %s' % error
+      # Perform list opertions
+      if action == 'list':
+         if name != '':
+            # Provide the configuration for the group/node
+            if is_node == True:
+               WallabyHelpers.list_node_info(session, config_store, name)
+            else:
+               WallabyHelpers.list_group_info(session, config_store, name)
+         if features != []:
+            # Provide the configuration for the features
+            for feat in features:
+               print 'Configuration for feature %s:' % feat
+               WallabyHelpers.list_feature_info(session, config_store, feat)
+         for param in params.split(','):
+            WallabyHelpers.list_param_info(session, config_store, param)
+               
+         session.delBroker(broker)
+         return(0)
+
+      # If configuring a single node, grab that node's identity group and
+      # act upon that
+      if is_node == True:
+         obj = WallabyHelpers.get_node(session, config_store, name)
+         if obj == None:
             session.delBroker(broker)
             return(1)
-
-         print '\n%ss:' % type
-         if type == 'Feature' or type == 'Group':
-            if objs == []:
-               print '  There are no %ss in the store' % type
-            else:
-               for obj in objs:
-                  name = obj.name
-                  if '+++' != name[0:3]:
-                     print '  %s' % name
-               if type == 'Group':
-                  print '  Internal Default Group'
-         if  type == 'Node' or type == 'Parameter' or type == 'Snapshot':
-            if objs == []:
-               print '  There are no %ss in the store' % type
-            else:
-               for obj in objs:
-                  print '  %s' % obj.name
-      session.delBroker(broker)
-      return(0)
-
-   # Process snapshots
-   if action == 'load-snapshot':
-      result = config_store.loadSnapshot(snapshot_name)
-      if result.status != 0:
-         print 'Error: Failed to load snapshot "%s" (%d %s)' % (snapshot_name, result.status, result.text)
-         session.delBroker(broker)
-         return(1)
-      print 'Snapshot loaded'
-      session.delBroker(broker)
-      return(0)
-   elif action == 'remove-snapshot':
-      result = config_store.removeSnapshot(snapshot_name)
-      if result.status != 0:
-         print 'Error: Failed to remove snapshot "%s" (%d %s)' % (snapshot_name, result.status, result.text)
-         session.delBroker(broker)
-         return(1)
-      print 'Snapshot removed'
-      session.delBroker(broker)
-      return(0)
-   elif action == 'take-snapshot':
-      save_snapshot(config_store, snapshot_name)
-      session.delBroker(broker)
-      return(0)
-
-   # Perform list opertions
-   if action == 'list':
-      if name != '':
-         # Provide the configuration for the group/node
-         if is_node == True:
-            WallabyHelpers.list_node_info(session, config_store, name)
          else:
-            WallabyHelpers.list_group_info(session, config_store, name)
-      if features != []:
-         # Provide the configuration for the features
-         for feat in features:
-            print 'Configuration for feature %s:' % feat
-            WallabyHelpers.list_feature_info(session, config_store, feat)
-      for param in params.split(','):
-         WallabyHelpers.list_param_info(session, config_store, param)
-            
-      session.delBroker(broker)
-      return(0)
+            name = WallabyHelpers.get_id_group_name(obj, session)
+            if name == None:
+               session.delBroker(broker)
+               return(1)
 
-   # If configuring a single node, grab that node's identity group and
-   # act upon that
-   if is_node == True:
-      obj = WallabyHelpers.get_node(session, config_store, name)
-      if obj == None:
+      if 'ConsoleCollector' in features and action == 'add':
+         print 'WARNING: The ConsoleCollector feature should be applied to only '
+         print '         1 node in the pool.  Applying the ConsoleCollector '
+         print '         feature to more than node (or a group of nodes) in the'
+         print '         pool can cause dupliate information in the console.'
+         answer = raw_input('Continue adding the ConsoleCollector feature? [y/N] ')
+         if answer.lower() != 'y':
+            try:
+               features.remove('ConsoleCollector')
+            except:
+               print 'Error: Failed to remove the ConsoleCollector from the feature list.'
+
+      # Query the store to get the group
+      group_obj = WallabyHelpers.get_group(session, config_store, name)
+      if group_obj == None:
          session.delBroker(broker)
          return(1)
+
+      # Prompt for param values entered on the command line, if any
+      for param in params.split(','):
+         if param != '':
+            if action == 'add':
+               input = raw_input('Value for "%s": ' % param)
+               if input != '':
+                  param_list[param] = input.strip()
+               else:
+                  param_list[param] = input
+            else:
+               param_list[param] = False
+
+      # Configure which schedulers the node can submit to
+      if schedd_prompts == True:
+         configure_node_schedulers(replace_list, action == 'remove')
+
+      # Configure the AMQP broker used to communicate with the Management
+      # Console
+      if broker_prompts == True:
+         configure_qmf_broker(replace_list, action == 'remove')
+ 
+      if raw_input('\nApply these changes [Y/n] ? ').lower() != 'n':
+         if features != []:
+            result = group_obj.modifyFeatures(action, features, {})
+            if result.status != 0:
+               print 'Error: Problem modifying features (%d, %s)' % (result.status, result.text)
+               session.delBroker(broker)
+               return(1)
+
+          # Check if any additional params need to be added/removed
+         if action != 'remove':
+            check_more_params_needed(session, config_store, features, param_list, replace_list, group_obj)
+         else:
+            param_list.update(replace_list)
+            replace_list = {}
+            check_delete_params_needed(session, config_store, features, param_list, group_obj)
+
+         if param_list != {}:
+            result = group_obj.modifyParams(action, param_list, {})
+            if result.status != 0:
+               print 'Error: Problem modifying parameters (%d, %s)' % (result.status, result.text)
+               session.delBroker(broker)
+               return(1)
+
+         if replace_list != {}:
+            all_params = group_obj.params
+            all_params.update(replace_list)
+            special = ['SCHEDD_NAME', 'SCHEDD_HOST']
+            for sparam in special:
+               if sparam in all_params.keys() and \
+                  sparam not in replace_list.keys():
+                  try:
+                     del all_params[sparam]
+                  except:
+                     pass
+              
+            result = group_obj.modifyParams('replace', all_params, {})
+            if result.status != 0:
+               print 'Error: Problem modifying parameters (%d, %s)' % (result.status, result.text)
+               session.delBroker(broker)
+               return(1)
+         print 'Configuration applied'
+
+         retry = True
+         config_name = ''
+         while retry == True:
+            retry = False
+            if raw_input('\nCreate a named snapshot of this configuration [y/N] ? ').lower() == 'y':
+               config_name = raw_input('  Snapshot Name: ')
+               if config_name == '':
+                  retry = True
+                  print 'Invalid configuration name'
+                  continue 
+               save_snapshot(config_store, config_name.strip())
+   
+         if raw_input('\nActivate the changes [y/N] ? ').lower() == 'y':
+            if activate_configuration(config_store) == True and \
+               config_name == '':
+               save_snapshot(config_store, '')
+         else: 
+            print 'Configuration not activated'
       else:
-         name = WallabyHelpers.get_id_group_name(obj, session)
-         if name == None:
-            session.delBroker(broker)
-            return(1)
-
-
-   if 'ConsoleCollector' in features and action == 'add':
-      print 'WARNING: The ConsoleCollector feature should be applied to only '
-      print '         1 node in the pool.  Applying the ConsoleCollector '
-      print '         feature to more than node (or a group of nodes) in the'
-      print '         pool can cause dupliate information in the console.'
-      answer = raw_input('Continue adding the ConsoleCollector feature? [y/N] ')
-      if answer.lower() != 'y':
-         try:
-            features.remove('ConsoleCollector')
-         except:
-            print 'Error: Failed to remove the ConsoleCollector from the feature list.'
-
-   # Query the store to get the group
-   group_obj = WallabyHelpers.get_group(session, config_store, name)
-   if group_obj == None:
+         print 'Configuration not applied'
+   except:
+      print 'Exception received when communicating with the configuration store'
+      print 'This could be because of a communcation issue, or because the'
+      print 'configuration store was taking too long to complete a task'
       session.delBroker(broker)
       return(1)
 
-   # Prompt for param values entered on the command line, if any
-   for param in params.split(','):
-      if param != '':
-         if action == 'add':
-            input = raw_input('Value for "%s": ' % param)
-            if input != '':
-               param_list[param] = input.strip()
-            else:
-               param_list[param] = input
-         else:
-            param_list[param] = False
-
-   # Configure which schedulers the node can submit to
-   if schedd_prompts == True:
-      configure_node_schedulers(replace_list, action == 'remove')
-
-   # Configure the AMQP broker used to communicate with the Management
-   # Console
-   if broker_prompts == True:
-      configure_qmf_broker(replace_list, action == 'remove')
-
-   if raw_input('\nApply these changes [Y/n] ? ').lower() != 'n':
-      if features != []:
-         result = group_obj.modifyFeatures(action, features, {})
-         if result.status != 0:
-            print 'Error: Problem modifying features (%d, %s)' % (result.status, result.text)
-            session.delBroker(broker)
-            return(1)
-
-       # Check if any additional params need to be added/removed
-      if action != 'remove':
-         check_more_params_needed(session, config_store, features, param_list, replace_list, group_obj)
-      else:
-         param_list.update(replace_list)
-         replace_list = {}
-         check_delete_params_needed(session, config_store, features, param_list, group_obj)
-
-      if param_list != {}:
-         result = group_obj.modifyParams(action, param_list, {})
-         if result.status != 0:
-            print 'Error: Problem modifying parameters (%d, %s)' % (result.status, result.text)
-            session.delBroker(broker)
-            return(1)
-
-      if replace_list != {}:
-         all_params = group_obj.params
-         all_params.update(replace_list)
-         special = ['SCHEDD_NAME', 'SCHEDD_HOST']
-         for sparam in special:
-            if sparam in all_params.keys() and \
-               sparam not in replace_list.keys():
-               try:
-                  del all_params[sparam]
-               except:
-                  pass
-           
-         result = group_obj.modifyParams('replace', all_params, {})
-         if result.status != 0:
-            print 'Error: Problem modifying parameters (%d, %s)' % (result.status, result.text)
-            session.delBroker(broker)
-            return(1)
-      print 'Configuration applied'
-
-      retry = True
-      config_name = ''
-      while retry == True:
-         retry = False
-         if raw_input('\nCreate a named snapshot of this configuration [y/N] ? ').lower() == 'y':
-            config_name = raw_input('  Snapshot Name: ')
-            if config_name == '':
-               retry = True
-               print 'Invalid configuration name'
-               continue 
-            save_snapshot(config_store, config_name.strip())
-
-      if raw_input('\nActivate the changes [y/N] ? ').lower() == 'y':
-         if activate_configuration(config_store) == True and \
-            config_name == '':
-            save_snapshot(config_store, '')
-      else: 
-         print 'Configuration not activated'
-   else:
-      print 'Configuration not applied'
    session.delBroker(broker)
+   return(0)
 
 if __name__ == '__main__':
     sys.exit(main())

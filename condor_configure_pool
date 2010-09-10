@@ -391,7 +391,9 @@ def check_delete_params_needed(sess, store, feature_list, params, gobj):
 
 def activate_configuration(store):
    ret_val = False
-   result = store.activateConfiguration()
+
+   print 'Activating configuration.  This may take a while, please be patient'
+   result = store.activateConfiguration(_timeout=600)
    if result.status != 0:
       print 'Error: Unable to active changes (%d, %s)' % (result.status, result.text)
    else:
@@ -812,7 +814,7 @@ def main(argv=None):
                config_name = raw_input('  Snapshot Name: ')
                if config_name == '':
                   retry = True
-                  print 'Invalid configuration name'
+                  print 'Invalid snapshot name'
                   continue 
                save_snapshot(config_store, config_name.strip())
    

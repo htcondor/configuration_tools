@@ -1,5 +1,5 @@
 %{!?python_sitelib: %define python_sitelib %(%{__python} -c "from distutils.sysconfig import get_python_lib; print get_python_lib()")}
-%define rel 1
+%define rel 2
 %define ver 3.6
 
 Name: condor-wallaby
@@ -107,6 +107,10 @@ cp -f module/*.py %{buildroot}/%{python_sitelib}/wallabyclient
 %{python_sitelib}/wallabyclient/exceptions.py*
 
 %changelog
+* Wed Sep 15 2010  <rrati@redhat> - 3.6-2
+- Fixed race condition in the configd when restarting condor
+- Added logging during shutdown
+
 * Fri Sep 10 2010  <rrati@redhat> - 3.6-1
 - Faster error commandline error reporting
 - Fixed issue with pool tool removing must_change params when it shouldn't

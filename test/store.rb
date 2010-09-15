@@ -20,6 +20,12 @@ module Mrg
                @singleton ||= Store.new
                [@singleton]
             end
+
+            qmf_property :apiVersionNumber, :uint32, :desc=>"The version of the API the store supports", :index=>false
+            def apiVersionNumber
+               20100804
+            end
+
 #
 #            def addNode(name)
 #               node = Node.find_first_by_name(name)
@@ -37,7 +43,7 @@ module Mrg
             def getNode(name)
                node = Node.find_first_by_name(name)
                unless node
-                  node = Node.create(:name => name, :last_updated_version => 0)
+                  node = Node.create(:name => name, :last_updated_version => 1)
                end
                @node_name ||= name
                node
@@ -48,34 +54,31 @@ module Mrg
                args.declare :name, :sstr, :in, {}
             end
 
-            def checkNodeValidity(name)
-               node = Node.find_first_by_name(name)
-               node
+            def checkNodeValidity(names)
+               names.reject {|n| Node.find_first_by_name(n)}
             end
 
             expose :checkNodeValidity do |args|
-               args.declare :name, :sstr, :in, {}
-               args.declare :obj, :objId, :out, {}
+               args.declare :names, :list, :in, {}
+               args.declare :invalidNodes, :list, :out, {}
             end
 
-            def raiseEvent(targets, need_restart, subsystems)
-               node_map = {}
+            def raiseEvent(targets)
+               version = 0
                targets.each do |name|
                   if name == @node_name
                      node = Node.find_first_by_name(name)
-                     node_map[name] = node.last_updated_version
-                  else
-                     node_map[name] = 0
+                     version = node.last_updated_version
                   end
                end
-               event = WallabyConfigEvent.new(node_map, need_restart, subsystems)
+               event = NodeUpdatedNotice.new
+               event.nodes = targets
+               event.version = version
                event.bang!
             end
 
             expose :raiseEvent do |args|
                args.declare :targets, :list, :in, :desc=>"A map of targets:version"
-               args.declare :need_restart, :bool, :in, :desc=>"Whether to restart the subsystem"
-               args.declare :subsystems, :list, :in, :desc=>"A map of system:subsystem that should be acted upon"
             end
          end
 
@@ -98,7 +101,7 @@ module Mrg
             end
 
             def last_updated_version
-              def_last_updated_version || 0
+              def_last_updated_version || 1
             end
 
             qmf_property :name, :lstr, :index=>true
@@ -116,6 +119,7 @@ module Mrg
             end
 
             def setLastUpdatedVersion(version)
+               puts "new version = #{version}"
                self.last_updated_version = version
             end
 
@@ -130,6 +134,18 @@ module Mrg
             expose :checkin do |args|
             end
 
+            def whatChanged(old_version, new_version)
+               [[], [], []]
+            end
+
+            expose :whatChanged do |args|
+               args.declare :old_version, :uint64, :in, "The old version."
+               args.declare :new_version, :uint64, :in, "The new version."
+               args.declare :params, :list, :out, "A list of parameters whose values changed between old_version and new_version."
+               args.declare :restart, :list, :out, "A list of subsystems that must be restarted as a result of the changes between old_version and new_version."
+               args.declare :affected, :list, :out, "A list of subsystems that must re-read their configurations as a result of the changes between old_version and new_version."
+            end
+
             private
             def config
                # XXX: put config here
@@ -137,14 +153,13 @@ module Mrg
             end
          end
 
-         class WallabyConfigEvent
+         class NodeUpdatedNotice
             include ::SPQR::Raiseable
-            arg :affectedNodes, :map, ""
-            arg :restart, :bool, ""
-            arg :targets, :list, ""
+               arg :nodes, :map, "A map whose keys are the node names that must update."
+               arg :version, :uint64, "The version of the latest configuration for these nodes."
 
-            qmf_class_name :WallabyConfigEvent
-            qmf_package_name :WallabyConfigEvent
+            qmf_class_name :NodeUpdatedNotice
+            qmf_package_name "com.redhat.grid.config"
             qmf_severity :notice
          end
       end
@@ -153,6 +168,7 @@ end
 
 
 options = {}
+options[:appname] = "com.redhat.grid.config:Store"
 options[:user] = "guest"
 options[:password] = "guest"
 options[:host] = "127.0.0.1"
@@ -162,6 +178,6 @@ Rhubarb::Persistence::open(":memory:")
 Mrg::Grid::Config::Node.create_table
 
 app = SPQR::App.new(options)
-app.register Mrg::Grid::Config::Store,Mrg::Grid::Config::Node,Mrg::Grid::Config::WallabyConfigEvent
+app.register Mrg::Grid::Config::Store,Mrg::Grid::Config::Node,Mrg::Grid::Config::NodeUpdatedNotice
 
 app.main

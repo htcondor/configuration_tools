@@ -66,10 +66,11 @@ if configd_pid == 0:
    if 'PYTHONPATH' in os.environ.keys():
       env['PYTHONPATH'] = os.environ['PYTHONPATH']
    env['CONDOR_CONFIG'] = '../config/99configd.config'
+   env['_CONDOR_LOCAL_CONFIG_DIR'] = '../config'
    env['_CONDOR_QMF_CONFIGD_CHECK_INTERVAL'] = str(checkin_time)
    env['_CONDOR_QMF_BROKER_HOST'] = '127.0.0.1'
    env['_CONDOR_QMF_BROKER_PORT'] = '5672'
-   (rcode, out, err) = run_cmd('../condor_configd -l %s -m %s -h %s' % (log_file, config_file, nodename), environ = env)
+   (rcode, out, err) = run_cmd('../condor_configd -d -l %s -m %s -h %s' % (log_file, config_file, nodename), environ = env)
    sys.exit(0)
 
 # Setup the connection to the store
@@ -123,7 +124,7 @@ try:
    except:
       print 'Error: Failed to find WALLABY_CONFIG_VERSION in config file'
       version = -1
-   if version == 0:
+   if version == 1:
       print 'PASS'
    else:
       print 'FAILED (%d!=0)' % version
@@ -169,11 +170,11 @@ try:
       print 'FAILED (%d == %d)' % (version, old_version)
 
    # Test 6 - Test event (1 target) causes config retrieval
-   print 'Testing event (1 target 1 subsys) causes config retrieval: \t',
+   print 'Testing event (1 target) causes config retrieval: \t\t',
    old_version = version
    node.setLastUpdatedVersion(version+1)
-   store.raiseEvent([nodename], True, ['master'])
-   time.sleep(1)
+   store.raiseEvent([nodename])
+   time.sleep(3)
    try:
       version = int(read_condor_config('WALLABY_CONFIG', ['VERSION'], environ={'CONDOR_CONFIG':config_file})['version'])
    except:
@@ -185,43 +186,11 @@ try:
       print 'FAILED (%d == %d)' % (version, old_version)
 
    # Test 7 - Test event (>1 target) causes config retrieval
-   print 'Testing event (>1 targets 1 subsys) causes config retrieval: \t',
+   print 'Testing event (>1 targets) causes config retrieval: \t\t',
    old_version = version
    node.setLastUpdatedVersion(version+1)
-   store.raiseEvent([nodename, 'node1', 'node2'], True, ['master'])
-   time.sleep(1)
-   try:
-      version = int(read_condor_config('WALLABY_CONFIG', ['VERSION'], environ={'CONDOR_CONFIG':config_file})['version'])
-   except:
-      print 'Error: Failed to find WALLABY_CONFIG_VERSION in config file'
-      version = old_version
-   if old_version != version:
-      print 'PASS (%d != %d)' % (version, old_version)
-   else:
-      print 'FAILED (%d == %d)' % (version, old_version)
-
-   # Test 8 - Test event (1 target & >1 subsys) causes config retrieval
-   print 'Testing event (1 target >1 subsys) causes config retrieval: \t',
-   old_version = version
-   node.setLastUpdatedVersion(version+1)
-   store.raiseEvent([nodename], True, ['master', 'startd', 'schedd'])
-   time.sleep(1)
-   try:
-      version = int(read_condor_config('WALLABY_CONFIG', ['VERSION'], environ={'CONDOR_CONFIG':config_file})['version'])
-   except:
-      print 'Error: Failed to find WALLABY_CONFIG_VERSION in config file'
-      version = old_version
-   if old_version != version:
-      print 'PASS (%d != %d)' % (version, old_version)
-   else:
-      print 'FAILED (%d == %d)' % (version, old_version)
-
-   # Test 9 - Test event (>1 target & >1 subsys) causes config retrieval
-   print 'Testing event (>1 target >1 subsys) causes config retrieval: \t',
-   old_version = version
-   node.setLastUpdatedVersion(version+1)
-   store.raiseEvent([nodename, 'node1', 'node2'], True, ['master', 'schedd'])
-   time.sleep(1)
+   store.raiseEvent([nodename, 'node1', 'node2'])
+   time.sleep(3)
    try:
       version = int(read_condor_config('WALLABY_CONFIG', ['VERSION'], environ={'CONDOR_CONFIG':config_file})['version'])
    except:
@@ -236,8 +205,8 @@ try:
    print 'Testing not all events cause config retrieval: \t\t\t',
    old_version = version
    node.setLastUpdatedVersion(version+1)
-   store.raiseEvent(['node1', 'node2'], True, ['master', 'schedd'])
-   time.sleep(1)
+   store.raiseEvent(['node1', 'node2'])
+   time.sleep(3)
    try:
       version = int(read_condor_config('WALLABY_CONFIG', ['VERSION'], environ={'CONDOR_CONFIG':config_file})['version'])
    except:

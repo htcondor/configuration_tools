@@ -1,5 +1,5 @@
 %{!?python_sitelib: %define python_sitelib %(%{__python} -c "from distutils.sysconfig import get_python_lib; print get_python_lib()")}
-%define rel 2
+%define rel 3
 %define ver 3.6
 
 Name: condor-wallaby
@@ -15,7 +15,7 @@ BuildArch: noarch
 BuildRequires: python >= 2.3
 
 %description
-The Condor QMF Config package provides a means to quickly and easily
+The condor wallaby package provides a means to quickly and easily
 configure machines running Condor by providing tools to define configurations
 and apply them to nodes using wallaby.
 
@@ -107,6 +107,9 @@ cp -f module/*.py %{buildroot}/%{python_sitelib}/wallabyclient
 %{python_sitelib}/wallabyclient/exceptions.py*
 
 %changelog
+* Wed Sep 15 2010  <rrati@redhat> - 3.6-3
+- Fixed description
+
 * Wed Sep 15 2010  <rrati@redhat> - 3.6-2
 - Fixed race condition in the configd when restarting condor
 - Added logging during shutdown

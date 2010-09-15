@@ -547,7 +547,7 @@ stop_running = False
 replacing_file = False
 reconnect_qmf = False
 pidfile = os.path.normpath(os.getcwd() + '/.pid' + str(os.getpid()))
-logger_name = os.path.basename(argv[0])
+logger_name = os.path.basename(sys.argv[0])
 
 def main(argv=None):
    global service, stop_running, replacing_file, reconnect_qmf, version_queue, logger_name

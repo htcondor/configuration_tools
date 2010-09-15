@@ -133,8 +133,9 @@ class Service:
          self.broker = None
 
       try:
-         val = read_condor_config('QMF_BROKER', ['HOST'])
-         broker_ip = val['host']
+         broker_ip = read_condor_config('QMF_BROKER', ['HOST'])['host']
+         if broker_ip.strip() == '':
+            broker_ip = '127.0.0.1'
       except ConfigError, error:
          # Broker host not defined, so exit
          log(logging.ERROR, self.logger_name, '%s.  Exiting' % error.msg)
@@ -286,25 +287,14 @@ class Service:
          ver = int(self.node_obj.last_updated_version)
 
       # Install the new configuration (if needed)
+      ret_val = True
       if self.get_config(ver, force) == False:
          # There was a problem retrieving the configuration.  Logging is
-         # handled by the get_config function, so just release the lock and
-         # return
-         self.lock.release()
-         return(False)
+         # handled by the get_config function
+         ret_val = False
 
-      # Check in with the store
-      log(logging.DEBUG, self.logger_name, 'Performing a checkin with the store')
-      try:
-         self.node_obj.checkin(_timeout=20)
-      except Exception, error:
-         log(logging.ERROR, self.logger_name, 'Failed to check in with the store')
-         log(logging.ERROR, self.logger_name, error)
-         self.lock.release()
-         return(False)
-      log(logging.DEBUG, self.logger_name, 'Checked in with the store')
       self.lock.release()
-      return(True)
+      return(ret_val)
 
 
    def process_version_q(self):
@@ -333,6 +323,16 @@ class Service:
 
    def get_config(self, version=0, force=False):
       global replacing_file
+
+      # Check in with the store
+      log(logging.DEBUG, self.logger_name, 'Performing a checkin with the store')
+      try:
+         self.node_obj.checkin(_timeout=20)
+      except Exception, error:
+         log(logging.ERROR, self.logger_name, 'Failed to check in with the store')
+         log(logging.ERROR, self.logger_name, error)
+         return(False)
+      log(logging.DEBUG, self.logger_name, 'Checked in with the store')
 
       # Get the WALLABY_CONFIG_VERSION the master is running.  If the master is
       # running the same version as what we've received, then we know we don't

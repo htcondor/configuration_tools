@@ -520,21 +520,26 @@ class Service:
 
 
 def exit_signal_handler(signum, frame):
-   global service, stop_running
+   global service, stop_running, logger_name
 
+   log(logging.DEBUG, logger_name, 'Shutting down')
+   log(logging.DEBUG, logger_name, 'Closing QMF connections')
    if service != None:
       service.shutdown()
       del service
       service = None
-   logging.shutdown()
+   log(logging.DEBUG, logger_name, 'Closed QMF connections')
+   log(logging.DEBUG, logger_name, 'Setting stop flag')
    stop_running = True
 
 def test_for_shutdown():
-	global pidfile
+   global pidfile, logger_name
 
-	if os.path.isfile(pidfile):
-		os.remove(pidfile)
-		exit_signal_handler(signal.SIGTERM, None)
+   log(logging.DEBUG, logger_name, 'Testing for shutdown file')
+   if os.path.isfile(pidfile):
+      log(logging.DEBUG, logger_name, 'Found shutdown file')
+      os.remove(pidfile)
+      exit_signal_handler(signal.SIGTERM, None)
 
 version_queue = Queue.Queue()
 service = Service()
@@ -542,9 +547,10 @@ stop_running = False
 replacing_file = False
 reconnect_qmf = False
 pidfile = os.path.normpath(os.getcwd() + '/.pid' + str(os.getpid()))
+logger_name = os.path.basename(argv[0])
 
 def main(argv=None):
-   global service, stop_running, replacing_file, reconnect_qmf, version_queue
+   global service, stop_running, replacing_file, reconnect_qmf, version_queue, logger_name
 
    if argv is None:
       argv = sys.argv
@@ -552,7 +558,6 @@ def main(argv=None):
    try:
       file = {}
       retrieve = False
-      logger_name = os.path.basename(argv[0])
       node_name = socket.gethostname()
       config_file = ''
       username = ''
@@ -724,6 +729,10 @@ def main(argv=None):
             pass
    except:
       pass
+
+   log(logging.INFO, logger_name, 'Exiting')
+   logging.shutdown()
+   return(0)
 
 if __name__ == '__main__':
     sys.exit(main())

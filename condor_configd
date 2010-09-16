@@ -205,8 +205,8 @@ class Service:
       store = obj[0]
 
       # Check API version number
-      if store.apiVersionNumber > 20100804:
-         log(logging.CRITICAL, self.logger_name, 'The store is using a newer API version than is supported.  Exiting')
+      if store.apiVersionNumber < 20100804 or store.apiVersionNumber > 20100915:
+         log(logging.CRITICAL, self.logger_name, 'The store is using an API version that is not supported (%d)' % store.apiVersionNumber)
          return(False)
 
       result = store.getNode(self.node_name)

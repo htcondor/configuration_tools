@@ -224,8 +224,8 @@ def main(argv=None):
 
    try:
       # Check API version number
-      if config_store.apiVersionNumber > 20100804:
-         print 'The store is using a newer API version than this tool supports'
+      if config_store.apiVersionNumber < 20100804 or config_store.apiVersionNumber > 20100915:
+         print 'The store is using an API version that this tool does not support (%d)' % config_store.apiVersionNumber
          session.delBroker(broker)
          return(1)
 

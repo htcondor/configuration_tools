@@ -1,5 +1,5 @@
 %{!?python_sitelib: %define python_sitelib %(%{__python} -c "from distutils.sysconfig import get_python_lib; print get_python_lib()")}
-%define rel 3
+%define rel 4
 %define ver 3.6
 
 Name: condor-wallaby
@@ -107,6 +107,9 @@ cp -f module/*.py %{buildroot}/%{python_sitelib}/wallabyclient
 %{python_sitelib}/wallabyclient/exceptions.py*
 
 %changelog
+* Thu Sep 16 2010  <rrati@redhat> - 3.6-4
+- Updated API version check
+
 * Wed Sep 15 2010  <rrati@redhat> - 3.6-3
 - Fixed description
 

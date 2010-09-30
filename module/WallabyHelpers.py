@@ -207,7 +207,8 @@ def list_group_info(sess, store, group):
 
       if name != '+++DEFAULT':
          print 'Members:'
-         for key in group_obj.membership:
+         members = hasattr(group_obj.membership,'__iter__') and group_obj.membership or group_obj.membership().nodes
+         for key in members:
             print '  %s' % key
 
       i = 0

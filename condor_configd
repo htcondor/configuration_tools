@@ -486,9 +486,6 @@ class Service:
       nondc_daemons = ['ll_daemon', 'configd']
       all_success = True
 
-      if list == []:
-         return
-
       for subsys in list:
          subsys = str(subsys.strip())
          if subsys.lower() not in running_daemons:

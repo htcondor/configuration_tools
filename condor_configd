@@ -470,16 +470,16 @@ class Service:
          if 'master' in restart_list:
             return(self.send_condor_command(cmd, 'master'))
          else:
-            return(self.act_upon_subsys_list(cmd, restart_list, daemon_list))
+            success = self.act_upon_subsys_list(cmd, restart_list, daemon_list)
    
             # Now process the reconfig list.  Again, if master is listed then
             # don't do anything else as sending a reconfig event to the master
             # will handle everything 
             cmd = 'condor_reconfig'
             if 'master' in reconfig_list:
-               return(self.send_condor_command(cmd, 'master'))
+               return(self.send_condor_command(cmd, 'master') and success)
             else:
-               return(self.act_upon_subsys_list(cmd, reconfig_list, daemon_list))
+               return(self.act_upon_subsys_list(cmd, reconfig_list, daemon_list) and success)
    
    
    def act_upon_subsys_list(self, command, list, running_daemons):

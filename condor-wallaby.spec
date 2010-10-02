@@ -1,5 +1,5 @@
 %{!?python_sitelib: %define python_sitelib %(%{__python} -c "from distutils.sysconfig import get_python_lib; print get_python_lib()")}
-%define rel 5
+%define rel 6
 %define ver 3.6
 
 Name: condor-wallaby
@@ -107,6 +107,10 @@ cp -f module/*.py %{buildroot}/%{python_sitelib}/wallabyclient
 %{python_sitelib}/wallabyclient/exceptions.py*
 
 %changelog
+* Sat Oct  2 2010  <matt@redhat> - 3.6-6
+- Fixed crash in WallabyClient.py, appeared as crash listing a group (BZ638992)
+- Fixed condor_configd's failure to send any reconfig signals since 3.5-1 (BZ639352)
+
 * Thu Sep 16 2010  <rrati@redhat> - 3.6-5
 - Fixed API version check in configd
 

@@ -59,7 +59,9 @@ Group: Applications/System
 BuildRequires: python-devel
 Requires: python >= 2.3
 Requires: python-condorutils >= 1.4-3
+%if 0%{?rhel} != 4
 Requires: PyYAML
+%endif
 
 %description -n python-wallabyclient
 Tools for interacting with wallaby
@@ -79,6 +81,9 @@ cp -f condor_configure_store %{buildroot}/%_sbindir
 cp -f condor_configd %{buildroot}/%_sbindir
 cp -f 99configd.config %{buildroot}/%_sysconfdir/condor/config.d
 cp -f module/*.py %{buildroot}/%{python_sitelib}/wallabyclient
+%if 0%{?rhel} == 4
+rm -f %{buildroot}/%{python_sitelib}/wallabyclient/WallabyTypes.py
+%endif
 
 %files client
 %defattr(-,root,root,-)
@@ -102,7 +107,9 @@ cp -f module/*.py %{buildroot}/%{python_sitelib}/wallabyclient
 %doc LICENSE-2.0.txt
 %defattr(0644, root,root,-)
 %{python_sitelib}/wallabyclient/WallabyHelpers.py*
+%if 0%{?rhel} != 4
 %{python_sitelib}/wallabyclient/WallabyTypes.py*
+%endif
 %{python_sitelib}/wallabyclient/__init__.py*
 %{python_sitelib}/wallabyclient/exceptions.py*
 

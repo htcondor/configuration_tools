@@ -269,6 +269,24 @@ def main(argv=None):
          session.delBroker(broker)
          return(1)
 
+      # If performing a delete operation, warn before taking any action
+      if action == 'delete':
+         print 'Warning: About to delete the following entities from the store:'
+         if nodes != '':
+            print 'Nodes: %s' % nodes
+         if groups != '':
+            print 'Groups: %s' % groups
+         if params != '':
+            print 'Parameters: %s' % params
+         if features != '':
+            print 'Features: %s' % features
+         if subsys != '':
+            print 'Subsystems: %s' % subsys
+         answer = raw_input('Proceed to delete the above entities from the store [y/N]? ')
+         if answer.lower() != 'y':
+            session.delBroker(broker)
+            return(1)
+
       # Process the nodes
       if nodes != '':
          for node in nodes.split(','):
@@ -281,6 +299,7 @@ def main(argv=None):
                   print 'Node names beginning with "+++" are reserved and can not be added'
             elif action == 'delete' and node != '':
                if '+++' != node[0:3]:
+                  print 'Removing node "%s"' % node
                   result = config_store.removeNode(node)
                   if result.status != 0:
                      print 'Error: Failed to remove node "%s" (%d, %s)' % (node, result.status, result.text)
@@ -310,6 +329,7 @@ def main(argv=None):
                   print 'Parameter names beginning with "+++" are reserved and can not be added'
             elif action == 'delete' and param != '':
                if '+++' != param[0:3]:
+                  print 'Removing parameter "%s"' % param
                   result = config_store.removeParam(param)
                   if result.status != 0:
                      print 'Error: Failed to remove parameter "%s" (%d, %s)' % (param, result.status, result.text)
@@ -338,6 +358,7 @@ def main(argv=None):
                   print 'Feature names beginning with "+++" are reserved and can not be added'
             elif action == 'delete' and feat != '':
                if '+++' != feat[0:3]:
+                  print 'Removing feature "%s"' % feat
                   result = config_store.removeFeature(feat)
                   if result.status != 0:
                      print 'Error: Failed to remove feature "%s" (%d, %s)' % (feat, result.status, result.text)
@@ -368,6 +389,7 @@ def main(argv=None):
                break
             elif action == 'delete' and group != '':
                if '+++' != group[0:3]:
+                  print 'Removing group "%s"' % group
                   result = config_store.removeGroup(group)
                   if result.status != 0:
                      print 'Error: Failed to remove group "%s" (%d, %s)' % (group, result.status, result.text)
@@ -389,6 +411,7 @@ def main(argv=None):
                   print 'Subsystem names beginning with "+++" are reserved and can not be added'
             elif action == 'delete' and sub != '':
                if '+++' != sub[0:3]:
+                  print 'Removing subsystem "%s"' % sub
                   result = config_store.removeSubsys(sub)
                   if result.status != 0:
                      print 'Error: Failed to remove subsystem "%s" (%d, %s)' % (sub, result.status, result.text)

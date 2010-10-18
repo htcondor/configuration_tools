@@ -223,7 +223,7 @@ def list_group_info(sess, store, group):
          print '  %s = %s' % (key, value[key])
 
 
-def list_node_info(sess, store, name):
+def list_node_info(sess, store, name, verbose):
    node_obj = get_node(sess, store, name)
    if node_obj != None:
       print 'Node "%s":' % name
@@ -245,9 +245,9 @@ def list_node_info(sess, store, name):
       feature_list = {}
       id_name = get_id_group_name(node_obj, sess)
       if id_name != None:
-         group_obj = get_group(sess, store, id_name)
-         if group_obj != None:
-            feature_list = group_obj.features
+         id_group_obj = get_group(sess, store, id_name)
+         if id_group_obj != None:
+            feature_list = id_group_obj.features
 
       group_list += ['+++DEFAULT']
       num = 0
@@ -262,14 +262,20 @@ def list_node_info(sess, store, name):
       for name in feature_list:
          print '  %s' % name 
 
-      result = node_obj.getConfig({})
-      if result.status != 0:
-         print 'Error: Failed to retrieve configuration (%d, %s)' % (result.status, result.text)
-      else:
-         print 'Configuration:'
-         value = result.outArgs['config']
-         for key in value.keys():
-            print '  %s = %s' % (key, value[key])
+      print 'Explicitly Set Parameters:'
+      value = id_group_obj.params
+      for key in value.keys():
+         print '  %s = %s' % (key, value[key])
+
+      if verbose == True:
+         result = node_obj.getConfig({})
+         if result.status != 0:
+            print 'Error: Failed to retrieve configuration (%d, %s)' % (result.status, result.text)
+         else:
+            print 'Configuration:'
+            value = result.outArgs['config']
+            for key in value.keys():
+               print '  %s = %s' % (key, value[key])
 
 
 def list_subsys_info(sess, store, name):

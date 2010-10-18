@@ -119,7 +119,6 @@ module Mrg
             end
 
             def setLastUpdatedVersion(version)
-               puts "new version = #{version}"
                self.last_updated_version = version
             end
 

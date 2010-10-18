@@ -454,6 +454,7 @@ def main(argv=None):
    username = ''
    passwd = ''
    is_node = False
+   verbose = False
    no_node_needed = ['activate', 'help', 'list-all', 'load-snapshot',
                      'remove-snapshot', 'take-snapshot']
    no_target_needed = no_node_needed + ['list']
@@ -467,10 +468,10 @@ def main(argv=None):
                 'list-all-groups', 'list-all-nodes', 'list-all-params',
                 'list-all-snapshots', 'load-snapshot=', 'node=', 'params=',
                 'password=', 'port=', 'qmfbroker', 'remove-snapshot=',
-                'schedds', 'take-snapshot=', 'user=']
+                'schedds', 'take-snapshot=', 'user=', 'verbose']
 
    try:
-      opts, args = getopt.gnu_getopt(argv[1:], 'ab:df:g:hln:p:P:o:U:', long_opts)
+      opts, args = getopt.gnu_getopt(argv[1:], 'ab:df:g:hln:p:P:o:U:v', long_opts)
    except getopt.GetoptError, error:
       print str(error)
       return(1)
@@ -570,6 +571,8 @@ def main(argv=None):
          snapshot_name = arg
       if option in ('-U', '--user'):
          username = arg
+      if option in ('-v', '--verbose'):
+         verbose = True
 
    if action == '':
       print 'No action specified.  Exiting'
@@ -698,7 +701,7 @@ def main(argv=None):
          if name != '':
             # Provide the configuration for the group/node
             if is_node == True:
-               WallabyHelpers.list_node_info(session, config_store, name)
+               WallabyHelpers.list_node_info(session, config_store, name, verbose)
             else:
                WallabyHelpers.list_group_info(session, config_store, name)
          if features != []:

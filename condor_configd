@@ -72,15 +72,19 @@ class EventConsole(Console):
 
    def newAgent(self, agent):
       global reconnect_qmf
+
       if agent.label == 'com.redhat.grid.config:Store':
-         log(logging.DEBUG, self.logger_name, 'Established connecton to the configuration store')
+         log(logging.DEBUG, self.logger_name, 'Established connection to the configuration store')
          self.agent = agent
          reconnect_qmf = True
 
 
    def delAgent(self, agent):
+      global stop_running
+
       if agent.label == 'com.redhat.grid.config:Store':
-         log(logging.DEBUG, self.logger_name, 'Lost connecton to the configuration store')
+         if stop_running == False:
+            log(logging.DEBUG, self.logger_name, 'Lost connection to the configuration store')
          self.agent = []
 
 
@@ -128,6 +132,8 @@ class Service:
 
 
    def config(self, filename, user='', password=''):
+      global stop_running 
+
       if self.broker != None:
          self.session.delBroker(self.broker)
          self.broker = None
@@ -181,14 +187,18 @@ class Service:
 
       try:
          self.broker = self.session.addBroker('amqp://%s' % broker_str, mechanisms='ANONYMOUS')
-         log(logging.DEBUG, self.logger_name, 'Connected to broker "%s"' % broker_str)
       except:
-         log(logging.CRITICAL, self.logger_name, 'Unable to connect to broker "%s"' % broker_str)
+         if stop_running == False:
+            log(logging.CRITICAL, self.logger_name, 'Unable to connect to broker "%s"' % broker_str)
          return(False)
+
+      log(logging.DEBUG, self.logger_name, 'Connected to broker "%s"' % broker_str)
       return(True)
 
 
    def config_qmf_entities(self):
+      global stop_running
+
       if self.node_obj != None:
          self.node_obj = None
 
@@ -199,7 +209,8 @@ class Service:
          obj = []
 
       if obj == []:
-         log(logging.CRITICAL, self.logger_name, 'Failed to contact configuration store')
+         if stop_running == False:
+            log(logging.CRITICAL, self.logger_name, 'Failed to contact configuration store')
          return(False)
 
       store = obj[0]
@@ -211,7 +222,8 @@ class Service:
 
       result = store.getNode(self.node_name)
       if result.status != 0:
-         log(logging.CRITICAL, self.logger_name, '(%d, %s): Store does not know about this node' % (result.status, result.text))
+         if stop_running == False:
+            log(logging.CRITICAL, self.logger_name, '(%d, %s): Store does not know about this node' % (result.status, result.text))
          return(False)
       else:
          try:
@@ -220,7 +232,8 @@ class Service:
             obj = []
 
          if obj == []:
-            log(logging.CRITICAL, self.logger_name, 'Unable to get node information object')
+            if stop_running == False:
+               log(logging.CRITICAL, self.logger_name, 'Unable to get node information object')
             return(False)
          else:
             self.node_obj = obj[0]
@@ -252,7 +265,8 @@ class Service:
 
 
    def check_config_ver(self, ver=0, force=False):
-      global reconnect_qmf
+      global reconnect_qmf, stop_running
+
       log(logging.DEBUG, self.logger_name, 'Checking version of configuration')
       self.lock.acquire(True)
       if self.node_obj == []:
@@ -275,13 +289,15 @@ class Service:
             # Agent/broker has gone away
             if reconnect_qmf == True:
                if self.config_qmf_entities() == False:
-                  log(logging.ERROR, self.logger_name, 'Unable to access configuration store')
+                  if stop_running == False:
+                     log(logging.ERROR, self.logger_name, 'Unable to access configuration store')
                   self.lock.release()
                   return(False)
                else:
                   reconnect_qmf = False
             else:
-               log(logging.ERROR, self.logger_name, 'Failed to update the node object')
+               if stop_running == False:
+                  log(logging.ERROR, self.logger_name, 'Failed to update the node object')
                self.lock.release()
                return(False)
          ver = int(self.node_obj.last_updated_version)
@@ -322,15 +338,16 @@ class Service:
 
 
    def get_config(self, version=0, force=False):
-      global replacing_file
+      global replacing_file, stop_running
 
       # Check in with the store
       log(logging.DEBUG, self.logger_name, 'Performing a checkin with the store')
       try:
          self.node_obj.checkin(_timeout=20)
       except Exception, error:
-         log(logging.ERROR, self.logger_name, 'Failed to check in with the store')
-         log(logging.ERROR, self.logger_name, error)
+         if stop_running == False:
+            log(logging.ERROR, self.logger_name, 'Failed to check in with the store')
+            log(logging.ERROR, self.logger_name, error)
          return(False)
       log(logging.DEBUG, self.logger_name, 'Checked in with the store')
 
@@ -357,13 +374,15 @@ class Service:
                result = self.node_obj.getConfig({'version':version})
          except Exception, error:
             # Something has gone away
-            log(logging.ERROR, self.logger_name, 'Exception when attempting to retrieve configuration version "%d" from the store' % version)
-            log(logging.ERROR, self.logger_name, error)
+            if stop_running == False:
+               log(logging.ERROR, self.logger_name, 'Exception when attempting to retrieve configuration version "%d" from the store' % version)
+               log(logging.ERROR, self.logger_name, error)
             return(False)
    
          if result.status != 0:
             # Problem getting the configuration, so do nothing
-            log(logging.ERROR, self.logger_name, 'Failed to retrieve configuration "%d" from the store (%d, %s)' % (version, result.status, result.text))
+            if stop_running == False:
+               log(logging.ERROR, self.logger_name, 'Failed to retrieve configuration "%d" from the store (%d, %s)' % (version, result.status, result.text))
             return(False)
          else:
             config = result.outArgs['config']
@@ -436,12 +455,14 @@ class Service:
          try:
             result = self.node_obj.whatChanged(running_version, version)
          except:
-            log(logging.ERROR, self.logger_name, 'Unable to retrieve configuration differences')
+            if stop_running == False:
+               log(logging.ERROR, self.logger_name, 'Unable to retrieve configuration differences')
             return(False)
 
          if result.status != 0:
-            log(logging.ERROR, self.logger_name, 'Store error: %d, %s' % (result.status, result.text))
-            log(logging.ERROR, self.logger_name, 'Failed to retrive differences between versions "%d" and "%d".  No update performed' % (running_version, version))
+            if stop_running == False:
+               log(logging.ERROR, self.logger_name, 'Store error: %d, %s' % (result.status, result.text))
+               log(logging.ERROR, self.logger_name, 'Failed to retrive differences between versions "%d" and "%d".  No update performed' % (running_version, version))
             return(False)
          else:
             restart_list = result.outArgs['restart']

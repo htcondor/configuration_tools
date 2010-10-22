@@ -13,11 +13,15 @@
 #   See the License for the specific language governing permissions and
 #   limitations under the License.
 
+import copy
 import getopt
 import os
 import sys
 import signal
-from wallabyclient import WallabyHelpers
+import tempfile
+import yaml
+from wallabyclient import WallabyHelpers, WallabyTypes
+from condorutils.osutil import run_cmd
 from qmf.console import Session
 
 
@@ -37,7 +41,8 @@ def print_help(name):
    print '  --default-group - Perform actions on the Internal Default Group in the store'
    print '  -h|--help       - Print help'
    print '\naction:'
-   print '  -a|--add             - Add to the group/node'
+   print '  -a|--append          - Append to the group/node'
+   print '  -i|--insert          - Insert into the group/node with highest priority'
    print '  -d|--delete          - Remove from the group/node'
    print '  -l|--list            - List the specific node/group/feature/param'
    print '                         configuration'
@@ -51,6 +56,10 @@ def print_help(name):
    print '  --list-all-nodes     - List all nodes in the store'
    print '  --list-all-params    - List all params in the store'
    print '  --list-all-snapshots - List all snapshots in the store'
+
+
+def represent_group(self, data):
+   return self.represent_mapping(u'!Group', WallabyTypes.print_wallaby_types(data))
 
 
 def configure_node_schedulers(params, is_delete):
@@ -436,12 +445,16 @@ def main(argv=None):
 
    action = ''
    features = []
+   removed_features = []
+   added_features = []
    params = ''
    broker_ip = '127.0.0.1'
    name = ''
    node = ''
    port = 5672
    param_list = {}
+   added_params = {}
+   removed_params = {}
    replace_list = {}
    group_config = {}
    config_store = []
@@ -457,21 +470,22 @@ def main(argv=None):
    verbose = False
    no_node_needed = ['activate', 'help', 'list-all', 'load-snapshot',
                      'remove-snapshot', 'take-snapshot']
-   no_target_needed = no_node_needed + ['list']
+   no_target_needed = no_node_needed + ['list', 'edit']
 
    # Set signal handlers
    signal.signal(signal.SIGINT, exit_signal_handler)
    signal.signal(signal.SIGTERM, exit_signal_handler)
 
    long_opts = ['activate', 'add', 'broker=', 'default-group', 'delete',
-                'features=', 'group=', 'help', 'list', 'list-all-features',
-                'list-all-groups', 'list-all-nodes', 'list-all-params',
-                'list-all-snapshots', 'load-snapshot=', 'node=', 'params=',
-                'password=', 'port=', 'qmfbroker', 'remove-snapshot=',
-                'schedds', 'take-snapshot=', 'user=', 'verbose']
+                'edit', 'features=', 'group=', 'help', 'insert', 'list',
+                'list-all-features', 'list-all-groups', 'list-all-nodes',
+                'list-all-params', 'list-all-snapshots', 'load-snapshot=',
+                'node=', 'params=', 'password=', 'port=', 'qmfbroker',
+                'remove-snapshot=', 'schedds', 'take-snapshot=', 'user=',
+                'verbose']
 
    try:
-      opts, args = getopt.gnu_getopt(argv[1:], 'ab:df:g:hln:p:P:o:U:v', long_opts)
+      opts, args = getopt.gnu_getopt(argv[1:], 'ab:def:g:hiln:p:P:o:U:v', long_opts)
    except getopt.GetoptError, error:
       print str(error)
       return(1)
@@ -498,6 +512,11 @@ def main(argv=None):
             print 'Only 1 action may be specified'
             return(1)
          action = 'remove'
+      if option in ('-e', '--edit'):
+         if action != '':
+            print 'Only 1 action may be specified'
+            return(1)
+         action = 'edit'
       if option in ('-f', '--features'):
          features = arg.split(',')
       if option in ('-g', '--group'):
@@ -509,6 +528,11 @@ def main(argv=None):
       if option in ('-h', '--help'):
          print_help(argv[0])
          return(0)
+      if option in ('-i', '--insert'):
+         if action != '':
+            print 'Only 1 action may be specified'
+            return(1)
+         action = 'insert'
       if option in ('-l', '--list'):
          if action != '':
             print 'Only 1 action may be specified'
@@ -717,7 +741,9 @@ def main(argv=None):
 
       # If configuring a single node, grab that node's identity group and
       # act upon that
+      node_name = ''
       if is_node == True:
+         node_name = name
          obj = WallabyHelpers.get_node(session, config_store, name)
          if obj == None:
             session.delBroker(broker)
@@ -728,7 +754,89 @@ def main(argv=None):
                session.delBroker(broker)
                return(1)
 
-      if 'ConsoleCollector' in features and action == 'add':
+      # Query the store to get the group
+      group_obj = WallabyHelpers.get_group(session, config_store, name)
+      if group_obj == None:
+         session.delBroker(broker)
+         return(1)
+
+      if action == 'add':
+         added_features = copy.deepcopy(features)
+      elif action == 'remove':
+         removed_features = copy.deepcopy(features)
+      elif action == 'insert':
+         # Insert the new features at the head of the list giving them
+         # the highest priority
+         added_features = copy.deepcopy(features)
+         features.extend(group_obj.features)
+      elif action == 'edit':
+         # In edit mode, dump the group data into a file and bring up an
+         # editor.  First, initialize the yaml object
+         if features != []:
+            print 'Warning: Ignoring list of features in edit mode'
+            features = []
+         if params != '':
+            print 'Warning: Ignoring list of parameters in edit mode'
+            params = ''
+         preedit_feats = group_obj.features
+         preedit_params = group_obj.params
+         edit_obj = [WallabyTypes.Group(group_obj.name)]
+         edit_obj[0].init_from_obj(group_obj)
+         if node_name != '':
+            edit_obj[0].name = node_name
+
+         # Configure yaml representers
+         yaml.add_representer(WallabyTypes.Group, represent_group)
+         yaml.add_representer(unicode, lambda dumper, value: dumper.represent_scalar(u'tag:yaml.org,2002:str', value))
+
+         # Write the information to a temporary file
+         file = tempfile.NamedTemporaryFile()
+         file.seek(0, 0)
+         file.truncate()
+         yaml.dump_all(edit_obj, file, explicit_start=True, default_flow_style=False)
+
+         # Invoke the editor
+         run_cmd('%s %s' % (os.getenv('EDITOR') or '/bin/vi', file.name), inter=True)
+
+         # Parse the user's updates
+         file.flush()
+         file.seek(0, 0)
+         try:
+            yaml_output = yaml.load_all(file).next()
+         except:
+            print 'Error: Invalid input.  No changes made'
+            session.delBroker(broker)
+            return(1)
+
+         try:
+            yaml_output.validate(edit_obj[0])
+         except:
+            print 'Error: Invalid formatting.  No changes made'
+            session.delBroker(broker)
+            return(1)
+
+         features = yaml_output.features
+         param_list = yaml_output.params
+
+         # Determine which features are added/removed
+         for feat in preedit_feats:
+            if feat not in features:
+               removed_features += [feat]
+
+         for feat in features:
+            if feat not in preedit_feats:
+               added_features += [feat]
+
+         # Determine which parameters are added/removed
+         for param in preedit_params.keys():
+            if param not in param_list.keys():
+               removed_params[param] = preedit_params[param]
+
+         for param in param_list.keys():
+            if param not in preedit_params.keys():
+               added_params[param] = param_list[param]
+
+      if 'ConsoleCollector' in added_features:
          print 'WARNING: The ConsoleCollector feature should be applied to only '
          print '         1 node in the pool.  Applying the ConsoleCollector '
          print '         feature to more than node (or a group of nodes) in the'
@@ -736,27 +844,19 @@ def main(argv=None):
          answer = raw_input('Continue adding the ConsoleCollector feature? [y/N] ')
          if answer.lower() != 'y':
             try:
+               added_features.remove('ConsoleCollector')
                features.remove('ConsoleCollector')
             except:
                print 'Error: Failed to remove the ConsoleCollector from the feature list.'
 
-      # Query the store to get the group
-      group_obj = WallabyHelpers.get_group(session, config_store, name)
-      if group_obj == None:
-         session.delBroker(broker)
-         return(1)
-
       # Prompt for param values entered on the command line, if any
       for param in params.split(','):
          if param != '':
-            if action == 'add':
+            if action == 'add' or action == 'insert':
                input = raw_input('Value for "%s": ' % param)
-               if input != '':
-                  param_list[param] = input.strip()
-               else:
-                  param_list[param] = input
-            else:
-               param_list[param] = False
+               added_params[param] = input.strip()
+            elif action == 'remove':
+               removed_params[param] = False
 
       # Configure which schedulers the node can submit to
       if schedd_prompts == True:
@@ -768,27 +868,44 @@ def main(argv=None):
          configure_qmf_broker(replace_list, action == 'remove')
  
       if raw_input('\nApply these changes [Y/n] ? ').lower() != 'n':
-         if features != []:
-            result = group_obj.modifyFeatures(action, features, {})
-            if result.status != 0:
-               print 'Error: Problem modifying features (%d, %s)' % (result.status, result.text)
-               session.delBroker(broker)
-               return(1)
+         if features != [] or action == 'edit':
+            if action == 'insert' or action == 'edit':
+               result = group_obj.modifyFeatures('replace', features, {})
+            elif action == 'remove':
+               result = group_obj.modifyFeatures('remove', removed_features, {})
+            else:
+               result = group_obj.modifyFeatures('add', added_features, {})
+         if result.status != 0:
+            print 'Error: Problem modifying features (%d, %s)' % (result.status, result.text)
+            session.delBroker(broker)
+            return(1)
 
-          # Check if any additional params need to be added/removed
-         if action != 'remove':
-            check_more_params_needed(session, config_store, features, param_list, replace_list, group_obj)
-         else:
-            param_list.update(replace_list)
+         # Check if any additional params need to be added/removed
+         if added_features != []:
+            check_more_params_needed(session, config_store, added_features, added_params, replace_list, group_obj)
+         if removed_features != []:
+            removed_params.update(replace_list)
             replace_list = {}
-            check_delete_params_needed(session, config_store, features, param_list, group_obj)
+            check_delete_params_needed(session, config_store, removed_features, removed_params, group_obj)
 
-         if param_list != {}:
-            result = group_obj.modifyParams(action, param_list, {})
-            if result.status != 0:
-               print 'Error: Problem modifying parameters (%d, %s)' % (result.status, result.text)
-               session.delBroker(broker)
-               return(1)
+         if action == 'edit':
+            param_list.update(added_params)
+            for param in removed_params.keys():
+               try:
+                  del param_list[param]
+               except:
+                  pass
+            result = group_obj.modifyParams('replace', param_list, {})
+         else:
+            if added_params != {}:
+               result = group_obj.modifyParams('add', added_params, {})
+            elif removed_params != {}:
+               result = group_obj.modifyParams('remove', removed_params, {})
+
+         if result.status != 0:
+            print 'Error: Problem modifying parameters (%d, %s)' % (result.status, result.text)
+            session.delBroker(broker)
+            return(1)
 
          if replace_list != {}:
             all_params = group_obj.params

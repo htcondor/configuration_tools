@@ -16,6 +16,16 @@ from yaml import YAMLObject
 from WallabyHelpers import get_node
 
 
+def print_wallaby_types(data):
+   def key_function((key,value)):
+      # Prioritize name when sorting.
+      prio = {'name':0, 'type':1, 'default':2, 'description':3, 'params':4}.get(key,99)
+      return (prio, key)
+   items = data.dict_as_list()
+   items.sort(key=key_function)
+   return items
+
+
 class WallabyBaseObject(YAMLObject):
    def __init__(self, name):
       self.name = name
@@ -34,7 +44,6 @@ class WallabyBaseObject(YAMLObject):
          elif getattr(self, key).__class__ != getattr(orig, key).__class__:
             warnings[key] = 'Invalid value.  Resetting to pre-edit value'
             
-
          if key in warnings.keys():
             setattr(self, key, getattr(orig, key))
 
@@ -380,6 +389,79 @@ class Subsystem(WallabyBaseObject):
 
       if obj == None:
          raise WallabyError({-1:'No subsystem object to update'})
+
+      result = obj.modifyParams('replace', self.params, {})
+      if result.status != 0:
+          errors[result.status] = result.text
+
+      if errors != {}:
+         raise WallabyError(errors)
+
+class Group(WallabyBaseObject):
+   yaml_tag = u'!Group'
+   def __init__(self, name, features=[], params={}):
+      if name == '+++DEFAULT':
+         name = 'Internal Default Group'
+      WallabyBaseObject.__init__(self, str(name))
+      self.features = list(features)
+      self.params = dict(params)
+
+
+   def __repr__(self):
+      return '%s(name=%r, features=%s, parameters=%r' % (self.__class__.__name__, self.name, self.features, self.params)
+
+
+   def dict_as_list(self):
+      return [('name',self.name), ('features', self.features), ('params',self.params)]
+
+
+   def init_from_obj(self, obj):
+      if obj.name == '+++DEFAULT':
+         self.name = 'Internal Default Group'
+      else:
+         self.name = str(obj.name)
+      self.features = list(obj.features)
+      self.params = dict(obj.params)
+
+
+   def validate(self, orig):
+      self.name = str(self.name)
+      WallabyBaseObject.validate(self, orig)
+
+
+   def store_validate(self, store):
+      invalid = {}
+      errors = {}
+
+      if self.features != None and isinstance(self.params, dict):
+         result = store.checkFeatureValidity(keys(self.params))
+         if result.status != 0:
+            errors[result.status] = result.text
+         else:
+            if result.outArgs['invalidFeatures'] != []:
+               invalid['Feature'] = result.outArgs['invalidFeatures']
+
+      if self.params != None and isinstance(self.params, list):
+         result = store.checkParameterValidity(self.params)
+         if result.status != 0:
+            errors[result.status] = result.text
+         else:
+            if result.outArgs['invalidParameters'] != []:
+               invalid['Parameter'] = result.outArgs['invalidParameters']
+
+      if invalid != {} or errors != {}:
+         raise WallabyValidateError(invalid, errors, [])
+
+
+   def update(self, obj):
+      errors = {}
+
+      if obj == None:
+         raise WallabyError({-1:'No subsystem object to update'})
+
+      result = obj.modifyFeatures('replace', self.features, {})
+      if result.status != 0:
+          errors[result.status] = result.text
 
       result = obj.modifyParams('replace', self.params, {})
       if result.status != 0:

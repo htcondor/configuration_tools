@@ -41,7 +41,7 @@ def print_help(name):
    print '  --default-group - Perform actions on the Internal Default Group in the store'
    print '  -h|--help       - Print help'
    print '\naction:'
-   print '  -a|--append          - Append to the group/node'
+   print '  -a|--add             - Append to the group/node'
    print '  -i|--insert          - Insert into the group/node with highest priority'
    print '  -d|--delete          - Remove from the group/node'
    print '  -l|--list            - List the specific node/group/feature/param'
@@ -480,12 +480,12 @@ def main(argv=None):
                 'edit', 'features=', 'group=', 'help', 'insert', 'list',
                 'list-all-features', 'list-all-groups', 'list-all-nodes',
                 'list-all-params', 'list-all-snapshots', 'load-snapshot=',
-                'node=', 'params=', 'password=', 'port=', 'qmfbroker',
-                'remove-snapshot=', 'schedds', 'take-snapshot=', 'user=',
-                'verbose']
+                'auth-mechanism', 'node=', 'params=', 'password=', 'port=',
+                'qmfbroker', 'remove-snapshot=', 'schedds', 'take-snapshot=',
+                'user=', 'verbose']
 
    try:
-      opts, args = getopt.gnu_getopt(argv[1:], 'ab:def:g:hiln:p:P:o:U:v', long_opts)
+      opts, args = getopt.gnu_getopt(argv[1:], 'ab:def:g:hilm:n:p:P:o:U:v', long_opts)
    except getopt.GetoptError, error:
       print str(error)
       return(1)

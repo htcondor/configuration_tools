@@ -29,23 +29,39 @@ def exit_signal_handler(signum, frame):
 
 
 def print_help(name):
-   print 'usage: %s [-h|--help] [-b|--broker <broker>] [-o|--port <port>] [-U|--user <user>] [-P|--password <password>] action [-f|--features feature[,feature,...]] [-p|--params param[,param,...]] [-n|--nodes hostname,hostname] [-g|--groups group[,group]] [-s|--subsys subsystem[,subsystem]]' % os.path.basename(name)
-   print '  <broker>   - The ip/hostname of the broker used by the configuration store'
-   print '  <port>     - The port of the broker used by the configuration store'
-   print '  <user>     - The username used to authenticate with the broker'
-   print '  <password> - The password used to authenticate with the broker'
-   print '  -h|--help  - Print help'
-   print '\naction:'
-   print '  -a|--add             - Add the target(s) to the store'
-   print '  -d|--delete          - Remove the target(s) from the store'
-   print '  -e|--edit            - Edit the target(s) in the store'
-   print '  -l|--list            - List specific information in the store'
-   print '                         about the target(s) provided'
-   print '  --list-all-features  - List all features in the store'
-   print '  --list-all-groups    - List all groups in the store'
-   print '  --list-all-nodes     - List all nodes in the store'
-   print '  --list-all-params    - List all params in the store'
-   print '  --list-all-subsystems- List all subsystems in the store'
+   print '\nUsage:'
+   print '  %s -h|--help' % os.path.basename(name)
+   print '  %s [options] <action> <target(s)>' % os.path.basename(name)
+   print '\nOptions:'
+   print '  -b|--broker <broker>       - The ip/hostname of the broker used by the'
+   print '                               configuration store'
+   print '  -o|--port <port>           - The port of the broker used by the configuration'
+   print '                               store'
+   print '  -u|--user <user>           - The username used to authenticate with the broker'
+   print '  -p|--password <password>   - The password used to authenticate with the broker'
+   print '  -m|--auth-mechanism <mech> - A comma separated list of authentication'
+   print '                               mechanisms to use when communicating with the'
+   print '                               broker.  Supported mechanisms are: ANONYMOUS,'
+   print '                               PLAIN, GSSAPI'
+   print '  -h|--help                  - Print help'
+   print '\nAction: (Only 1 allowe per invocation)'
+   print '  -a|--add              - Add the target(s) to the store'
+   print '  -d|--delete           - Remove the target(s) from the store'
+   print '  -e|--edit             - Edit the target(s) in the store'
+   print '  -l|--list             - List specific information in the store'
+   print '                          about the target(s) provided'
+   print '  --list-all-features   - List all features in the store'
+   print '  --list-all-groups     - List all groups in the store'
+   print '  --list-all-nodes      - List all nodes in the store'
+   print '  --list-all-params     - List all params in the store'
+   print '  --list-all-subsystems - List all subsystems in the store'
+   print '\nTargets:'
+   print '  -f|--features feature[,feature,...]    - A comma separated list of features'
+   print '  -g|--groups group1[,group1,...]        - A comma separated list of group names'
+   print '  -n|--nodes node1[,node1,...]           - A comma separated list of node names'
+   print '  -p|--params param1[,param2,...]        - A comma separated list of parameters'
+   print '  -s|--subsys subsystem1[,subsystem,...] - A comma separated list of subsystems'
+
 
 
 def represent_feature(self, data):
@@ -86,18 +102,19 @@ def main(argv=None):
    edit_objs = []
    username = ''
    passwd = ''
+   mechanisms = 'ANONYMOUS PLAIN GSSAPI'
 
    # Set signal handlers
    signal.signal(signal.SIGINT, exit_signal_handler)
    signal.signal(signal.SIGTERM, exit_signal_handler)
 
-   long_opts = ['add', 'broker=', 'delete', 'edit',
+   long_opts = ['auth-mechanism=', 'add', 'broker=', 'delete', 'edit',
                 'features=', 'groups=', 'help', 'list', 'list-all-features',
                 'list-all-groups', 'list-all-nodes', 'list-all-params',
                 'list-all-subsystems', 'nodes=', 'params=', 'password=',
                 'port=', 'subsys=', 'user=']
    try:
-      opts, args = getopt.getopt(argv[1:], 'ab:def:g:hln:p:P:o:s:U:', long_opts)
+      opts, args = getopt.getopt(argv[1:], 'ab:def:g:hlm:n:p:P:o:s:U:', long_opts)
    except getopt.GetoptError, error:
       print str(error)
       return(1)
@@ -149,6 +166,8 @@ def main(argv=None):
             list_alls += ['Parameter']
          elif option == '--list-all-subsystems':
             list_alls += ['Subsystem']
+      if option in ('-m', '--auth-mechanism'):
+         mechanisms = arg.replace(',', ' ')
       if option in ('-n', '--nodes'):
          nodes = arg
       if option in ('-p', '--params'):
@@ -186,7 +205,7 @@ def main(argv=None):
       broker_str = '%s:%d' % (broker_ip, port)
 
    try:
-      broker = session.addBroker('amqp://%s' % broker_str, mechanisms='ANONYMOUS')
+      broker = session.addBroker('amqp://%s' % broker_str, mechanisms=mechanisms)
    except:
       print 'Unable to connect to broker "%s"' % broker_str
       return(1)

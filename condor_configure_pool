@@ -30,32 +30,47 @@ def exit_signal_handler(signum, frame):
 
 
 def print_help(name):
-   print 'usage: %s [-h|--help] [-b|--broker <broker>] [-o|--port <port>] [-U|--user <user>] [-P|--password <password>] [--load-snapshot|--remove-snapshot|--take-snapshot <name>] [--schedds] [--qmfbroker] [-g|--group|-n|--node name] action [-f|--features feature[,feature,...]] [-p|--params param1,param2,...]' % os.path.basename(name)
-   print '  <broker>        - The ip/hostname of the broker used by the configuration store'
-   print '  <port>          - The port of the broker used by the configuration store'
-   print '  <user>          - The username used to authenticate with the broker'
-   print '  <password>      - The password used to authenticate with the broker'
-   print '  <snapshot>      - The name of the snapshot'
-   print '  --schedds       - Prompt for scheduler information'
-   print '  --qmfbroker     - Prompt for QMF broker information'
-   print '  --default-group - Perform actions on the Internal Default Group in the store'
-   print '  -h|--help       - Print help'
-   print '\naction:'
-   print '  -a|--add             - Append to the group/node'
-   print '  -i|--insert          - Insert into the group/node with highest priority'
-   print '  -d|--delete          - Remove from the group/node'
-   print '  -l|--list            - List the specific node/group/feature/param'
-   print '                         configuration'
-   print '  --activate           - Attempt to activate the configuration in'
-   print '                         the store'
-   print '  --load-snapshot      - Load snapshot with the given name'
-   print '  --take-snapshot      - Create snapshot with the given name'
-   print '  --remove-snapshot    - Remove snapshot with the given name'
-   print '  --list-all-features  - List all features in the store'
-   print '  --list-all-groups    - List all groups in the store'
-   print '  --list-all-nodes     - List all nodes in the store'
-   print '  --list-all-params    - List all params in the store'
-   print '  --list-all-snapshots - List all snapshots in the store'
+   print '\nUsage:'
+   print '  %s -h|--help' % os.path.basename(name)
+   print '  %s [options] <action> <target> [config entities]' % os.path.basename(name)
+   print '\nOptions:'
+   print '  -b|--broker <broker>       - The ip/hostname of the broker used by the'
+   print '                               configuration store'
+   print '  -o|--port <port>           - The port of the broker used by the configuration'
+   print '                               store'
+   print '  -u|--user <user>           - The username used to authenticate with the broker'
+   print '  -p|--password <password>   - The password used to authenticate with the broker'
+   print '  -m|--auth-mechanism <mech> - A comma separated list of authentication'
+   print '                               mechanisms to use when communicating with the'
+   print '                               broker.  Supported mechanisms are: ANONYMOUS,'
+   print '                               PLAIN, GSSAPI'
+   print '  --schedds                  - Prompt for scheduler information'
+   print '  --qmfbroker                - Prompt for QMF broker information'
+   print '  -h|--help                  - Print help'
+   print '\nTarget: (Only 1 allowed per invocation)'
+   print '  --default-group   - Perform actions on the Internal Default Group in the store'
+   print '  -n|--node <name>  - The name of a specific machine that will have the'
+   print '                      configuration changes applied to it'
+   print '  -g|--group <name> - The name of the group that will have the configuration'
+   print '                      applied to it'
+   print '\nAction: (Only 1 allowe per invocation)'
+   print '  -a|--add                 - Append to the group/node with lowest priority'
+   print '  -i|--insert              - Insert into the group/node with highest priority'
+   print '  -d|--delete              - Remove from the group/node'
+   print '  -l|--list                - List detailed information'
+   print '  --activate               - Attempt to activate the configuration in'
+   print '                             the store'
+   print '  --load-snapshot <name>   - Load snapshot with the given name'
+   print '  --take-snapshot <name>   - Create snapshot with the given name'
+   print '  --remove-snapshot <name> - Remove snapshot with the given name'
+   print '  --list-all-features      - List all features in the store'
+   print '  --list-all-groups        - List all groups in the store'
+   print '  --list-all-nodes         - List all nodes in the store'
+   print '  --list-all-params        - List all params in the store'
+   print '  --list-all-snapshots     - List all snapshots in the store'
+   print '\nConfig Entities:'
+   print '  -f|--features feature[,feature,...] - A comma separated list of features'
+   print '  -p|--params param1[,param2,...]     - A comma separated list of parameters'
 
 
 def represent_group(self, data):
@@ -468,21 +483,22 @@ def main(argv=None):
    passwd = ''
    is_node = False
    verbose = False
-   no_node_needed = ['activate', 'help', 'list-all', 'load-snapshot',
+   no_target_needed = ['activate', 'help', 'list-all', 'load-snapshot',
                      'remove-snapshot', 'take-snapshot']
-   no_target_needed = no_node_needed + ['list', 'edit']
+   no_entity_needed = no_target_needed + ['list', 'edit']
+   mechanisms = 'ANONYMOUS PLAIN GSSAPI'
 
    # Set signal handlers
    signal.signal(signal.SIGINT, exit_signal_handler)
    signal.signal(signal.SIGTERM, exit_signal_handler)
 
-   long_opts = ['activate', 'add', 'broker=', 'default-group', 'delete',
-                'edit', 'features=', 'group=', 'help', 'insert', 'list',
-                'list-all-features', 'list-all-groups', 'list-all-nodes',
-                'list-all-params', 'list-all-snapshots', 'load-snapshot=',
-                'auth-mechanism', 'node=', 'params=', 'password=', 'port=',
-                'qmfbroker', 'remove-snapshot=', 'schedds', 'take-snapshot=',
-                'user=', 'verbose']
+   long_opts = ['auth-mechanism=', 'activate', 'add', 'broker=',
+                'default-group', 'delete', 'edit', 'features=', 'group=',
+                'help', 'insert', 'list', 'list-all-features',
+                'list-all-groups', 'list-all-nodes', 'list-all-params',
+                'list-all-snapshots', 'load-snapshot=', 'node=', 'params=',
+                'password=', 'port=', 'qmfbroker', 'remove-snapshot=',
+                'schedds', 'take-snapshot=', 'user=', 'verbose']
 
    try:
       opts, args = getopt.gnu_getopt(argv[1:], 'ab:def:g:hilm:n:p:P:o:U:v', long_opts)
@@ -561,6 +577,8 @@ def main(argv=None):
             return(1)
          action = 'load-snapshot'
          snapshot_name = arg
+      if option in ('-m', '--auth-mechanism'):
+         mechanisms = arg.replace(',', ' ')
       if option in ('-n', '--node'):
          if name != '':
             print 'Can only configure 1 node or group at a time'
@@ -603,14 +621,14 @@ def main(argv=None):
       print_help(argv[0])
       return(1)
 
-   if name == '' and action not in no_node_needed:
-      print 'No node name or group supplied.  Exiting'
+   if name == '' and action not in no_target_needed:
+      print 'No target supplied.  Exiting'
       print_help(argv[0])
       return(1)
 
    if features == [] and params == '' and schedd_prompts == False and \
-      broker_prompts == False and action not in no_target_needed:
-      print 'No targets specified.  Exiting'
+      broker_prompts == False and action not in no_entity_needed:
+      print 'No configuration entities specified.  Exiting'
       print_help(argv[0])
       return(1)
 
@@ -624,7 +642,7 @@ def main(argv=None):
       broker_str = '%s:%d' % (broker_ip, port)
 
    try:
-      broker = session.addBroker('amqp://%s' % broker_str, mechanisms='ANONYMOUS')
+      broker = session.addBroker('amqp://%s' % broker_str, mechanisms=mechanisms)
    except:
       print 'Unable to connect to broker "%s"' % broker_str
       return(1)

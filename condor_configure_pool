@@ -21,6 +21,7 @@ import signal
 import tempfile
 import yaml
 from wallabyclient import WallabyHelpers, WallabyTypes
+from wallabyclient.exceptions import WallabyStoreError
 from condorutils.osutil import run_cmd
 from qmf.console import Session
 
@@ -472,8 +473,6 @@ def main(argv=None):
    removed_params = {}
    replace_list = {}
    group_config = {}
-   config_store = []
-   store_agent = []
    session = []
    list_alls = []
    broker_prompts = False
@@ -487,6 +486,7 @@ def main(argv=None):
                      'remove-snapshot', 'take-snapshot']
    no_entity_needed = no_target_needed + ['list', 'edit']
    mechanisms = 'ANONYMOUS PLAIN GSSAPI'
+   supported_api_versions = [20100804, 20100915]
 
    # Set signal handlers
    signal.signal(signal.SIGINT, exit_signal_handler)
@@ -649,28 +649,15 @@ def main(argv=None):
 
    # Retrieve the config store object
    try:
-      objs = session.getAgents()
-      for agent in objs:
-         if agent.label == 'com.redhat.grid.config:Store':
-            store_agent = agent
-            break
-      if store_agent != []:
-         config_store = store_agent.getObjects(_class='Store', _package='com.redhat.grid.config')
-   except Exception, error:
-      print 'Error: %s' % error
+     (store_agent, config_store) = WallabyHelpers.get_store_objs(session, 'com.redhat.grid.config', 'Store')
+   except WallabyStoreError, error:
+      print 'Error: %s' % error.error_str
       session.delBroker(broker)
       return(1)
 
-   if config_store == []:
-      print 'Unable to contact Configuration Store'
-      session.delBroker(broker)
-      return(1)
-   else:
-      config_store = config_store[0]
-       
    try:
       # Check API version number
-      if config_store.apiVersionNumber < 20100804 or config_store.apiVersionNumber > 20100915:
+      if config_store.apiVersionNumber not in supported_api_versions:
          print 'The store is using an API version that this tool does not support (%d)' % config_store.apiVersionNumber
          session.delBroker(broker)
          return(1)
@@ -686,33 +673,16 @@ def main(argv=None):
  
       # Process the list-alls, if there are any
       if action == 'list-all':
+         ret_val = 0
          for type in list_alls:
             try:
-               objs = store_agent.getObjects(_class=type, _package='com.redhat.grid.config')
-            except Exception, error:
-               print 'Error: %s' % error
-               session.delBroker(broker)
-               return(1)
-   
-            print '\n%ss:' % type
-            if type == 'Feature' or type == 'Group':
-               if objs == []:
-                  print '  There are no %ss in the store' % type
-               else:
-                  for obj in objs:
-                     name = obj.name
-                     if '+++' != name[0:3]:
-                        print '  %s' % name
-                  if type == 'Group':
-                     print '  Internal Default Group'
-            if  type == 'Node' or type == 'Parameter' or type == 'Snapshot':
-               if objs == []:
-                  print '  There are no %ss in the store' % type
-               else:
-                  for obj in objs:
-                     print '  %s' % obj.name
+               WallabyHelpers.list_all_objs(store_agent, type, 'com.redhat.grid.config')
+            except WallabyStoreError, error:
+               print 'Error: %s' % error.error_str
+               ret_val = 1
+               break
          session.delBroker(broker)
-         return(0)
+         return(ret_val)
  
       # Process snapshots
       if action == 'load-snapshot':

@@ -13,6 +13,28 @@
 #   limitations under the License.
 import os
 import time
+from exceptions import WallabyStoreError
+
+def get_store_objs(sess, package, name='Store'):
+   agent = []
+   store = []
+
+   try:
+      objs = sess.getAgents()
+      for agt in objs:
+         if agt.label == '%s:%s' % (package, name):
+            agent = agt
+            break
+      if agent != []:
+         store = agent.getObjects(_class=name, _package=package)
+   except Exception, error:
+      raise WallabyStoreError(error)
+
+   if store == []:
+      raise WallabyStoreError('Unable to contact Configuration Store')
+
+   return(agent, store[0])
+
 
 def get_group(sess, store, name):
    if name != '':
@@ -285,6 +307,31 @@ def list_subsys_info(sess, store, name):
       print 'Included Parameters:'
       for key in subsys_obj.params:
          print '  %s' % key
+
+
+def list_all_objs(store, type, package):
+   try:
+      objs = store.getObjects(_class=type, _package=package)
+   except Exception, error:
+      raise WallabyStoreError(error)
+
+   print '\n%ss:' % type
+   if type == 'Feature' or type == 'Group':
+      if objs == []:
+         print '  There are no %ss in the store' % type
+      else:
+         for obj in objs:
+            name = obj.name
+            if '+++' != name[0:3]:
+               print '  %s' % name
+         if type == 'Group':
+            print '  Internal Default Group'
+   else:
+      if objs == []:
+         print '  There are no %ss in the store' % type
+      else:
+         for obj in objs:
+            print '  %s' % obj.name
 
 
 def add_param(sess, store, name):

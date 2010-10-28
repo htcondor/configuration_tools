@@ -1,6 +1,6 @@
 %{!?python_sitelib: %define python_sitelib %(%{__python} -c "from distutils.sysconfig import get_python_lib; print get_python_lib()")}
-%define rel 6
-%define ver 3.6
+%define rel 1
+%define ver 3.7
 
 Name: condor-wallaby
 Summary: Condor configuration using wallaby
@@ -114,6 +114,24 @@ rm -f %{buildroot}/%{python_sitelib}/wallabyclient/WallabyTypes.py
 %{python_sitelib}/wallabyclient/exceptions.py*
 
 %changelog
+* Thu Oct 28 2010  <rrati@redhat> - 3.7-1
+- QMF authentication method can now be specified
+- Reset backoff factor/constants to default if they are < 0
+- Added edit command to the pool tool which will dump the group/node data into
+  a file in YAML format and open an editor similar to how the store tool works
+- Added insert command to pool tool which will insert features at the highest
+  priority
+- The configd will not print qmf related errors when it has been told to
+  shutdown
+- Listing of a node will no longer list the node's configuration.  Added
+  -v|--verbose option to list configuration
+- When listing a node, the parameter's explicitly set on the node are now
+  explicitly listed
+- Print warning message before deleting entities from the store.
+- Print deletion message for each entity removed from the store if the user
+  decides to continue the deletion process
+- Remove PyYYAML file/dependencies for RHEL 4
+
 * Sat Oct  2 2010  <matt@redhat> - 3.6-6
 - Fixed crash in WallabyClient.py, appeared as crash listing a group (BZ638992)
 - Fixed condor_configd's failure to send any reconfig signals since 3.5-1 (BZ639352)

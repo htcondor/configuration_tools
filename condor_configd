@@ -756,11 +756,15 @@ def main(argv=None):
                   last_attempt = 0
          except:
             pass
-   except:
-      pass
 
-   log(logging.INFO, logger_name, 'Exiting')
-   logging.shutdown()
+      log(logging.INFO, logger_name, 'Exiting')
+      logging.shutdown()
+   except:
+      if service != None:
+         service.shutdown()
+         del service
+      return(1)
+
    return(0)
 
 if __name__ == '__main__':

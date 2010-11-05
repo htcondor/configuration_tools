@@ -119,6 +119,9 @@ class Service:
       self.node_name = ''
       self.timer = None
       self.lock = threading.Lock()
+      self.managedfile = ''
+      self.config_dir = ''
+      self.override_dir = ''
 
 
    def init(self, node, name):
@@ -128,7 +131,6 @@ class Service:
       self.session.bindAgent('com.redhat.grid.config', 'Store')
       self.logger_name = name
       self.node_name = node
-      self.managedfile = ''
 
 
    def config(self, filename, user='', password=''):
@@ -173,11 +175,27 @@ class Service:
             self.managedfile = read_condor_config('LOCAL_CONFIG', ['FILE'])['file']
          except:
             log(logging.ERROR, self.logger_name, 'LOCAL_CONFIG_FILE not defined.  Unable to write configuration file')
-            self.session.delBroker(self.broker)
             return(False)
       else:
          self.managedfile = filename
       log(logging.DEBUG, self.logger_name, 'Writing configuration file to "%s"' % self.managedfile)
+
+      try:
+         self.config_dir = read_condor_config('LOCAL_CONFIG', ['DIR'])['dir']
+         if os.access(self.config_dir, os.F_OK) != True or os.access(self.config_dir, os.R_OK) != True:
+            log(logging.ERROR, self.logger_name, '"%s" either is not a directory or has incorrect permissions.  Exiting' % self.config_dir)
+            return(False)
+      except:
+         log(logging.ERROR, self.logger_name, 'LOCAL_CONFIG_DIR not defined.  Unable to read configuration files.  Exiting')
+         return(False)
+
+      try:
+         self.override_dir = read_condor_config('QMF_CONFIGD', ['OVERRIDE_DIR'])['override_dir']
+         if os.access(self.override_dir, os.F_OK) != True or os.access(self.override_dir, os.R_OK) != True:
+            log(logging.WARNING, self.logger_name, '"%s" either is not a directory or has incorrect permissions.  Configuration overrides will not take affect' % self.override_dir)
+            self.override_dir = ''
+      except:
+         self.override_dir = ''
 
       if self.broker != None:
          try:
@@ -405,19 +423,28 @@ class Service:
 
             # Now append the configuration from the configd configuration
             # file
-            try:
-               dir = read_condor_config('LOCAL_CONFIG', ['DIR'])['dir']
-            except:
-               log(logging.ERROR, self.logger_name, 'Failed to find the configd configuration.  Not writing configuration file')
-               os.close(file_hdl)
-               os.remove(file_name)
-               return(False)
-            
-            cfg_name = os.path.normpath('%s/99configd.config' % dir)
+            cfg_name = os.path.normpath('%s/99configd.config' % self.config_dir)
             cfg_file = open(cfg_name, 'r')
             for line in cfg_file:
                os.write(file_hdl, line)
             cfg_file.close()
+
+            # Process any overriden parameters
+            if self.override_dir != '':
+               entries = os.listdir(self.override_dir)
+               for file in sorted(entries):
+                  fname = os.path.normpath('%s/%s' % (self.override_dir, file))
+                  if os.access(fname, os.R_OK) == True:
+                     try:
+                        hdl = open(fname, 'r')
+                        os.write(file_hdl, '# Override from "%s"\n' % fname)
+                        for line in hdl:
+                           os.write(file_hdl, line)
+                     except:
+                        log(logging.ERROR, self.logger_name, 'Problem reading file "%s"' % fname)
+                     hdl.close()
+                  else:
+                     log(logging.ERROR, self.logger_name, 'Unable to access "%s".  Ignoring override file' % fname)
             os.close(file_hdl)
          except IOError:
             try:
@@ -425,7 +452,7 @@ class Service:
                os.remove(file_name)
             except:
                pass
-            log(logging.ERROR, self.logger_name, 'Failed to read configd configuration.  Not writing configuration file')
+            log(logging.ERROR, self.logger_name, 'Failed to read configd configuration/override file(s).  Not writing configuration file')
             return(False)
          except:
             try:

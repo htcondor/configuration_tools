@@ -29,6 +29,7 @@ import stat
 from qmf.console import Session, Console
 from condorutils.log import *
 from condorutils.readconfig import *
+from wallabyclient import WallabyHelpers
 try:
    import pwd
 except:
@@ -122,6 +123,7 @@ class Service:
       self.managedfile = ''
       self.config_dir = ''
       self.override_dir = ''
+      self.store = None
 
 
    def init(self, node, name):
@@ -238,14 +240,14 @@ class Service:
             log(logging.CRITICAL, self.logger_name, 'Failed to contact configuration store')
          return(False)
 
-      store = obj[0]
+      self.store = obj[0]
 
       # Check API version number
-      if store.apiVersionNumber < 20100804 or store.apiVersionNumber > 20100915:
-         log(logging.CRITICAL, self.logger_name, 'The store is using an API version that is not supported (%d)' % store.apiVersionNumber)
+      if self.store.apiVersionNumber < 20100804 or self.store.apiVersionNumber > 20100915:
+         log(logging.CRITICAL, self.logger_name, 'The store is using an API version that is not supported (%d)' % self.store.apiVersionNumber)
          return(False)
 
-      result = store.getNode(self.node_name)
+      result = self.store.getNode(self.node_name)
       if result.status != 0:
          if stop_running == False:
             log(logging.CRITICAL, self.logger_name, '(%d, %s): Store does not know about this node' % (result.status, result.text))
@@ -420,6 +422,22 @@ class Service:
                   os.write(file_hdl, '%s =+ %s\n' % (key, config[key]))
                else:
                   os.write(file_hdl, '%s = %s\n' % (key, config[key]))
+
+            # Add the wallaby group/feature information
+            features = WallabyHelpers.get_node_features(self.node_obj, self.session, self.store)
+            print_str = ''
+            for feat in features:
+               print_str += '%s,' % feat
+            print_str = print_str[:-1]
+            os.write(file_hdl, 'WallabyFeatures = "%s"\n' % print_str)
+
+            print_str = ''
+            for group in self.node_obj.memberships:
+               print_str += '%s,' % group
+            print_str = print_str[:-1]
+            os.write(file_hdl, 'WallabyGroups = "%s"\n' % print_str)
+            os.write(file_hdl, 'MASTER_ATTRS = $(MASTER_ATTRS), WallabyFeatures, WallabyGroups\n')
+            os.write(file_hdl, 'STARTD_ATTRS = $(STARTD_ATTRS), WallabyFeatures, WallabyGroups\n')
 
             # Now append the configuration from the configd configuration
             # file

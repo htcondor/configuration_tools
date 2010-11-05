@@ -26,6 +26,7 @@ Requires: condor >= 7.4.4-0.9
 Requires: python >= 2.3
 Requires: python-qmf >= 0.7.946106-9
 Requires: python-condorutils >= 1.4-3
+Requires: python-wallabyclient = %{ver}
 Obsoletes: condor-remote-configuration
 
 %description client

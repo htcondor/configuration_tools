@@ -136,6 +136,23 @@ def get_node(sess, store, name):
                   return(None)
 
 
+def get_node_features(node, sess, store):
+   list = []
+   if node == None or sess == None:
+      return list
+
+   id_name = get_id_group_name(node, sess)
+   group_list = [id_name] + node.memberships + ['+++DEFAULT']
+   for name in group_list:
+      group_obj = get_group(sess, store, name)
+      if group_obj != None:
+         features = group_obj.features
+         for key in features:
+            if key not in list:
+               list += [key]
+   return list
+
+
 def get_subsys(sess, store, name):
    if name != '':
       result = store.getSubsys(name)
@@ -255,36 +272,22 @@ def list_node_info(sess, store, name, verbose):
       else:
          print 'Last Check-in Time: %s' % time.ctime(value/1000000)
 
-      value = node_obj.memberships
+      group_list = node_obj.memberships
       print 'Group Memberships:'
-      for key in value:
+      for key in group_list:
          print '  %s' % key
       print '  Internal Default Group'
 
       print 'Features Applied:'
-      feat_num = 0
-      group_list = value
-      feature_list = {}
-      id_name = get_id_group_name(node_obj, sess)
-      if id_name != None:
-         id_group_obj = get_group(sess, store, id_name)
-         if id_group_obj != None:
-            feature_list = id_group_obj.features
-
-      group_list += ['+++DEFAULT']
-      num = 0
-      for name in group_list:
-         group_obj = get_group(sess, store, name)
-         if group_obj != None:
-            value = group_obj.features
-            for key in value:
-               if key not in feature_list:
-                  feature_list += [key]
+      feature_list = get_node_features(node_obj, sess, store)
 
       for name in feature_list:
          print '  %s' % name 
 
       print 'Explicitly Set Parameters:'
+      id_name = get_id_group_name(node_obj, sess)
+      if id_name != None:
+         id_group_obj = get_group(sess, store, id_name)
       value = id_group_obj.params
       for key in value.keys():
          print '  %s = %s' % (key, value[key])

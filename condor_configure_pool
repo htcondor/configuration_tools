@@ -649,13 +649,14 @@ def main(argv=None):
 
    # Retrieve the config store object
    try:
-     (store_agent, config_store) = WallabyHelpers.get_store_objs(session, 'com.redhat.grid.config', 'Store')
+     (store_agent, config_store) = WallabyHelpers.get_store_objs(session)
    except WallabyStoreError, error:
       print 'Error: %s' % error.error_str
       session.delBroker(broker)
       return(1)
 
-   try:
+#   try:
+   if True:
       # Check API version number
       if config_store.apiVersionNumber not in supported_api_versions:
          print 'The store is using an API version that this tool does not support (%d)' % config_store.apiVersionNumber
@@ -676,7 +677,7 @@ def main(argv=None):
          ret_val = 0
          for type in list_alls:
             try:
-               WallabyHelpers.list_all_objs(store_agent, type, 'com.redhat.grid.config')
+               WallabyHelpers.list_all_objs(store_agent, type)
             except WallabyStoreError, error:
                print 'Error: %s' % error.error_str
                ret_val = 1
@@ -863,10 +864,10 @@ def main(argv=None):
                result = group_obj.modifyFeatures('remove', removed_features, {})
             else:
                result = group_obj.modifyFeatures('add', added_features, {})
-         if result.status != 0:
-            print 'Error: Problem modifying features (%d, %s)' % (result.status, result.text)
-            session.delBroker(broker)
-            return(1)
+            if result.status != 0:
+               print 'Error: Problem modifying features (%d, %s)' % (result.status, result.text)
+               session.delBroker(broker)
+               return(1)
 
          # Check if any additional params need to be added/removed
          if added_features != []:
@@ -876,6 +877,7 @@ def main(argv=None):
             replace_list = {}
             check_delete_params_needed(session, config_store, removed_features, removed_params, group_obj)
 
+         error = False
          if action == 'edit':
             param_list.update(added_params)
             for param in removed_params.keys():
@@ -884,14 +886,22 @@ def main(argv=None):
                except:
                   pass
             result = group_obj.modifyParams('replace', param_list, {})
+            if result.status != 0:
+               print 'Error: Problem modifying parameters (%d, %s)' % (result.status, result.text)
+               error = True
          else:
             if added_params != {}:
                result = group_obj.modifyParams('add', added_params, {})
+               if result.status != 0:
+                  print 'Error: Problem adding parameters (%d, %s)' % (result.status, result.text)
+                  error = True
             elif removed_params != {}:
                result = group_obj.modifyParams('remove', removed_params, {})
+               if result.status != 0:
+                  print 'Error: Problem removing parameters (%d, %s)' % (result.status, result.text)
+                  error = True
 
-         if result.status != 0:
-            print 'Error: Problem modifying parameters (%d, %s)' % (result.status, result.text)
+         if error == True:
             session.delBroker(broker)
             return(1)
 
@@ -934,12 +944,12 @@ def main(argv=None):
             print 'Configuration not activated'
       else:
          print 'Configuration not applied'
-   except:
-      print 'Exception received when communicating with the configuration store'
-      print 'This could be because of a communcation issue, or because the'
-      print 'configuration store was taking too long to complete a task'
-      session.delBroker(broker)
-      return(1)
+#   except:
+#      print 'Exception received when communicating with the configuration store'
+#      print 'This could be because of a communcation issue, or because the'
+#      print 'configuration store was taking too long to complete a task'
+#      session.delBroker(broker)
+#      return(1)
 
    session.delBroker(broker)
    return(0)

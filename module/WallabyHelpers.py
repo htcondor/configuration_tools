@@ -15,7 +15,7 @@ import os
 import time
 from exceptions import WallabyStoreError
 
-def get_store_objs(sess, package, name='Store'):
+def get_store_objs(sess, package='com.redhat.grid.config', name='Store'):
    agent = []
    store = []
 
@@ -312,7 +312,7 @@ def list_subsys_info(sess, store, name):
          print '  %s' % key
 
 
-def list_all_objs(store, type, package):
+def list_all_objs(store, type, package='com.redhat.grid.config'):
    try:
       objs = store.getObjects(_class=type, _package=package)
    except Exception, error:

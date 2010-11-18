@@ -211,7 +211,7 @@ def main(argv=None):
 
    # Retreive the config store object
    try:
-     (store_agent, config_store) = WallabyHelpers.get_store_objs(session, 'com.redhat.grid.config', 'Store')
+     (store_agent, config_store) = WallabyHelpers.get_store_objs(session)
    except WallabyStoreError, error:
       print 'Error: %s' % error.error_str
       session.delBroker(broker)
@@ -229,7 +229,7 @@ def main(argv=None):
          ret_val = 0
          for type in list_alls:
             try:
-               WallabyHelpers.list_all_objs(store_agent, type, 'com.redhat.grid.config')
+               WallabyHelpers.list_all_objs(store_agent, type)
             except WallabyStoreError, error:
                print 'Error: %s' % error.error_str
                ret_val = 1

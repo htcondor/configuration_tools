@@ -378,9 +378,8 @@ class Service:
          return(False)
       log(logging.DEBUG, self.logger_name, 'Checked in with the store')
 
-      # Get the WALLABY_CONFIG_VERSION the master is running.  If the master is
-      # running the same version as what we've received, then we know we don't
-      # need to do anything
+      # Get the current WALLABY_CONFIG_VERSION.  If the system is running the
+      # version as what was received, then there's no need to do anything
       (retval, running_version, err) = run_cmd('condor_config_val WALLABY_CONFIG_VERSION')
       try:
          running_version = int(running_version.strip())
@@ -463,6 +462,25 @@ class Service:
                      hdl.close()
                   else:
                      log(logging.ERROR, self.logger_name, 'Unable to access "%s".  Ignoring override file' % fname)
+
+            # Ensure permissions for restart/reconfig
+            try:
+               subs = self.console.get_store_agent().getObjects(_class='Subsystem', _package='com.redhat.grid.config')
+
+               dlist = []
+               for d in config['DAEMON_LIST'].split(','):
+                  d = d.strip()
+                  if d != '':
+                     dlist += [d.upper()]
+
+               for sub in subs:
+                  name = sub.name.upper()
+                  if name in dlist:
+                     os.write(file_hdl, '%s.SEC_ADMINISTRATOR_AUTHENTICATION_METHODS = $(%s.SEC_ADMINISTRATOR_AUTHENTICATION_METHODS), FS, NTLM\n' % (name, name))
+            except Exception, error:
+               log(logging.ERROR, self.logger_name, 'Store: %s' % error)
+               log(logging.WARNING, self.logger_name, 'Failed to retrieve subsystem list.  Configuration could break restart/reconfig functionality')
+
             os.close(file_hdl)
          except IOError:
             try:
@@ -545,14 +563,10 @@ class Service:
          else:
             success = self.act_upon_subsys_list(cmd, restart_list, daemon_list)
    
-            # Now process the reconfig list.  Again, if master is listed then
-            # don't do anything else as sending a reconfig event to the master
-            # will handle everything 
-            cmd = 'condor_reconfig'
-            if 'master' in reconfig_list:
-               return(self.send_condor_command(cmd, 'master') and success)
-            else:
-               return(self.act_upon_subsys_list(cmd, reconfig_list, daemon_list) and success)
+            # If the reconfig list isn't empty, then send a reconfig to
+            # the master daemon
+            if reconfig_list != []:
+               return(self.send_condor_command('condor_reconfig', 'master') and success)
    
    
    def act_upon_subsys_list(self, command, list, running_daemons):

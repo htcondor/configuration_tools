@@ -1,6 +1,6 @@
 %{!?python_sitelib: %define python_sitelib %(%{__python} -c "from distutils.sysconfig import get_python_lib; print get_python_lib()")}
 %define rel 1
-%define ver 3.7
+%define ver 3.8
 
 Name: condor-wallaby
 Summary: Condor configuration using wallaby
@@ -115,6 +115,13 @@ rm -f %{buildroot}/%{python_sitelib}/wallabyclient/WallabyTypes.py
 %{python_sitelib}/wallabyclient/exceptions.py*
 
 %changelog
+* Thu Nov 18 2010  <rrati@redhat> - 3.8-1
+- Changes to reduce change of condor security changes preventing configd from
+  operating
+- Reconfig events are only sent to master
+- Added defaults to some methods in python module
+- Fixed issues with adding/removing params
+
 * Thu Oct 28 2010  <rrati@redhat> - 3.7-1
 - QMF authentication method can now be specified
 - Reset backoff factor/constants to default if they are < 0

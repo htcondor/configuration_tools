@@ -655,8 +655,7 @@ def main(argv=None):
       session.delBroker(broker)
       return(1)
 
-#   try:
-   if True:
+   try:
       # Check API version number
       if config_store.apiVersionNumber not in supported_api_versions:
          print 'The store is using an API version that this tool does not support (%d)' % config_store.apiVersionNumber
@@ -944,12 +943,12 @@ def main(argv=None):
             print 'Configuration not activated'
       else:
          print 'Configuration not applied'
-#   except:
-#      print 'Exception received when communicating with the configuration store'
-#      print 'This could be because of a communcation issue, or because the'
-#      print 'configuration store was taking too long to complete a task'
-#      session.delBroker(broker)
-#      return(1)
+   except:
+      print 'Exception received when communicating with the configuration store'
+      print 'This could be because of a communcation issue, or because the'
+      print 'configuration store was taking too long to complete a task'
+      session.delBroker(broker)
+      return(1)
 
    session.delBroker(broker)
    return(0)

@@ -262,7 +262,7 @@ def list_group_info(sess, store, group):
          print '  %s = %s' % (key, value[key])
 
 
-def list_node_info(sess, store, name, verbose):
+def list_node_info(sess, store, name, verbose=False):
    node_obj = get_node(sess, store, name)
    if node_obj != None:
       print 'Node "%s":' % name

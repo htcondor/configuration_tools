@@ -476,7 +476,7 @@ class Service:
                for sub in subs:
                   name = sub.name.upper()
                   if name in dlist:
-                     os.write(file_hdl, '%s.SEC_ADMINISTRATOR_AUTHENTICATION_METHODS = $(%s.SEC_ADMINISTRATOR_AUTHENTICATION_METHODS), FS, NTLM\n' % (name, name))
+                     os.write(file_hdl, '%s.SEC_ADMINISTRATOR_AUTHENTICATION_METHODS = $(%s.SEC_ADMINISTRATOR_AUTHENTICATION_METHODS), FS, NTLM, CLAIMTOBE\n' % (name, name))
             except Exception, error:
                log(logging.ERROR, self.logger_name, 'Store: %s' % error)
                log(logging.WARNING, self.logger_name, 'Failed to retrieve subsystem list.  Configuration could break restart/reconfig functionality')

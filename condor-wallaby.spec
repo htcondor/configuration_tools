@@ -1,5 +1,5 @@
 %{!?python_sitelib: %define python_sitelib %(%{__python} -c "from distutils.sysconfig import get_python_lib; print get_python_lib()")}
-%define rel 3
+%define rel 4
 %define ver 3.8
 
 Name: condor-wallaby
@@ -115,6 +115,9 @@ rm -f %{buildroot}/%{python_sitelib}/wallabyclient/WallabyTypes.py
 %{python_sitelib}/wallabyclient/exceptions.py*
 
 %changelog
+* Thu Dec  2 2010  <rrati@redhat> - 3.8-4
+- Updated to store api version support
+
 * Mon Nov 29 2010  <rrati@redhat> - 3.8-3
 - Added CLAIMTOBE to authentication methods
 

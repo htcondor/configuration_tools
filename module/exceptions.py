@@ -26,3 +26,8 @@ class ValidateWarning(Exception):
 class WallabyStoreError(Exception):
    def __init__(self, string):
       self.error_str = string
+
+class WallabyUnsupportedAPI(Exception):
+   def __init__(self, major, minor=0):
+      self.major = major
+      self.minor = minor

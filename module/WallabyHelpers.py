@@ -13,7 +13,7 @@
 #   limitations under the License.
 import os
 import time
-from exceptions import WallabyStoreError
+from exceptions import WallabyStoreError,WallabyUnsupportedAPI
 
 def get_store_objs(sess, package='com.redhat.grid.config', name='Store'):
    agent = []
@@ -34,6 +34,19 @@ def get_store_objs(sess, package='com.redhat.grid.config', name='Store'):
       raise WallabyStoreError('Unable to contact Configuration Store')
 
    return(agent, store[0])
+
+
+def verify_store_api(store, versions):
+   store_api = store.apiVersionNumber
+   if store_api not in versions.keys():
+      raise WallabyUnsupportedAPI(store_api)
+   else:
+      try:
+         minor_version = store.apiMinorNumber
+      except:
+         minor_version = 0
+      if minor_version < versions[store_api]:
+         raise WallabyUnsupportedAPI(store_api, minor_version)
 
 
 def get_group(sess, store, name):

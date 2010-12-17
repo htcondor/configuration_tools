@@ -1,5 +1,5 @@
 %{!?python_sitelib: %define python_sitelib %(%{__python} -c "from distutils.sysconfig import get_python_lib; print get_python_lib()")}
-%define rel 4
+%define rel 5
 %define ver 3.8
 
 Name: condor-wallaby
@@ -117,6 +117,13 @@ rm -f %{buildroot}/%{python_sitelib}/wallabyclient/WallabyTypes.py
 %{python_sitelib}/wallabyclient/exceptions.py*
 
 %changelog
+* Thu Dec  2 2010  <rrati@redhat> - 3.8-5
+- Added SEC_DEFAULT_ENCRYPTION and SEC_DEFAULT_INTEGRITY to new
+  99configd_security.config.  Both are set to optional
+- Fixed issue with exception handling when obj.update fails
+- Fixed api versions in condor_configure_store
+- Added 3DES to list of crypto methods
+
 * Thu Dec  2 2010  <rrati@redhat> - 3.8-4
 - Updated to store api version support
 

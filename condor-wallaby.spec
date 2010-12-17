@@ -81,6 +81,7 @@ cp -f condor_configure_store %{buildroot}/%_sbindir
 %endif
 cp -f condor_configd %{buildroot}/%_sbindir
 cp -f 99configd.config %{buildroot}/%_sysconfdir/condor/config.d
+cp -f 99configd_security.config %{buildroot}/%_sysconfdir/condor/config.d
 cp -f module/*.py %{buildroot}/%{python_sitelib}/wallabyclient
 %if 0%{?rhel} == 4
 rm -f %{buildroot}/%{python_sitelib}/wallabyclient/WallabyTypes.py
@@ -93,6 +94,7 @@ rm -f %{buildroot}/%{python_sitelib}/wallabyclient/WallabyTypes.py
 %_sbindir/condor_configd
 %defattr(0644,root,root,-)
 %_sysconfdir/condor/config.d/99configd.config
+%_sysconfdir/condor/config.d/99configd_security.config
 
 %if 0%{?rhel} != 4
 %files tools

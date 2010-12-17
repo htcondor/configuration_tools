@@ -101,7 +101,7 @@ def main(argv=None):
    username = ''
    passwd = ''
    mechanisms = 'ANONYMOUS PLAIN GSSAPI'
-   supported_api_versions = {20100804:0, 20100915:0, 20101031:2}
+   supported_api_versions = {20100804:0, 20100915:0, 20101031:1}
 
    # Set signal handlers
    signal.signal(signal.SIGINT, exit_signal_handler)

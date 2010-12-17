@@ -321,7 +321,7 @@ class Service:
       if ver == 0:
          try:
             self.node_obj.update()
-         except:
+         except Exception, e:
             # Agent/broker has gone away
             if reconnect_qmf == True:
                if self.config_qmf_entities() == False:

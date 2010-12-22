@@ -125,6 +125,7 @@ class Service:
       self.config_dir = ''
       self.override_dir = ''
       self.store = None
+      self.old_config = ''
 
 
    def init(self, node, name):
@@ -301,8 +302,6 @@ class Service:
 
 
    def check_config_ver(self, ver=0, force=False):
-      global reconnect_qmf, stop_running
-
       log(logging.DEBUG, self.logger_name, 'Checking version of configuration')
       self.lock.acquire(True)
       if self.node_obj == []:
@@ -319,28 +318,9 @@ class Service:
 
       # If the passed version is 0, look at the last_updated_version
       if ver == 0:
-         try:
-            self.node_obj.update()
-         except Exception, e:
-            # Agent/broker has gone away
-            if reconnect_qmf == True:
-               if self.config_qmf_entities() == False:
-                  if stop_running == False:
-                     log(logging.ERROR, self.logger_name, 'Unable to access configuration store')
-                  self.lock.release()
-                  return(False)
-               else:
-                  reconnect_qmf = False
-            else:
-               if stop_running == False:
-                  log(logging.ERROR, self.logger_name, 'Failed to update the node object')
-                  log(logging.ERROR, self.logger_name, 'Update Exception: %s' % e)
-                  log(logging.ERROR, self.logger_name, 'Node Object: %s' % self.node_obj)
-                  log(logging.ERROR, self.logger_name, 'Node Timestamps: %s' % self.node_obj.getTimestamps())
-                  log(logging.ERROR, self.logger_name, 'Node Agent: %s' % self.node_obj.getAgent())
-                  log(logging.ERROR, self.logger_name, 'Node Object ID: %s' % self.node_obj.getObjectId())
-               self.lock.release()
-               return(False)
+         if self.update_node_obj() == False:
+            self.lock.release()
+            return(False)
          ver = int(self.node_obj.last_updated_version)
 
       # Install the new configuration (if needed)
@@ -352,6 +332,31 @@ class Service:
 
       self.lock.release()
       return(ret_val)
+
+
+   def update_node_obj(self):
+      global reconnect_qmf, stop_running
+
+      try:
+         self.node_obj.update()
+      except Exception, e:
+         # Agent/broker has gone away
+         if reconnect_qmf == True:
+            if self.config_qmf_entities() == False:
+               if stop_running == False:
+                  log(logging.ERROR, self.logger_name, 'Unable to access configuration store')
+               return(False)
+            else:
+               reconnect_qmf = False
+         else:
+            if stop_running == False:
+               log(logging.ERROR, self.logger_name, 'Failed to update the node object')
+               log(logging.ERROR, self.logger_name, 'Update Exception: %s' % e)
+               log(logging.ERROR, self.logger_name, 'Node Object: %s' % self.node_obj)
+               log(logging.ERROR, self.logger_name, 'Node Timestamps: %s' % self.node_obj.getTimestamps())
+               log(logging.ERROR, self.logger_name, 'Node Agent: %s' % self.node_obj.getAgent())
+               log(logging.ERROR, self.logger_name, 'Node Object ID: %s' % self.node_obj.getObjectId())
+            return(False)
 
 
    def process_version_q(self):
@@ -379,7 +384,7 @@ class Service:
 
 
    def get_config(self, version=0, force=False):
-      global replacing_file, stop_running
+      global replacing_file, stop_running, old_config_filename
 
       # Check in with the store
       log(logging.DEBUG, self.logger_name, 'Performing a checkin with the store')
@@ -391,6 +396,9 @@ class Service:
             log(logging.ERROR, self.logger_name, error)
          return(False)
       log(logging.DEBUG, self.logger_name, 'Checked in with the store')
+
+      if self.update_node_obj() == False:
+         return(False)
 
       # Get the current WALLABY_CONFIG_VERSION.  If the system is running the
       # version as what was received, then there's no need to do anything
@@ -406,6 +414,13 @@ class Service:
       else:
          log(logging.INFO, self.logger_name, 'Retrieving configuration version "%d" from the store' % version)
    
+         # Save the current configuraton
+         (file_hdl,self.old_config) = tempfile.mkstemp('.tmp', old_config_filename, text=True)
+         (retval, config_dump, err) = run_cmd('condor_config_val -dump')
+         for line in config_dump.split('\n'):
+            os.write(file_hdl, '%s\n' % line)
+         os.close(file_hdl)
+
          # Retrieve the node's configuration
          try:
             if version <= 0:
@@ -584,7 +599,7 @@ class Service:
    
    
    def act_upon_subsys_list(self, command, list, running_daemons):
-      nondc_daemons = ['ll_daemon', 'configd']
+      nondc_daemons = ['ll_daemon', 'qmf_configd']
       all_success = True
 
       for subsys in list:
@@ -608,7 +623,7 @@ class Service:
 
    def send_condor_command(self, command, subsystem):
       log(logging.DEBUG, self.logger_name, 'Sending command "%s" to subsystem "%s"' % (command, subsystem))
-      (retval, out, err) = run_cmd('%s -subsystem %s' % (command, subsystem))
+      (retval, out, err) = run_cmd('%s -subsystem %s' % (command, subsystem), environ={'CONDOR_CONFIG':'%s' % self.old_config})
       if retval != 0:
          log(logging.ERROR, self.logger_name, 'Failed to send command "%s" to subsystem "%s" (retval: %d, stdout: "%s", stderr: "%s")' % (command, subsystem, retval, out, err))
          return(False)
@@ -646,9 +661,10 @@ replacing_file = False
 reconnect_qmf = False
 pidfile = os.path.normpath(os.getcwd() + '/.pid' + str(os.getpid()))
 logger_name = os.path.basename(sys.argv[0])
+old_config_filename = 'condor.old_config'
 
 def main(argv=None):
-   global service, stop_running, replacing_file, reconnect_qmf, version_queue, logger_name
+   global service, stop_running, replacing_file, reconnect_qmf, version_queue, logger_name, old_config_filename
 
    if argv is None:
       argv = sys.argv
@@ -743,6 +759,15 @@ def main(argv=None):
 
       log(logging.INFO, logger_name, 'Starting Up')
       log(logging.INFO, logger_name, 'Hostname is "%s"' % node_name)
+
+      # Remove all temp configuration files
+      log(logging.INFO, logger_name, 'Cleaning up temporary configuration files')
+      temp_dir = tempfile.gettempdir()
+      for file in os.listdir(temp_dir):
+         full_path = os.path.normpath('%s/%s' % (temp_dir, file))
+         if old_config_filename in file:
+            log(logging.DEBUG, logger_name, 'Deleting temporary configuration file %s' % full_path)
+            os.remove(full_path)
 
       # Retrieve the broker information from condor's configuration file
       if service != None:

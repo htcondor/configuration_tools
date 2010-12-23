@@ -1,5 +1,5 @@
 %{!?python_sitelib: %define python_sitelib %(%{__python} -c "from distutils.sysconfig import get_python_lib; print get_python_lib()")}
-%define rel 5
+%define rel 6
 %define ver 3.8
 
 Name: condor-wallaby
@@ -115,6 +115,12 @@ rm -f %{buildroot}/%{python_sitelib}/wallabyclient/WallabyTypes.py
 %{python_sitelib}/wallabyclient/exceptions.py*
 
 %changelog
+* Thu Dec 23 2010  <rrati@redhat> - 3.8-6
+- Removed 99configd_security.config
+- Perform a node.update before accessing any node object info in get_config
+- Issue condor commands with the current running configuration rather
+  than with the new config from the store
+
 * Thu Dec  2 2010  <rrati@redhat> - 3.8-5
 - Added SEC_DEFAULT_ENCRYPTION and SEC_DEFAULT_INTEGRITY to new
   99configd_security.config.  Both are set to optional

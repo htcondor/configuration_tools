@@ -417,8 +417,12 @@ class Service:
          # Save the current configuraton
          (file_hdl,self.old_config) = tempfile.mkstemp('.tmp', old_config_filename, text=True)
          (retval, config_dump, err) = run_cmd('condor_config_val -dump')
+
+         # Write the config from the dump
          for line in config_dump.split('\n'):
-            os.write(file_hdl, '%s\n' % line)
+            if 'local_config_file' not in line.lower() and \
+               'local_condir_dir' not in line.lower():
+               os.write(file_hdl, '%s\n' % line)
          os.close(file_hdl)
 
          # Retrieve the node's configuration
@@ -433,7 +437,7 @@ class Service:
                log(logging.ERROR, self.logger_name, 'Exception when attempting to retrieve configuration version "%d" from the store' % version)
                log(logging.ERROR, self.logger_name, error)
             return(False)
-   
+
          if result.status != 0:
             # Problem getting the configuration, so do nothing
             if stop_running == False:
@@ -441,7 +445,7 @@ class Service:
             return(False)
          else:
             config = result.outArgs['config']
-   
+
          try:
             (file_hdl,file_name) = tempfile.mkstemp('.tmp', 'condor_config.local', text=True)
             # Write the config from the store into the file

@@ -421,7 +421,7 @@ class Service:
          # Write the config from the dump
          for line in config_dump.split('\n'):
             if 'local_config_file' not in line.lower() and \
-               'local_condir_dir' not in line.lower():
+               'local_config_dir' not in line.lower():
                os.write(file_hdl, '%s\n' % line)
          os.close(file_hdl)
 

@@ -356,6 +356,7 @@ class Service:
                log(logging.ERROR, self.logger_name, 'Node Timestamps: %s' % str(self.node_obj.getTimestamps()))
                log(logging.ERROR, self.logger_name, 'Node Agent: %s' % str(self.node_obj.getAgent()))
                log(logging.ERROR, self.logger_name, 'Node Object ID: %s' % str(self.node_obj.getObjectId()))
+               reconnect_qmf = True
             return(False)
 
 

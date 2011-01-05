@@ -351,11 +351,11 @@ class Service:
          else:
             if stop_running == False:
                log(logging.ERROR, self.logger_name, 'Failed to update the node object')
-               log(logging.ERROR, self.logger_name, 'Update Exception: %s' % e)
-               log(logging.ERROR, self.logger_name, 'Node Object: %s' % self.node_obj)
-               log(logging.ERROR, self.logger_name, 'Node Timestamps: %s' % self.node_obj.getTimestamps())
-               log(logging.ERROR, self.logger_name, 'Node Agent: %s' % self.node_obj.getAgent())
-               log(logging.ERROR, self.logger_name, 'Node Object ID: %s' % self.node_obj.getObjectId())
+               log(logging.ERROR, self.logger_name, 'Update Exception: %s' % str(e))
+               log(logging.ERROR, self.logger_name, 'Node Object: %s' % str(self.node_obj))
+               log(logging.ERROR, self.logger_name, 'Node Timestamps: %s' % str(self.node_obj.getTimestamps()))
+               log(logging.ERROR, self.logger_name, 'Node Agent: %s' % str(self.node_obj.getAgent()))
+               log(logging.ERROR, self.logger_name, 'Node Object ID: %s' % str(self.node_obj.getObjectId()))
             return(False)
 
 

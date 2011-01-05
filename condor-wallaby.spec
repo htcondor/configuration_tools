@@ -1,5 +1,5 @@
 %{!?python_sitelib: %define python_sitelib %(%{__python} -c "from distutils.sysconfig import get_python_lib; print get_python_lib()")}
-%define rel 6
+%define rel 7
 %define ver 3.8
 
 Name: condor-wallaby
@@ -115,6 +115,9 @@ rm -f %{buildroot}/%{python_sitelib}/wallabyclient/WallabyTypes.py
 %{python_sitelib}/wallabyclient/exceptions.py*
 
 %changelog
+* Wed Jan  5 2011  <rrati@redhat> - 3.8-7
+- Fixed issue with node.update debug code causing a configd crash
+
 * Thu Dec 23 2010  <rrati@redhat> - 3.8-6
 - Removed 99configd_security.config
 - Perform a node.update before accessing any node object info in get_config

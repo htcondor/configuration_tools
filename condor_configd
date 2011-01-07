@@ -371,6 +371,7 @@ class Service:
             version = version_queue.get(False)
             size = version_queue.qsize()
          except Queue.Empty:
+            size = 0
             break
 
       if version != -1:
@@ -840,8 +841,7 @@ def main(argv=None):
                   last_attempt = time.time()
                check_interval = service.get_interval()
                if num_attempts == 0 or \
-                  (time.time() - last_attempt) >= next_attempt_interval or \
-                  (next_attempt_time > check_interval and check_interval > 0):
+                  (time.time() - last_attempt) >= next_attempt_interval:
 
                   if service.process_version_q() > 0:
                      # There's still a version in the queue, so there was a
@@ -852,6 +852,11 @@ def main(argv=None):
                      # Subract a second to account to the sleep in the
                      # main loop
                      next_attempt_interval = (backoff_const + pow(backoff_factor, num_attempts))-1
+
+                     # Maximum backoff time is the check_interval if defined
+                     if next_attempt_interval > check_interval and \
+                        check_interval > 0:
+                        next_attempt_interval = check_interval
                      num_attempts += 1
                   else:
                      # Installation was successful

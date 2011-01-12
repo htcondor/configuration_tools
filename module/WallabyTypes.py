@@ -84,7 +84,10 @@ class Feature(WallabyBaseObject):
 
    def validate(self, orig):
       for param in self.params:
-         self.params[param] = str(self.params[param])
+         if self.params[param] == None:
+            self.params[param] = ''
+         else:
+            self.params[param] = str(self.params[param])
       WallabyBaseObject.validate(self, orig)
 
 
@@ -201,10 +204,22 @@ class Parameter(WallabyBaseObject):
 
 
    def validate(self, orig):
-      self.type = str(self.type)
-      self.default = str(self.default)
-      self.description = str(self.description)
-      self.must_change = bool(self.must_change)
+      if self.type == None:
+         self.type = ''
+      else:
+         self.type = str(self.type)
+      if self.default == None:
+         self.default = ''
+      else:
+         self.default = str(self.default)
+      if self.description == None:
+         self.description = ''
+      else:
+         self.description = str(self.description)
+      if self.type == None:
+         self.must_change = False
+      else:
+         self.must_change = bool(self.must_change)
       self.restart = bool(self.restart)
       WallabyBaseObject.validate(self, orig)
 
@@ -239,9 +254,6 @@ class Parameter(WallabyBaseObject):
 
       if obj == None:
          raise WallabyError({-1:'No parameter object to update'})
-
-      if self.must_change == None:
-         self.must_change = False
 
       result = obj.setMustChange(self.must_change)
       if result.status != 0:

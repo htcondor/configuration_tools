@@ -539,7 +539,7 @@ def main(argv=None):
             if ask_for_default != {}:
                for obj in ask_for_default.keys():
                   for param in sorted(ask_for_default[obj]):
-                     answer = raw_input('Use the default value for "%s" for "%s"? [Y/n] ' % (param, obj.get_name()))
+                     answer = raw_input('Use the default value for parameter "%s" in feature "%s"? [Y/n] ' % (param, obj.get_name()))
                      if answer.lower() != 'n':
                         obj.set_use_default_val(param)
 

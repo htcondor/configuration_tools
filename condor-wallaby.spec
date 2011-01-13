@@ -1,5 +1,5 @@
 %{!?python_sitelib: %define python_sitelib %(%{__python} -c "from distutils.sysconfig import get_python_lib; print get_python_lib()")}
-%define rel 8
+%define rel 9
 %define ver 3.8
 
 Name: condor-wallaby
@@ -115,6 +115,14 @@ rm -f %{buildroot}/%{python_sitelib}/wallabyclient/WallabyTypes.py
 %{python_sitelib}/wallabyclient/exceptions.py*
 
 %changelog
+* Thu Jan 13 2011  <rrati@redhat> - 3.8-9
+- Fixed wallabyclient dep to make ver and release
+- Fixed upper bound on backoff.  Backoff is bounded by
+  QMF_CONFIGD_CHECK_INTERVAL
+- Clarified question asking to use default value in store tool
+- Fixed deleting value for strings and maps that resulted in the value being
+  "None" instead of '' in the store tool
+
 * Wed Jan  5 2011  <rrati@redhat> - 3.8-8
 - If there's a failure to update the node object, redo the qmf connections
 

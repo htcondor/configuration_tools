@@ -145,30 +145,48 @@ class Service:
          self.broker = None
 
       try:
-         broker_ip = read_condor_config('QMF_BROKER', ['HOST'])['host']
-         if broker_ip.strip() == '':
-            broker_ip = '127.0.0.1'
+         broker_ip = read_condor_config('CONFIGD', ['QMF_BROKER_HOST'])['qmf_broker_host']
       except ConfigError, error:
-         # Broker host not defined, so exit
-         log(logging.ERROR, self.logger_name, '%s.  Exiting' % error.msg)
-         return(False)
+         try:
+            broker_ip = read_condor_config('QMF_BROKER', ['HOST'])['host']
+         except ConfigError, error:
+            # Broker host not defined, so exit
+            log(logging.ERROR, self.logger_name, '%s.  Exiting' % error.msg)
+            return(False)
+
+      if broker_ip.strip() == '':
+         broker_ip = '127.0.0.1'
 
       try:
-         val = read_condor_config('QMF_BROKER', ['PORT'])
-         broker_port = int(val['port'])
+         val = read_condor_config('CONFIGD', ['QMF_BROKER_PORT'])
+         port = val['qmf_broker_port']
       except ConfigError, error:
-         log(logging.DEBUG, self.logger_name, '%s. Using default (5672)' % error.msg)
+         try:
+            val = read_condor_config('QMF_BROKER', ['PORT'])
+            port = val['port']
+         except ConfigError, error:
+            log(logging.DEBUG, self.logger_name, '%s. Using default (5672)' % error.msg)
+            port = 5672
+
+      try:
+         broker_port = int(port)
+      except:
+         log(logging.DEBUG, self.logger_name, 'Invalid broker port.  Using default (5672)')
          broker_port = 5672
 
       try:
-         val = read_condor_config('QMF_BROKER', ['AUTH_MECHANISM'])
-         broker_auth_methods = str(val['auth_mechanism']).replace(',', ' ')
+         val = read_condor_config('CONFIGD', ['QMF_BROKER_AUTH_MECHANISM'])
+         broker_auth_methods = str(val['qmf_broker_auth_mechanism']).replace(',', ' ')
       except ConfigError, error:
-         log(logging.DEBUG, self.logger_name, '%s. Using defaults' % error.msg)
-         broker_auth_methods = 'ANONYMOUS PLAIN GSSAPI'
+         try:
+            val = read_condor_config('QMF_BROKER', ['AUTH_MECHANISM'])
+            broker_auth_methods = str(val['auth_mechanism']).replace(',', ' ')
+         except ConfigError, error:
+            log(logging.DEBUG, self.logger_name, '%s. Using defaults' % error.msg)
+            broker_auth_methods = 'ANONYMOUS PLAIN GSSAPI'
 
       try:
-         val = read_condor_config('QMF_CONFIGD', ['CHECK_INTERVAL'])
+         val = read_condor_config('CONFIGD', ['CHECK_INTERVAL'])
          self.interval = int(val['check_interval'])
       except ConfigError, error:
          log(logging.INFO, self.logger_name, '%s. Node configuration evaluation disabled' % error.msg)
@@ -194,7 +212,7 @@ class Service:
          return(False)
 
       try:
-         self.override_dir = read_condor_config('QMF_CONFIGD', ['OVERRIDE_DIR'])['override_dir']
+         self.override_dir = read_condor_config('CONFIGD', ['OVERRIDE_DIR'])['override_dir']
          if os.access(self.override_dir, os.F_OK) != True or os.access(self.override_dir, os.R_OK) != True:
             log(logging.WARNING, self.logger_name, '"%s" either is not a directory or has incorrect permissions.  Configuration overrides will not take affect' % self.override_dir)
             self.override_dir = ''
@@ -598,14 +616,13 @@ class Service:
          else:
             success = self.act_upon_subsys_list(cmd, restart_list, daemon_list)
    
-            # If the reconfig list isn't empty, then send a reconfig to
-            # the master daemon
-            if reconfig_list != []:
-               return(self.send_condor_command('condor_reconfig', 'master') and success)
+            # Send a reconfig to the master daemon so all subsystems are
+            # running with the current config values
+            return(self.send_condor_command('condor_reconfig', 'master') and success)
    
    
    def act_upon_subsys_list(self, command, list, running_daemons):
-      nondc_daemons = ['ll_daemon', 'qmf_configd']
+      nondc_daemons = ['ll_daemon', 'configd']
       all_success = True
 
       for subsys in list:
@@ -714,25 +731,25 @@ def main(argv=None):
       # Configure the logging system
       if 'log' not in file.keys():
          try:
-            file = read_condor_config('QMF_CONFIGD', ['LOG'])
+            file = read_condor_config('CONFIGD', ['LOG'])
          except ConfigError, error:
             print 'Error: %s.  Exiting' % error.msg
             return(1)
 
       try:
-         size = int(read_condor_config('MAX_QMF_CONFIGD', ['LOG'])['log'])
+         size = int(read_condor_config('MAX_CONFIGD', ['LOG'])['log'])
       except:
          size = 1000000
 
       try:
-         backoff_factor = int(read_condor_config('QMF_CONFIGD', ['BACKOFF_FACTOR']))
+         backoff_factor = int(read_condor_config('CONFIGD', ['BACKOFF_FACTOR']))
          if backoff_factor < 0:
             backoff_factor = 2
       except:
          backoff_factor = 2
 
       try:
-         backoff_const = int(read_condor_config('QMF_CONFIGD', ['BACKOFF_CONSTANT']))
+         backoff_const = int(read_condor_config('CONFIGD', ['BACKOFF_CONSTANT']))
          if backoff_const < 0:
             backoff_const = 9
       except:
@@ -818,7 +835,7 @@ def main(argv=None):
       if os.name == 'nt' or os.name == 'ce':
          # Need to set a Timer for shutdown on windows
          log(logging.INFO, logger_name, 'Setting windows shutdown Timer')
-         shutdown_interval = int(read_condor_config('QMF_CONFIGD', ['WIN_INTERVAL'])['win_interval'])
+         shutdown_interval = int(read_condor_config('CONFIGD', ['WIN_INTERVAL'])['win_interval'])
          shutdown_timer = Timer(shutdown_interval,test_for_shutdown)
          shutdown_timer.start()
 

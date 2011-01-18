@@ -44,6 +44,7 @@ def print_help(name):
    print '                               broker.  Supported mechanisms are: ANONYMOUS,'
    print '                               PLAIN, GSSAPI'
    print '  -h|--help                  - Print help'
+   print '  -v|--verbose               - Print more information, if available'
    print '\nAction: (Only 1 allowe per invocation)'
    print '  -a|--add              - Add the target(s) to the store'
    print '  -d|--delete           - Remove the target(s) from the store'
@@ -100,6 +101,7 @@ def main(argv=None):
    edit_objs = []
    username = ''
    passwd = ''
+   verbose = False
    mechanisms = 'ANONYMOUS PLAIN GSSAPI'
    supported_api_versions = {20100804:0, 20100915:0, 20101031:1}
 
@@ -111,9 +113,9 @@ def main(argv=None):
                 'features=', 'groups=', 'help', 'list', 'list-all-features',
                 'list-all-groups', 'list-all-nodes', 'list-all-params',
                 'list-all-subsystems', 'nodes=', 'params=', 'password=',
-                'port=', 'subsys=', 'user=']
+                'port=', 'subsys=', 'user=', 'verbose']
    try:
-      opts, args = getopt.getopt(argv[1:], 'ab:def:g:hlm:n:p:P:o:s:U:', long_opts)
+      opts, args = getopt.getopt(argv[1:], 'ab:def:g:hlm:n:p:P:o:s:U:v', long_opts)
    except getopt.GetoptError, error:
       print str(error)
       return(1)
@@ -183,6 +185,8 @@ def main(argv=None):
          subsys = arg
       if option in ('-U', '--user'):
          username = arg
+      if option in ('-v', '--verbose'):
+         verbose = True
 
    if action == '':
       print 'No action specified.  Exiting'
@@ -294,7 +298,7 @@ def main(argv=None):
             elif action == 'edit' and node != '':
                obj = WallabyHelpers.get_node(session, config_store, node)
             elif action == 'list' and node != '':
-               WallabyHelpers.list_node_info(session, config_store, node)
+               WallabyHelpers.list_node_info(session, config_store, node, verbose)
                print
  
             if obj != None:

@@ -48,6 +48,7 @@ def print_help(name):
    print '  --schedds                  - Prompt for scheduler information'
    print '  --qmfbroker                - Prompt for QMF broker information'
    print '  -h|--help                  - Print help'
+   print '  -v|--verbose               - Print more information, if available'
    print '\nTarget: (Only 1 allowed per invocation)'
    print '  --default-group   - Perform actions on the Internal Default Group in the store'
    print '  -n|--node <name>  - The name of a specific machine that will have the'

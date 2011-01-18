@@ -92,7 +92,7 @@ rm -f %{buildroot}/%{python_sitelib}/wallabyclient/WallabyTypes.py
 %defattr(0755,root,root,-)
 %_sbindir/condor_configd
 %defattr(0644,root,root,-)
-%_sysconfdir/condor/config.d/99configd.config
+%config %_sysconfdir/condor/config.d/99configd.config
 
 %if 0%{?rhel} != 4
 %files tools

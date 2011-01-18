@@ -67,7 +67,7 @@ if configd_pid == 0:
       env['PYTHONPATH'] = os.environ['PYTHONPATH']
    env['CONDOR_CONFIG'] = '../config/99configd.config'
    env['_CONDOR_LOCAL_CONFIG_DIR'] = '../config'
-   env['_CONDOR_QMF_CONFIGD_CHECK_INTERVAL'] = str(checkin_time)
+   env['_CONDOR_CONFIGD_CHECK_INTERVAL'] = str(checkin_time)
    env['_CONDOR_QMF_BROKER_HOST'] = '127.0.0.1'
    env['_CONDOR_QMF_BROKER_PORT'] = '5672'
    (rcode, out, err) = run_cmd('../condor_configd -d -l %s -m %s -h %s' % (log_file, config_file, nodename), environ = env)

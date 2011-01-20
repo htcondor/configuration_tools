@@ -1,6 +1,6 @@
 %{!?python_sitelib: %define python_sitelib %(%{__python} -c "from distutils.sysconfig import get_python_lib; print get_python_lib()")}
-%define rel 9
-%define ver 3.8
+%define rel 1
+%define ver 3.9
 
 Name: condor-wallaby
 Summary: Condor configuration using wallaby
@@ -115,6 +115,12 @@ rm -f %{buildroot}/%{python_sitelib}/wallabyclient/WallabyTypes.py
 %{python_sitelib}/wallabyclient/exceptions.py*
 
 %changelog
+* Thu Jan 20 2011  <rrati@redhat> - 3.9-1
+- Added -v to help of store and pool tools
+- Changed subsystem name from QMF_CONFIGD to CONFIGD
+- Added support for CONFIGD.QMF_BROKER_*
+- Always send reconfig when a new configuration is received
+
 * Thu Jan 13 2011  <rrati@redhat> - 3.8-9
 - Fixed wallabyclient dep to make ver and release
 - Fixed upper bound on backoff.  Backoff is bounded by

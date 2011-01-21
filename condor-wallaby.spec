@@ -1,5 +1,5 @@
 %{!?python_sitelib: %define python_sitelib %(%{__python} -c "from distutils.sysconfig import get_python_lib; print get_python_lib()")}
-%define rel 1
+%define rel 2
 %define ver 3.9
 
 Name: condor-wallaby
@@ -115,6 +115,9 @@ rm -f %{buildroot}/%{python_sitelib}/wallabyclient/WallabyTypes.py
 %{python_sitelib}/wallabyclient/exceptions.py*
 
 %changelog
+* Fri Jan 21 2011  <rrati@redhat> - 3.9-2
+- Added mention of the edit command to condor_configure_pool help
+
 * Thu Jan 20 2011  <rrati@redhat> - 3.9-1
 - Added -v to help of store and pool tools
 - Changed subsystem name from QMF_CONFIGD to CONFIGD

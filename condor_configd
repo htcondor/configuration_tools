@@ -468,7 +468,8 @@ class Service:
             # Process any overriden parameters
             if self.override_dir != '':
                entries = os.listdir(self.override_dir)
-               for file in sorted(entries):
+               entries.sort()
+               for file in entries:
                   fname = os.path.normpath('%s/%s' % (self.override_dir, file))
                   if os.access(fname, os.R_OK) == True:
                      try:
@@ -487,10 +488,11 @@ class Service:
                subs = self.console.get_store_agent().getObjects(_class='Subsystem', _package='com.redhat.grid.config')
 
                dlist = []
-               for d in config['DAEMON_LIST'].split(','):
-                  d = d.strip()
-                  if d != '':
-                     dlist += [d.upper()]
+               if 'DAEMON_LIST' in config.keys():
+                  for d in config['DAEMON_LIST'].split(','):
+                     d = d.strip()
+                     if d != '':
+                        dlist += [d.upper()]
 
                for sub in subs:
                   name = sub.name.upper()

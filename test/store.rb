@@ -54,6 +54,14 @@ module Mrg
                args.declare :name, :sstr, :in, {}
             end
 
+            def getDefaultGroup
+               return Group.DEFAULT_GROUP
+            end
+
+            expose :getDefaultGroup do |args|
+               args.declare :obj, :objId, :out, "The object ID of the Group object corresponding to the default group."
+            end
+
             def checkNodeValidity(names)
                names.reject {|n| Node.find_first_by_name(n)}
             end
@@ -82,16 +90,36 @@ module Mrg
             end
          end
 
+         class Group
+            include ::Rhubarb::Persisting
+            include ::SPQR::Manageable
+            qmf_package_name 'com.redhat.grid.config'
+            qmf_class_name 'Group'
+
+            qmf_property :uid, :uint32, :index=>true
+            qmf_property :is_identity_group, :bool
+            qmf_property :name, :sstr, :desc=>"This group's name."
+            qmf_property :features, :list, :desc=>"A list of features to be applied to this group, from highest to lowest priority."
+
+            def features()
+               self.feature_list
+            end
+
+            def Group.DEFAULT_GROUP
+               (Group.find_first_by_name("+++DEFAULT") or Group.create(:name => "+++DEFAULT"))
+            end
+         end
+
          class Node
             include ::Rhubarb::Persisting
             include ::SPQR::Manageable
-            qmf_package_name 'mrg.grid.config'
+            qmf_package_name 'com.redhat.grid.config'
             qmf_class_name 'Node'
 
             declare_column :name, :string
             declare_column :last_checkin, :integer
             declare_column :last_updated_version, :integer
-
+            declare_column :idgroup, :integer, references(Group)
 
             alias def_last_checkin last_checkin
             alias def_last_updated_version last_updated_version
@@ -107,6 +135,18 @@ module Mrg
             qmf_property :name, :lstr, :index=>true
             qmf_property :last_checkin, :uint64
             qmf_property :last_updated_version, :uint64
+            qmf_property :identity_group, :objId, :desc=>"The object ID of this node's identity group"
+
+            def identity_group
+               self.idgroup ||= id_group_init
+               self.idgroup
+            end
+
+            def id_group_init
+               ig = Group.find_first_by_name(idgroupname)
+               ig = Group.create(:name=>idgroupname, :is_identity_group=>true) unless ig
+               ig
+            end
 
             def getConfig(options)
                config["WALLABY_CONFIG_VERSION"] = options['version']

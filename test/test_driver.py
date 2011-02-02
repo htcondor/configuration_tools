@@ -106,9 +106,10 @@ try:
    # Test 1 - Test the initial checkin
    print 'Testing initial checkin: \t\t\t\t\t',
 
-   # The configd waits between 0-10 seconds before initial checking, so wait 12
-   # seconds to verify configd has checked in with the store for the first time
-   time.sleep(12)
+   # The configd waits between 0-10 seconds before initial checkin and can take
+   # 5 seconds to find the store agent, so wait 17 seconds to verify configd
+   # has checked in with the store for the first time
+   time.sleep(17)
 
    node.update()
    if node.last_checkin > 0:
@@ -174,7 +175,7 @@ try:
    old_version = version
    node.setLastUpdatedVersion(version+1)
    store.raiseEvent([nodename])
-   time.sleep(3)
+   time.sleep(8)
    try:
       version = int(read_condor_config('WALLABY_CONFIG', ['VERSION'], environ={'CONDOR_CONFIG':config_file})['version'])
    except:
@@ -190,7 +191,7 @@ try:
    old_version = version
    node.setLastUpdatedVersion(version+1)
    store.raiseEvent([nodename, 'node1', 'node2'])
-   time.sleep(3)
+   time.sleep(8)
    try:
       version = int(read_condor_config('WALLABY_CONFIG', ['VERSION'], environ={'CONDOR_CONFIG':config_file})['version'])
    except:
@@ -206,7 +207,7 @@ try:
    old_version = version
    node.setLastUpdatedVersion(version+1)
    store.raiseEvent(['node1', 'node2'])
-   time.sleep(3)
+   time.sleep(8)
    try:
       version = int(read_condor_config('WALLABY_CONFIG', ['VERSION'], environ={'CONDOR_CONFIG':config_file})['version'])
    except:

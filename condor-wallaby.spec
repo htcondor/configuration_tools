@@ -25,7 +25,7 @@ Group: Applications/System
 Requires: condor >= 7.4.4-0.9
 Requires: python >= 2.3
 Requires: python-qmf >= 0.7.946106-9
-Requires: python-condorutils >= 1.4-3
+Requires: python-condorutils >= 1.5
 Requires: python-wallabyclient >= %{ver}-%{rel}
 Obsoletes: condor-remote-configuration
 
@@ -59,7 +59,7 @@ Summary: Tools for interacting with wallaby
 Group: Applications/System
 BuildRequires: python-devel
 Requires: python >= 2.3
-Requires: python-condorutils >= 1.4-3
+Requires: python-condorutils >= 1.5
 %if 0%{?rhel} != 4
 Requires: PyYAML
 %endif

@@ -39,7 +39,7 @@ def print_help(name):
    print '                               configuration store'
    print '  -o|--port <port>           - The port of the broker used by the configuration'
    print '                               store'
-   print '  -u|--user <user>           - The username used to authenticate with the broker'
+   print '  -U|--user <user>           - The username used to authenticate with the broker'
    print '  -p|--password <password>   - The password used to authenticate with the broker'
    print '  -m|--auth-mechanism <mech> - A comma separated list of authentication'
    print '                               mechanisms to use when communicating with the'

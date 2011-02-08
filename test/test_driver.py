@@ -17,6 +17,7 @@ import os
 import sys
 import time
 import datetime
+import shutil
 from condorutils.osutil import run_cmd
 from condorutils.readconfig import read_condor_config
 from qmf.console import Session
@@ -26,6 +27,8 @@ nodename = 'unit_test'
 checkin_time = 30
 config_file = './condor_config.configd'
 log_file = './configd.log'
+override_dir = './override'
+override_file = './override.param'
 
 try:
    os.remove(config_file)
@@ -70,6 +73,7 @@ if configd_pid == 0:
    env['_CONDOR_CONFIGD_CHECK_INTERVAL'] = str(checkin_time)
    env['_CONDOR_QMF_BROKER_HOST'] = '127.0.0.1'
    env['_CONDOR_QMF_BROKER_PORT'] = '5672'
+   env['_CONDOR_CONFIGD_OVERRIDE_DIR'] = override_dir
    (rcode, out, err) = run_cmd('../condor_configd -d -l %s -m %s -h %s' % (log_file, config_file, nodename), environ = env)
    sys.exit(0)
 
@@ -130,20 +134,27 @@ try:
    else:
       print 'FAILED (%d!=0)' % version
 
-   # Test 3 - Verify configd checkins in with the store periodically
+   # Test 3 - Verify configd checks in in with the store periodically
    print 'Testing periodic checkin: \t\t\t\t\t',
    old_checkin = node.last_checkin
-   time.sleep(checkin_time+1)
+   time.sleep(checkin_time+5)
    node.update()
    if old_checkin < node.last_checkin:
       print 'PASS (%d < %d)' % (old_checkin, node.last_checkin)
    else:
       print 'FAILED (%d !< %d)' % (old_checkin, node.last_checkin)
 
+   # Setup for testing override directory
+   shutil.copy(override_file, override_dir)
+   try:
+      old_value = read_condor_config('CONFIGD', ['TEST_PARAM'], environ={'CONDOR_CONFIG':config_file})['test_param']
+   except:
+      old_value = 0
+
    # Test 4 - Test config retrieval if new version found at wallaby
    print 'Testing periodic checkin retrieves new config: \t\t\t',
    node.setLastUpdatedVersion(version+1)
-   time.sleep(checkin_time+1)
+   time.sleep(checkin_time+5)
    old_version = version
    try:
       version = int(read_condor_config('WALLABY_CONFIG', ['VERSION'], environ={'CONDOR_CONFIG':config_file})['version'])
@@ -155,10 +166,28 @@ try:
    else:
       print 'FAILED (%d == %d)' % (version, old_version)
 
-   # Test 5 - Verify older config version causes config retrieval
+   # Test 5 - Test files in the override directory are included in the config
+   print 'Testing override directory files override values in config: \t',
+   try:
+      new_value = read_condor_config('CONFIGD', ['TEST_PARAM'], environ={'CONDOR_CONFIG':config_file})['test_param']
+   except:
+      new_value = old_value
+   if new_value != old_value:
+      print 'PASS (%s != %s)' % (old_value, new_value)
+   else:
+      print 'FAILED (%s == %s)' % (old_value, new_value)
+
+   # Add features and groups to the node
+   store.addExplicitGroup('TestGroup')
+   grp_name = WallabyHelpers.get_id_group_name(node, session)
+   node_grp = WallabyHelpers.get_group(session, store, grp_name)
+   node.modifyMemberships('add', ['TestGroup'], {})
+   node_grp.modifyFeatures('add', ['TestFeature'], {})
+
+   # Test 6 - Verify older config version causes config retrieval
    print 'Testing older version causes config retrieval: \t\t\t',
    node.setLastUpdatedVersion(version-1)
-   time.sleep(checkin_time+1)
+   time.sleep(checkin_time+5)
    old_version = version
    try:
       version = int(read_condor_config('WALLABY_CONFIG', ['VERSION'], environ={'CONDOR_CONFIG':config_file})['version'])
@@ -170,7 +199,33 @@ try:
    else:
       print 'FAILED (%d == %d)' % (version, old_version)
 
-   # Test 6 - Test event (1 target) causes config retrieval
+   # Test 7 - Test WallabyGroups is updated
+   print 'Testing WallabyGroups was updated: \t\t\t\t',
+   try:
+      value = read_condor_config('WallabyGroups', [], environ={'CONDOR_CONFIG':config_file})['test_param']
+   except:
+      value = ''
+   if 'TestGroup' in value:
+      print 'PASS'
+   else:
+      print 'FAILED (%s)' % value
+
+   # Test 8 - Test WallabyFeatures is updated
+   print 'Testing WallabyFeatures was updated: \t\t\t\t',
+   try:
+      value = read_condor_config('WallabyFeatures', [], environ={'CONDOR_CONFIG':config_file})['test_param']
+   except:
+      value = ''
+   if 'TestFeature' in value:
+      print 'PASS'
+   else:
+      print 'FAILED (%s)' % value
+
+   # Remove the test features/groups
+   node.modifyMemberships('remove', ['TestGroup'], {})
+   node_grp.modifyFeatures('remove', ['TestFeature'], {})
+
+   # Test 9 - Test event (1 target) causes config retrieval
    print 'Testing event (1 target) causes config retrieval: \t\t',
    old_version = version
    node.setLastUpdatedVersion(version+1)
@@ -186,7 +241,29 @@ try:
    else:
       print 'FAILED (%d == %d)' % (version, old_version)
 
-   # Test 7 - Test event (>1 target) causes config retrieval
+   # Test 10 - Test WallabyGroups is updated
+   print 'Testing WallabyGroups was updated: \t\t\t\t',
+   try:
+      value = read_condor_config('WallabyGroups', [], environ={'CONDOR_CONFIG':config_file})['test_param']
+   except:
+      value = 'ERROR'
+   if value == '':
+      print 'PASS'
+   else:
+      print 'FAILED (%s)' % value
+
+   # Test 11 - Test WallabyFeatures is updated
+   print 'Testing WallabyFeatures was updated: \t\t\t\t',
+   try:
+      value = read_condor_config('WallabyFeatures', [], environ={'CONDOR_CONFIG':config_file})['test_param']
+   except:
+      value = 'ERROR'
+   if value == '':
+      print 'PASS'
+   else:
+      print 'FAILED (%s)' % value
+
+   # Test 12 - Test event (>1 target) causes config retrieval
    print 'Testing event (>1 targets) causes config retrieval: \t\t',
    old_version = version
    node.setLastUpdatedVersion(version+1)
@@ -202,7 +279,7 @@ try:
    else:
       print 'FAILED (%d == %d)' % (version, old_version)
 
-   # Test 10 - Test event not for this node does not cause a config retrieval
+   # Test 13 - Test event not for this node does not cause a config retrieval
    print 'Testing not all events cause config retrieval: \t\t\t',
    old_version = version
    node.setLastUpdatedVersion(version+1)
@@ -217,6 +294,8 @@ try:
       print 'PASS (%d == %d)' % (version, old_version)
    else:
       print 'FAILED (%d != %d)' % (version, old_version)
+
+   os.remove('%s/%s' % (override_dir, override_file))
 
 except Exception, error:
    print 'Error: Exception raised: %s' % error

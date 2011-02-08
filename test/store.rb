@@ -50,6 +50,15 @@ module Mrg
                node
             end
 
+            def addExplicitGroup(name)
+               Group.create(:name=>name)
+            end
+
+            expose :addExplicitGroup do |args|
+               args.declare :obj, :objId, :out, "The object ID of the Group object corresponding to the newly-created group."
+               args.declare :name, :sstr, :in, "The name of the newly-created group.  Names beginning with '+++' are reserved for internal use."
+            end
+
             expose :getNode do |args|
                args.declare :obj, :objId, :out, {}
                args.declare :name, :sstr, :in, {}
@@ -120,14 +129,40 @@ module Mrg
             declare_table_name('nodegroup')
             declare_column :name, :string
             declare_column :is_identity_group, :boolean, :default, :false
+            declare_column :feature_list, :object
 
             qmf_property :uid, :uint32, :index=>true
             qmf_property :is_identity_group, :bool
             qmf_property :name, :sstr, :desc=>"This group's name."
             qmf_property :features, :list, :desc=>"A list of features to be applied to this group, from highest to lowest priority."
 
+            def modifyFeatures(command,feats,options={})
+               current_features = self.features
+               command = command.upcase
+               feats = feats - current_features if command == "ADD"
+               case command
+               when "ADD" then
+                  feats.each do |f|
+                     self.feature_list.insert(-1, f)
+                  end
+               when "REMOVE" then
+                  feats.each do |f|
+                     self.feature_list.delete(f)
+                  end
+               when "REPLACE" then
+                  self.feature_list = feats
+               end
+            end
+
+            expose :modifyFeatures do |args|
+               args.declare :command, :sstr, :in, "Valid commands are 'ADD', 'REMOVE', and 'REPLACE'."
+               args.declare :features, :list, :in, "A list of features to apply to this group, in order of decreasing priority."
+               args.declare :options, :map, :in, "No options are supported at this time."
+            end
+
             def features()
-               @feature_list ||= []
+               self.feature_list = [] unless self.feature_list.is_a?(Array)
+               self.feature_list
             end
 
             def Group.DEFAULT_GROUP
@@ -148,6 +183,7 @@ module Mrg
             declare_column :last_checkin, :integer
             declare_column :last_updated_version, :integer
             declare_column :idgroup, :integer, references(Group)
+            declare_column :membership_list, :object
 
             alias def_last_checkin last_checkin
             alias def_last_updated_version last_updated_version
@@ -180,17 +216,37 @@ module Mrg
                ig
             end
 
-            def memberships()
-               db_memberships.map {|g| g.name}
+            def modifyMemberships(command,groups,options={})
+               command = command.upcase
+               case command
+               when "ADD" then
+                  feats.each do |f|
+                     self.membership_list.insert(-1, f)
+                  end
+               when "REMOVE" then
+                  feats.each do |f|
+                     self.membership_list.delete(f)
+                  end
+               when "REPLACE" then
+                  self.membership_list = groups
+               end
             end
 
-            def db_memberships
-               NodeMembership.find_by(:node=>self).map{|nm| nm.grp}.select {|g| not g.is_identity_group}
+            expose :modifyMemberships do |args|
+               args.declare :command, :sstr, :in, "Valid commands are 'ADD', 'REMOVE', and 'REPLACE'."
+               args.declare :groups, :list, :in, "A list of groups, in inverse priority order (most important first)."
+               args.declare :options, :map, :in, "No options are supported at this time."
+            end
+
+            def memberships()
+               self.membership_list = [] unless self.membership_list.is_a?(Array)
+               self.membership_list
             end
 
             qmf_property :memberships, :list, :desc=>"A list of the groups associated with this node, in inverse priority order (most important first), not including the identity group."
 
             def getConfig(options)
+               config["CONFIGD_TEST_PARAM"] = 1
                config["WALLABY_CONFIG_VERSION"] = options['version']
                config
             end
@@ -234,16 +290,6 @@ module Mrg
             end
          end
 
-         class NodeUpdatedNotice
-            include ::SPQR::Raiseable
-               arg :nodes, :map, "A map whose keys are the node names that must update."
-               arg :version, :uint64, "The version of the latest configuration for these nodes."
-
-            qmf_class_name :NodeUpdatedNotice
-            qmf_package_name "com.redhat.grid.config"
-            qmf_severity :notice
-         end
-
          class NodeMembership
             include ::Rhubarb::Persisting
             declare_column :node, :integer, references(Node, :on_delete=>:cascade)
@@ -264,7 +310,6 @@ options[:port] = 5672
 Rhubarb::Persistence::open(":memory:")
 Mrg::Grid::Config::Node.create_table
 Mrg::Grid::Config::Group.create_table
-Mrg::Grid::Config::NodeMembership.create_table
 
 app = SPQR::App.new(options)
 app.register Mrg::Grid::Config::Store,Mrg::Grid::Config::Node,Mrg::Grid::Config::NodeUpdatedNotice,Mrg::Grid::Config::Group

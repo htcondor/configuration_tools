@@ -72,6 +72,14 @@ class EventConsole(Console):
       self.logger_name = log_name
 
 
+   def brokerConnected(self, broker):
+      log(logging.DEBUG, self.logger_name, 'Connected to broker "%s"' % broker.getFullUrl())
+
+
+   def brokerDisconnected(self, broker):
+      log(logging.DEBUG, self.logger_name, 'Lost connection to broker "%s"' % broker.getFullUrl())
+   
+
    def newAgent(self, agent):
       if agent.label == 'com.redhat.grid.config:Store':
          log(logging.DEBUG, self.logger_name, 'Established connection to the configuration store')
@@ -143,26 +151,24 @@ class Service:
       try:
          broker_ip = read_condor_config('CONFIGD', ['QMF_BROKER_HOST'])['qmf_broker_host']
       except ConfigError, error:
-         try:
-            broker_ip = read_condor_config('QMF_BROKER', ['HOST'])['host']
-         except ConfigError, error:
-            # Broker host not defined, so exit
-            log(logging.ERROR, self.logger_name, '%s.  Exiting' % error.msg)
-            return(False)
-
-      if broker_ip.strip() == '':
+         # Broker host not defined, so exit
+         log(logging.WARNING, self.logger_name, '%s' % error.msg)
+         log(logging.WARNING, self.logger_name, 'Using default (127.0.0.1)')
+         broker_ip = '127.0.0.1'
+      except Exception, e:
+         log(logging.WARNING, self.logger_name, '%s' % e)
+         log(logging.WARNING, self.logger_name, 'Using default (127.0.0.1)')
          broker_ip = '127.0.0.1'
 
       try:
          val = read_condor_config('CONFIGD', ['QMF_BROKER_PORT'])
          port = val['qmf_broker_port']
       except ConfigError, error:
-         try:
-            val = read_condor_config('QMF_BROKER', ['PORT'])
-            port = val['port']
-         except ConfigError, error:
-            log(logging.DEBUG, self.logger_name, '%s. Using default (5672)' % error.msg)
-            port = 5672
+         log(logging.DEBUG, self.logger_name, '%s. Using default (5672)' % error.msg)
+         port = 5672
+      except Exception, e:
+         log(logging.DEBUG, self.logger_name, '%s. Using default (5672)' % e)
+         port = 5672
 
       try:
          broker_port = int(port)
@@ -174,12 +180,11 @@ class Service:
          val = read_condor_config('CONFIGD', ['QMF_BROKER_AUTH_MECHANISM'])
          broker_auth_methods = str(val['qmf_broker_auth_mechanism']).replace(',', ' ')
       except ConfigError, error:
-         try:
-            val = read_condor_config('QMF_BROKER', ['AUTH_MECHANISM'])
-            broker_auth_methods = str(val['auth_mechanism']).replace(',', ' ')
-         except ConfigError, error:
-            log(logging.DEBUG, self.logger_name, '%s. Using defaults' % error.msg)
-            broker_auth_methods = 'ANONYMOUS PLAIN GSSAPI'
+         log(logging.DEBUG, self.logger_name, '%s. Using defaults' % error.msg)
+         broker_auth_methods = 'ANONYMOUS PLAIN GSSAPI'
+      except Exception, e:
+         log(logging.DEBUG, self.logger_name, '%s. Using defaults' % e)
+         broker_auth_methods = 'ANONYMOUS PLAIN GSSAPI'
 
       try:
          val = read_condor_config('CONFIGD', ['CHECK_INTERVAL'])
@@ -187,24 +192,36 @@ class Service:
       except ConfigError, error:
          log(logging.INFO, self.logger_name, '%s. Node configuration evaluation disabled' % error.msg)
          self.interval = 0
+      except Exception, e:
+         log(logging.INFO, self.logger_name, e)
+         log(logging.INFO, self.logger_name, 'Invalid check interval. Node configuration evaluation disabled')
+         self.interval = 0
 
       if filename == '':
          try:
-            self.managedfile = read_condor_config('LOCAL_CONFIG', ['FILE'])['file']
-         except:
-            log(logging.ERROR, self.logger_name, 'LOCAL_CONFIG_FILE not defined.  Unable to write configuration file')
+            self.managedfile = read_condor_config('', ['LOCAL_CONFIG_FILE'])['local_config_file']
+         except ConfigError, error:
+            log(logging.ERROR, self.logger_name, '%s.  Unable to write configuration file' % error.msg)
+            return(False)
+         except Exception, e:
+            log(logging.ERROR, self.logger_name, e)
+            log(logging.ERROR, self.logger_name, 'Invalid value for LOCAL_CONFIG_FILE')
             return(False)
       else:
          self.managedfile = filename
       log(logging.DEBUG, self.logger_name, 'Writing configuration file to "%s"' % self.managedfile)
 
       try:
-         self.config_dir = read_condor_config('LOCAL_CONFIG', ['DIR'])['dir']
+         self.config_dir = read_condor_config('', ['LOCAL_CONFIG_DIR'])['local_config_dir']
          if os.access(self.config_dir, os.F_OK) != True or os.access(self.config_dir, os.R_OK) != True:
             log(logging.ERROR, self.logger_name, '"%s" either is not a directory or has incorrect permissions.  Exiting' % self.config_dir)
             return(False)
-      except:
-         log(logging.ERROR, self.logger_name, 'LOCAL_CONFIG_DIR not defined.  Unable to read configuration files.  Exiting')
+      except ConfigError, error:
+         log(logging.ERROR, self.logger_name, '%s.  Unable to read configuration files.  Exiting' % error.msg)
+         return(False)
+      except Exception, e:
+         log(logging.ERROR, self.logger_name, e)
+         log(logging.ERROR, self.logger_name, 'Unable to read configuration files.  Exiting')
          return(False)
 
       try:
@@ -235,7 +252,7 @@ class Service:
             log(logging.CRITICAL, self.logger_name, 'Unable to connect to broker "%s"' % broker_str)
          return(False)
 
-      log(logging.DEBUG, self.logger_name, 'Connected to broker "%s"' % broker_str)
+      log(logging.DEBUG, self.logger_name, 'Connecting to broker "%s"' % broker_str)
       return(True)
 
 
@@ -713,7 +730,7 @@ def main(argv=None):
             return(1)
 
       try:
-         size = int(read_condor_config('MAX_CONFIGD', ['LOG'])['log'])
+         size = int(read_condor_config('', ['MAX_CONFIGD_LOG'])['max_configd_log'])
       except:
          size = 1000000
 
@@ -752,7 +769,8 @@ def main(argv=None):
       # Create the log file
       try:
          base_logger = create_file_logger(logger_name, file['log'], log_level, size=size)
-      except:
+      except Exception, e:
+         print e
          print 'Failed to open log file.  Exiting'
          return(1)
 
@@ -766,7 +784,10 @@ def main(argv=None):
          full_path = os.path.normpath('%s/%s' % (temp_dir, file))
          if old_config_filename in file:
             log(logging.DEBUG, logger_name, 'Deleting temporary configuration file %s' % full_path)
-            os.remove(full_path)
+            try:
+               os.remove(full_path)
+            except Exception, e:
+               log(logging.WARNING, logger_name, e)
 
       # Retrieve the broker information from condor's configuration file
       if service != None:
@@ -850,11 +871,11 @@ def main(argv=None):
             pass
 
       return(stop(0))
-   except:
+   except Exception, e:
+      log(logging.INFO, logger_name, e)
       if service != None:
          service.shutdown()
          del service
-      log(logging.INFO, logger_name, 'Exiting')
       logging.shutdown()
       return(stop(1))
 

@@ -39,7 +39,7 @@ def print_help(name):
    print '                               configuration store'
    print '  -o|--port <port>           - The port of the broker used by the configuration'
    print '                               store'
-   print '  -u|--user <user>           - The username used to authenticate with the broker'
+   print '  -U|--user <user>           - The username used to authenticate with the broker'
    print '  -p|--password <password>   - The password used to authenticate with the broker'
    print '  -m|--auth-mechanism <mech> - A comma separated list of authentication'
    print '                               mechanisms to use when communicating with the'
@@ -82,8 +82,8 @@ def represent_group(self, data):
 
 def configure_node_schedulers(params, is_delete):
    if is_delete == True:
-      params['SCHEDD_NAME'] = ''
-      params['SCHEDD_HOST'] = ''
+      params['SCHEDD_NAME'] = None
+      params['SCHEDD_HOST'] = None
    else: 
       def_sched = raw_input('Enter the name of the default scheduler: ')
       if def_sched != '':
@@ -95,8 +95,8 @@ def configure_node_schedulers(params, is_delete):
 
 def configure_qmf_broker(params, is_delete):
    if is_delete == True:
-      params['QMF_BROKER_HOST'] = ''
-      params['QMF_BROKER_PORT'] = ''
+      params['QMF_BROKER_HOST'] = None
+      params['QMF_BROKER_PORT'] = None
    else:
       value = raw_input('Enter the hostname of the AMQP broker this group will use to communicate with the Management Console: ')
       if value != '':
@@ -774,6 +774,12 @@ def main(argv=None):
          if params != '':
             print 'Warning: Ignoring list of parameters in edit mode'
             params = ''
+         if schedd_prompts == True:
+            print 'Warning: Ignoring request to prompt for schedd information in edit mode'
+            schedd_prompts = False
+         if broker_prompts == True:
+            print 'Warning: Ignoring request to prompt for broker information in edit mode'
+            broker_prompts = False
          preedit_feats = group_obj.features
          preedit_params = group_obj.params
          edit_obj = [WallabyTypes.Group(group_obj.name)]
@@ -918,7 +924,8 @@ def main(argv=None):
             special = ['SCHEDD_NAME', 'SCHEDD_HOST']
             for sparam in special:
                if sparam in all_params.keys() and \
-                  sparam not in replace_list.keys():
+                  (sparam not in replace_list.keys() or \
+                  all_params[sparam] == None):
                   try:
                      del all_params[sparam]
                   except:

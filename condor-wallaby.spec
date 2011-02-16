@@ -1,5 +1,5 @@
 %{!?python_sitelib: %define python_sitelib %(%{__python} -c "from distutils.sysconfig import get_python_lib; print get_python_lib()")}
-%define rel 3
+%define rel 4
 %define ver 3.9
 
 Name: condor-wallaby
@@ -25,7 +25,7 @@ Group: Applications/System
 Requires: condor >= 7.4.4-0.9
 Requires: python >= 2.3
 Requires: python-qmf >= 0.7.946106-9
-Requires: python-condorutils >= 1.4-3
+Requires: python-condorutils >= 1.5
 Requires: python-wallabyclient >= %{ver}-%{rel}
 Obsoletes: condor-remote-configuration
 
@@ -59,7 +59,7 @@ Summary: Tools for interacting with wallaby
 Group: Applications/System
 BuildRequires: python-devel
 Requires: python >= 2.3
-Requires: python-condorutils >= 1.4-3
+Requires: python-condorutils >= 1.5
 %if 0%{?rhel} != 4
 Requires: PyYAML
 %endif
@@ -115,6 +115,13 @@ rm -f %{buildroot}/%{python_sitelib}/wallabyclient/WallabyTypes.py
 %{python_sitelib}/wallabyclient/exceptions.py*
 
 %changelog
+* Tue Feb  8 2011  <rrati@redhat> - 3.9-4
+- Updated dep on python-condorutils to 1.5
+- Fixed help for broker user name for ccp and ccs
+- The configd no longer exits if QMF_BROKER_HOST isn't set.  Instead, it
+  will look for a broker on localhost
+- Improved broker connection/disconnection messages
+
 * Mon Jan 31 2011  <rrati@redhat> - 3.9-3
 - Fixed issue running the configd on python2.3
 - Fixed error if DAEMON_LIST isn't in the configuration pulled from the

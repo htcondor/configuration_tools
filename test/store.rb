@@ -3,6 +3,7 @@
 require 'spqr/spqr'
 require 'spqr/app'
 require 'rhubarb/rhubarb'
+require 'digest/md5'
 
 module Mrg
    module Grid
@@ -49,9 +50,46 @@ module Mrg
                node
             end
 
+#            def addExplicitGroup(name)
+#               Group.create(:name=>name)
+#            end
+#
+#            expose :addExplicitGroup do |args|
+#               args.declare :obj, :objId, :out, "The object ID of the Group object corresponding to the newly-created group."
+#               args.declare :name, :sstr, :in, "The name of the newly-created group.  Names beginning with '+++' are reserved for internal use."
+#            end
+
             expose :getNode do |args|
                args.declare :obj, :objId, :out, {}
                args.declare :name, :sstr, :in, {}
+            end
+
+            def getGroup(query)
+               qentries = query.entries
+               qkind, qkey = query.entries.pop
+               qkind = qkind.upcase
+
+               case qkind
+               when "ID"
+                 grp = Group.find(qkey)
+                 return grp
+               when "NAME"
+                 grp = Group.find_first_by_name(qkey)
+                 return grp
+               end
+            end
+
+            expose :getGroup do |args|
+               args.declare :obj, :objId, :out, "The object ID of the Group object corresponding to the requested group."
+               args.declare :query, :map, :in, "A map from a query type to a query parameter. The queryType can be either 'ID' or 'Name'. 'ID' queryTypes will search for a group with the ID supplied as a parameter. 'Name' queryTypes will search for a group with the name supplied as a parameter."
+            end
+
+            def getDefaultGroup
+               return Group.DEFAULT_GROUP
+            end
+
+            expose :getDefaultGroup do |args|
+               args.declare :obj, :objId, :out, "The object ID of the Group object corresponding to the default group."
             end
 
             def checkNodeValidity(names)
@@ -82,16 +120,63 @@ module Mrg
             end
          end
 
+         class Group
+            include ::Rhubarb::Persisting
+            include ::SPQR::Manageable
+            qmf_package_name 'com.redhat.grid.config'
+            qmf_class_name 'Group'
+
+            declare_table_name('nodegroup')
+            declare_column :name, :string
+            declare_column :is_identity_group, :boolean, :default, :false
+            declare_column :feature_list, :object
+
+            qmf_property :uid, :uint32, :index=>true
+            qmf_property :is_identity_group, :bool
+            qmf_property :name, :sstr, :desc=>"This group's name."
+            qmf_property :features, :list, :desc=>"A list of features to be applied to this group, from highest to lowest priority."
+
+            def modifyFeatures(command,feats,options={})
+               current_features = self.features
+               command = command.upcase
+               feats = feats - current_features if command == "ADD"
+               case command
+               when "ADD" then
+                  self.feature_list = (self.feature_list + feats).uniq
+               when "REMOVE" then
+                  self.feature_list = (self.feature_list - feats).uniq
+               when "REPLACE" then
+                  self.feature_list = feats
+               end
+            end
+
+            expose :modifyFeatures do |args|
+               args.declare :command, :sstr, :in, "Valid commands are 'ADD', 'REMOVE', and 'REPLACE'."
+               args.declare :features, :list, :in, "A list of features to apply to this group, in order of decreasing priority."
+               args.declare :options, :map, :in, "No options are supported at this time."
+            end
+
+            def features()
+               self.feature_list = [] unless self.feature_list.is_a?(Array)
+               self.feature_list
+            end
+
+            def Group.DEFAULT_GROUP
+               (Group.find_first_by_name("+++DEFAULT") or Group.create(:name => "+++DEFAULT"))
+            end
+         end
+
          class Node
             include ::Rhubarb::Persisting
             include ::SPQR::Manageable
-            qmf_package_name 'mrg.grid.config'
+            qmf_package_name 'com.redhat.grid.config'
             qmf_class_name 'Node'
 
             declare_column :name, :string
             declare_column :last_checkin, :integer
             declare_column :last_updated_version, :integer
-
+            declare_column :idgroup, :integer, references(Group)
+            declare_column :membership_list, :object
 
             alias def_last_checkin last_checkin
             alias def_last_updated_version last_updated_version
@@ -107,8 +192,50 @@ module Mrg
             qmf_property :name, :lstr, :index=>true
             qmf_property :last_checkin, :uint64
             qmf_property :last_updated_version, :uint64
+            qmf_property :identity_group, :objId, :desc=>"The object ID of this node's identity group"
+
+            def identity_group
+               self.idgroup ||= id_group_init
+               self.idgroup
+            end
+
+            def idgroupname
+               "+++#{Digest::MD5.hexdigest(self.name)}"
+            end
+
+            def id_group_init
+               ig = Group.find_first_by_name(idgroupname)
+               ig = Group.create(:name=>idgroupname, :is_identity_group=>true) unless ig
+               ig
+            end
+
+            def modifyMemberships(command,groups,options={})
+               command = command.upcase
+               case command
+               when "ADD" then
+                  self.membership_list = (self.membership_list + groups).uniq
+               when "REMOVE" then
+                  self.membership_list = (self.membership_list - groups).uniq
+               when "REPLACE" then
+                  self.membership_list = groups
+               end
+            end
+
+            expose :modifyMemberships do |args|
+               args.declare :command, :sstr, :in, "Valid commands are 'ADD', 'REMOVE', and 'REPLACE'."
+               args.declare :groups, :list, :in, "A list of groups, in inverse priority order (most important first)."
+               args.declare :options, :map, :in, "No options are supported at this time."
+            end
+
+            def memberships()
+               self.membership_list = [] unless self.membership_list.is_a?(Array)
+               self.membership_list
+            end
+
+            qmf_property :memberships, :list, :desc=>"A list of the groups associated with this node, in inverse priority order (most important first), not including the identity group."
 
             def getConfig(options)
+               config["CONFIGD_TEST_PARAM"] = 1
                config["WALLABY_CONFIG_VERSION"] = options['version']
                config
             end
@@ -175,8 +302,9 @@ options[:port] = 5672
 
 Rhubarb::Persistence::open(":memory:")
 Mrg::Grid::Config::Node.create_table
+Mrg::Grid::Config::Group.create_table
 
 app = SPQR::App.new(options)
-app.register Mrg::Grid::Config::Store,Mrg::Grid::Config::Node,Mrg::Grid::Config::NodeUpdatedNotice
+app.register Mrg::Grid::Config::Store,Mrg::Grid::Config::Node,Mrg::Grid::Config::NodeUpdatedNotice,Mrg::Grid::Config::Group
 
 app.main

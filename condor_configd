@@ -92,7 +92,7 @@ class EventConsole(Console):
       if agent.label == 'com.redhat.grid.config:Store':
          if stop_running == False:
             log(logging.DEBUG, self.logger_name, 'Lost connection to the configuration store')
-         self.agent = []
+         self.agent = None
 
 
    def event(self, broker, event):
@@ -133,9 +133,11 @@ class Service:
 
    def init(self, node, name):
       self.console = EventConsole()
-      self.session = Session(self.console, manageConnections=True, rcvObjects=True, rcvHeartbeats=False, rcvEvents=True, userBindings=True)
+      self.session = Session(console=self.console, manageConnections=True, rcvObjects=True, rcvHeartbeats=False, rcvEvents=True, userBindings=True)
       self.session.bindEvent('com.redhat.grid.config', 'NodeUpdatedNotice')
       self.session.bindAgent('com.redhat.grid.config', 'Store')
+      # Newer QMF api version
+#      self.session.bindAgent(label='com.redhat.grid.config:Store')
       self.logger_name = name
       self.node_name = node
       self.console.config(self.node_name, self.logger_name)

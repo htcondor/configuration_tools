@@ -50,14 +50,14 @@ module Mrg
                node
             end
 
-            def addExplicitGroup(name)
-               Group.create(:name=>name)
-            end
-
-            expose :addExplicitGroup do |args|
-               args.declare :obj, :objId, :out, "The object ID of the Group object corresponding to the newly-created group."
-               args.declare :name, :sstr, :in, "The name of the newly-created group.  Names beginning with '+++' are reserved for internal use."
-            end
+#            def addExplicitGroup(name)
+#               Group.create(:name=>name)
+#            end
+#
+#            expose :addExplicitGroup do |args|
+#               args.declare :obj, :objId, :out, "The object ID of the Group object corresponding to the newly-created group."
+#               args.declare :name, :sstr, :in, "The name of the newly-created group.  Names beginning with '+++' are reserved for internal use."
+#            end
 
             expose :getNode do |args|
                args.declare :obj, :objId, :out, {}
@@ -142,13 +142,9 @@ module Mrg
                feats = feats - current_features if command == "ADD"
                case command
                when "ADD" then
-                  feats.each do |f|
-                     self.feature_list.insert(-1, f)
-                  end
+                  self.feature_list = (self.feature_list + feats).uniq
                when "REMOVE" then
-                  feats.each do |f|
-                     self.feature_list.delete(f)
-                  end
+                  self.feature_list = (self.feature_list - feats).uniq
                when "REPLACE" then
                   self.feature_list = feats
                end
@@ -168,9 +164,6 @@ module Mrg
             def Group.DEFAULT_GROUP
                (Group.find_first_by_name("+++DEFAULT") or Group.create(:name => "+++DEFAULT"))
             end
-         end
-
-         class NodeMembership
          end
 
          class Node
@@ -220,13 +213,9 @@ module Mrg
                command = command.upcase
                case command
                when "ADD" then
-                  feats.each do |f|
-                     self.membership_list.insert(-1, f)
-                  end
+                  self.membership_list = (self.membership_list + groups).uniq
                when "REMOVE" then
-                  feats.each do |f|
-                     self.membership_list.delete(f)
-                  end
+                  self.membership_list = (self.membership_list - groups).uniq
                when "REPLACE" then
                   self.membership_list = groups
                end
@@ -290,10 +279,14 @@ module Mrg
             end
          end
 
-         class NodeMembership
-            include ::Rhubarb::Persisting
-            declare_column :node, :integer, references(Node, :on_delete=>:cascade)
-            declare_column :grp, :integer, references(Group, :on_delete=>:cascade)
+         class NodeUpdatedNotice
+            include ::SPQR::Raiseable
+               arg :nodes, :map, "A map whose keys are the node names that must update."
+               arg :version, :uint64, "The version of the latest configuration for these nodes."
+
+            qmf_class_name :NodeUpdatedNotice
+            qmf_package_name "com.redhat.grid.config"
+            qmf_severity :notice
          end
       end
    end

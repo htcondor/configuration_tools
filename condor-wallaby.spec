@@ -24,7 +24,7 @@ Summary: Wallaby configuration client for condor
 Group: Applications/System
 Requires: condor >= 7.4.4-0.9
 Requires: python >= 2.3
-Requires: python-qmf >= 0.7.946106-9
+Requires: python-qmf >= 0.9.1073306
 Requires: python-condorutils >= 1.5
 Requires: python-wallabyclient >= %{ver}-%{rel}
 Obsoletes: condor-remote-configuration
@@ -41,7 +41,7 @@ This package provides the tools needed for managed clients
 Summary: Wallaby configuration tools for configuring condor
 Group: Applications/System
 Requires: python >= 2.4
-Requires: python-qmf >= 0.7.946106
+Requires: python-qmf >= 0.9.1073306
 Requires: python-wallabyclient >= %{ver}-%{rel}
 Requires: PyYAML
 Obsoletes: condor-remote-configuration-server

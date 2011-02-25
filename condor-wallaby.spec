@@ -1,5 +1,5 @@
 %{!?python_sitelib: %define python_sitelib %(%{__python} -c "from distutils.sysconfig import get_python_lib; print get_python_lib()")}
-%define rel 1
+%define rel 2
 %define ver 4.0
 
 Name: condor-wallaby
@@ -115,6 +115,9 @@ rm -f %{buildroot}/%{python_sitelib}/wallabyclient/WallabyTypes.py
 %{python_sitelib}/wallabyclient/exceptions.py*
 
 %changelog
+* Fri Feb 25 2011  <rrati@redhat> - 4.0-2
+- Fixed syntax error
+
 * Fri Feb 25 2011  <rrati@redhat> - 4.0-1
 - Updated dep on python-qmf
 - Fixed issue with --schedds and --qmfbroker adding params during a delete

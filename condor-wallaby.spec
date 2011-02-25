@@ -1,6 +1,6 @@
 %{!?python_sitelib: %define python_sitelib %(%{__python} -c "from distutils.sysconfig import get_python_lib; print get_python_lib()")}
-%define rel 4
-%define ver 3.9
+%define rel 1
+%define ver 4.0
 
 Name: condor-wallaby
 Summary: Condor configuration using wallaby
@@ -115,6 +115,13 @@ rm -f %{buildroot}/%{python_sitelib}/wallabyclient/WallabyTypes.py
 %{python_sitelib}/wallabyclient/exceptions.py*
 
 %changelog
+* Fri Feb 25 2011  <rrati@redhat> - 4.0-1
+- Updated dep on python-qmf
+- Fixed issue with --schedds and --qmfbroker adding params during a delete
+  operation.
+- condor_configure_pool will now prompt for must_change params on included
+  features
+
 * Tue Feb  8 2011  <rrati@redhat> - 3.9-4
 - Updated dep on python-condorutils to 1.5
 - Fixed help for broker user name for ccp and ccs

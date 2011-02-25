@@ -450,6 +450,7 @@ class Service:
             # Write the config from the store into the file
             for key in config.keys():
                if key.strip().lower() in ignore_params:
+                  continue
                if key.strip().lower() == 'dc_daemon_list':
                   os.write(file_hdl, '%s =+ %s\n' % (key, config[key]))
                else:

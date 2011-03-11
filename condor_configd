@@ -209,6 +209,7 @@ class Service:
             return(False)
       else:
          self.managedfile = filename
+      self.managedfile = os.path.normpath(self.managedfile)
       log(logging.DEBUG, self.logger_name, 'Writing configuration file to "%s"' % self.managedfile)
 
       try:
@@ -561,7 +562,7 @@ class Service:
          if os.name == 'nt' or os.name == 'ce':
             try:
                (retval, out, err) = run_cmd('icacls %s /grant Everyone:(R)' % self.managedfile)
-               if ret_val != 0:
+               if retval != 0:
                   log(logging.ERROR, self.logger_name, 'Failed to set read permissions on "%s" (stdout = %s, stderr = %s)' % (self.managedfile, out, err))
             except Exception, e:
                # The command on exists, and is needed, on newer versions of

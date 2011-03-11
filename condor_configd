@@ -565,7 +565,7 @@ class Service:
                if retval != 0:
                   log(logging.ERROR, self.logger_name, 'Failed to set read permissions on "%s" (stdout = %s, stderr = %s)' % (self.managedfile, out, err))
             except Exception, e:
-               # The command on exists, and is needed, on newer versions of
+               # The command exists, and is needed, on newer versions of
                # windows that need to have the permissions changed.  If it
                # fails or doesn't exist, log data and move on
                log(logging.WARNING, self.logger_name, e)

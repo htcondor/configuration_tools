@@ -1,5 +1,5 @@
 %{!?python_sitelib: %define python_sitelib %(%{__python} -c "from distutils.sysconfig import get_python_lib; print get_python_lib()")}
-%define rel 2
+%define rel 3
 %define ver 4.0
 
 Name: condor-wallaby
@@ -25,8 +25,8 @@ Group: Applications/System
 Requires: condor >= 7.4.4-0.9
 Requires: python >= 2.3
 Requires: python-qmf >= 0.9.1073306
-Requires: python-condorutils >= 1.5
-Requires: python-wallabyclient >= %{ver}-%{rel}
+Requires: python-condorutils >= 1.5-2
+Requires: python-wallabyclient = %{ver}-%{rel}%{?dist}
 Obsoletes: condor-remote-configuration
 
 %description client
@@ -42,7 +42,7 @@ Summary: Wallaby configuration tools for configuring condor
 Group: Applications/System
 Requires: python >= 2.4
 Requires: python-qmf >= 0.9.1073306
-Requires: python-wallabyclient >= %{ver}-%{rel}
+Requires: python-wallabyclient >= %{ver}-%{rel}%{?dist}
 Requires: PyYAML
 Obsoletes: condor-remote-configuration-server
 
@@ -59,7 +59,7 @@ Summary: Tools for interacting with wallaby
 Group: Applications/System
 BuildRequires: python-devel
 Requires: python >= 2.3
-Requires: python-condorutils >= 1.5
+Requires: python-condorutils >= 1.5-2
 %if 0%{?rhel} != 4
 Requires: PyYAML
 %endif
@@ -115,6 +115,12 @@ rm -f %{buildroot}/%{python_sitelib}/wallabyclient/WallabyTypes.py
 %{python_sitelib}/wallabyclient/exceptions.py*
 
 %changelog
+* Mon Mar 14 2011  <rrati@redhat> - 4.0-3
+- Removed setting write permissions for user/group on the file written by
+  the configd.
+- Set the perms on windows machines so Everyone has read access
+- Handle SIGHUP on *nix
+
 * Fri Feb 25 2011  <rrati@redhat> - 4.0-2
 - Fixed syntax error
 

@@ -103,7 +103,6 @@ def main(argv=None):
    passwd = ''
    verbose = False
    mechanisms = 'ANONYMOUS PLAIN GSSAPI'
-   supported_api_versions = {20100804:0, 20100915:0, 20101031:1}
 
    # Set signal handlers
    signal.signal(signal.SIGINT, exit_signal_handler)
@@ -222,18 +221,6 @@ def main(argv=None):
       return(1)
 
    try:
-      # Check API version number
-      try:
-         WallabyHelpers.verify_store_api(config_store, supported_api_versions)
-      except WallabyUnsupportedAPI, error:
-         if error.minor == 0:
-            store_api_version = error.major
-         else:
-            store_api_version = '%s.%s' % (error.major, error.minor)
-         print 'The store is using an API version that is not supported (%s)' % store_api_version
-         session.delBroker(broker)
-         return(1)
-
       # Process the list-alls, if there are any.
       if action == 'list-all':
          ret_val = 0

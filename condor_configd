@@ -257,27 +257,6 @@ class Service:
       return(True)
 
 
-   def check_store_api(self):
-      global stop_running
-      supported_api_versions = {20100804:0, 20100915:0, 20101031:1}
-
-      store = self.get_store_obj()
-      if store == None:
-         return(False)
-
-      # Check API version number
-      try:
-         WallabyHelpers.verify_store_api(store, supported_api_versions)
-      except WallabyUnsupportedAPI, error:
-         if error.minor == 0:
-            store_api_version = error.major
-         else:
-            store_api_version = '%s.%s' % (error.major, error.minor)
-         log(logging.CRITICAL, self.logger_name, 'The store is using an API version that is not supported (%s)' % store_api_version)
-         return(False)
-      return(True)
-
-
    def get_store_obj(self):
       global stop_running
 
@@ -825,10 +804,6 @@ def main(argv=None):
          log(logging.DEBUG, logger_name, 'Found the store agent')
 
       if service != None:
-         if service.check_store_api() == False:
-            exit_signal_handler(0, 0)
-            return(stop(1))
-
          if retrieve == True:
             if service.check_config_ver(force=True) == False:
                print 'Error: Unable to retrieve configuration'

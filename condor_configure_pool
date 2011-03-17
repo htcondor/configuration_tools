@@ -124,7 +124,6 @@ def get_ec2e_routes():
       config += ' [ GridResource = "condor localhost $(COLLECTOR_HOST)";'
       config += ' Name = "Amazon Small";'
       config += ' requirements=target.WantAWS is true && (target.Universe is vanilla || target.Universe is 5) && (target.WantArch is "INTEL" || target.WantArch is UNDEFINED) && (target.WantCpus <= 1 || target.WantCpus is UNDEFINED) && (target.WantMemory < 1.7 || target.WantMemory is UNDEFINED) && (target.WantDisk < 160 || target.WantDisk is UNDEFINED);'
-      config += ' set_gridresource = "amazon";'
       config += ' set_amazoninstancetype = "m1.small";'
       config += ' set_remote_jobuniverse = 5;'
       config += get_aws_data()
@@ -135,7 +134,6 @@ def get_ec2e_routes():
       config += ' [ GridResource = "condor localhost $(COLLECTOR_HOST)";'
       config += ' Name = "Amazon High-CPU Medium";'
       config += ' requirements=target.WantAWS is true && (target.Universe is vanilla || target.Universe is 5) && (target.WantArch is "INTEL" || target.WantArch is UNDEFINED) && ((target.WantCpus > 1 && target.WantCpus <= 5) || (target.WantDisk > 160 && target.WantDisk <= 350));'
-      config += ' set_gridresource = "amazon";'
       config += ' set_amazoninstancetype = "c1.medium";'
       config += ' set_remote_jobuniverse = 5;'
       config += get_aws_data()
@@ -146,7 +144,6 @@ def get_ec2e_routes():
       config += ' [ GridResource = "condor localhost $(COLLECTOR_HOST)";'
       config += ' Name = "Amazon High-CPU Extra Large";'
       config += ' requirements=target.WantAWS is true && (target.Universe is vanilla || target.Universe is 5) && target.WantArch is "X86_64" && target.WantCpus > 8 && target.WantCpus <= 20 && (target.WantMemory <= 7 || target.WantMemory is UNDEFINED) && (target.WantDisk <= 1690 || target.WantDisk is UNDEFINED);'
-      config += ' set_gridresource = "amazon";'
       config += ' set_amazoninstancetype = "c1.xlarge";'
       config += ' set_remote_jobuniverse = 5;'
       config += get_aws_data()
@@ -157,7 +154,6 @@ def get_ec2e_routes():
       config += ' [ GridResource = "condor localhost $(COLLECTOR_HOST)";'
       config += ' Name = "Amazon XLarge";'
       config += ' requirements=target.WantAWS is true && (target.Universe is vanilla || target.Universe is 5) && target.WantArch is "X86_64" && ((target.WantMemory > 7.5 && target.WantMemory <= 15) || (target.WantDisk > 850 && target.WantDisk < 1690) || (target.WantCpus > 4 && target.WantCpus <= 8));'
-      config += ' set_gridresource = "amazon";'
       config += ' set_amazoninstancetype = "m1.xlarge";'
       config += ' set_remote_jobuniverse = 5;'
       config += get_aws_data()
@@ -168,7 +164,6 @@ def get_ec2e_routes():
       config += ' [ GridResource = "condor localhost $(COLLECTOR_HOST)";'
       config += ' Name = "Amazon Large";'
       config += ' requirements=target.WantAWS is true && (target.Universe is vanilla || target.Universe is 5) && target.WantArch is "X86_64" && (target.WantCpus <= 4 || target.WantCpus is UNDEFINED) && (target.WantMemory <= 7.5 || target.WantMemory is UNDEFINED) && (target.WantDisk <= 850 || target.WantDisk is UNDEFINED);'
-      config += ' set_gridresource = "amazon";'
       config += ' set_amazoninstancetype = "m1.large";'
       config += ' set_remote_jobuniverse = 5;'
       config += get_aws_data()

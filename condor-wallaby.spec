@@ -1,5 +1,5 @@
 %{!?python_sitelib: %define python_sitelib %(%{__python} -c "from distutils.sysconfig import get_python_lib; print get_python_lib()")}
-%define rel 3
+%define rel 4
 %define ver 4.0
 
 Name: condor-wallaby
@@ -115,6 +115,10 @@ rm -f %{buildroot}/%{python_sitelib}/wallabyclient/WallabyTypes.py
 %{python_sitelib}/wallabyclient/exceptions.py*
 
 %changelog
+* Wed Mar 30 2011  <rrati@redhat> - 4.0-4
+- Removed API version check
+- Fixed EC2E configuration for use with ec2_gahp
+
 * Mon Mar 14 2011  <rrati@redhat> - 4.0-3
 - Removed setting write permissions for user/group on the file written by
   the configd.

@@ -762,6 +762,13 @@ def main(argv=None):
             os.setregid(pw_data[3], pw_data[3])
             os.setreuid(pw_data[2], pw_data[2])
 
+      if os.name == 'nt' or os.name == 'ce':
+         # Need to set a Timer for shutdown on windows
+         log(logging.INFO, logger_name, 'Setting windows shutdown Timer')
+         shutdown_interval = int(read_condor_config('CONFIGD', ['WIN_INTERVAL'])['win_interval'])
+         shutdown_timer = Timer(shutdown_interval,test_for_shutdown)
+         shutdown_timer.start()
+
       # Create the log file
       try:
          base_logger = create_file_logger(logger_name, file['log'], log_level, size=size)
@@ -816,13 +823,6 @@ def main(argv=None):
          time.sleep(random.randint(0, 10))
          service.check_config_ver()
          service.setup_timers()
-
-      if os.name == 'nt' or os.name == 'ce':
-         # Need to set a Timer for shutdown on windows
-         log(logging.INFO, logger_name, 'Setting windows shutdown Timer')
-         shutdown_interval = int(read_condor_config('CONFIGD', ['WIN_INTERVAL'])['win_interval'])
-         shutdown_timer = Timer(shutdown_interval,test_for_shutdown)
-         shutdown_timer.start()
 
       # Loop forever until told to shutdown
       while stop_running == False or replacing_file == True:

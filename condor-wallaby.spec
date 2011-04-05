@@ -1,5 +1,5 @@
 %{!?python_sitelib: %define python_sitelib %(%{__python} -c "from distutils.sysconfig import get_python_lib; print get_python_lib()")}
-%define rel 4
+%define rel 5
 %define ver 4.0
 
 Name: condor-wallaby
@@ -115,6 +115,10 @@ rm -f %{buildroot}/%{python_sitelib}/wallabyclient/WallabyTypes.py
 %{python_sitelib}/wallabyclient/exceptions.py*
 
 %changelog
+* Tue Apr  5 2011  <rrati@redhat> - 4.0-5
+- Fixed issue with configd clean shutdown on windows when QMF_BROKER_HOST set
+  incorrectly
+
 * Wed Mar 30 2011  <rrati@redhat> - 4.0-4
 - Removed API version check
 - Fixed EC2E configuration for use with ec2_gahp

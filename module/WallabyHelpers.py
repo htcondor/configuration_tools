@@ -189,8 +189,11 @@ def get_subsys(sess, store, name):
 
 
 def list_feature_info(sess, store, feature):
+   ret = 0
    feat_obj = get_feature(sess, store, feature)
-   if feat_obj != None:
+   if feat_obj == None:
+      ret = 1
+   else:
       print 'Feature "%s":' % feature
       print 'Feature ID: %s' % feat_obj.getIndex()
       print 'Name: %s' % feat_obj.name
@@ -217,11 +220,15 @@ def list_feature_info(sess, store, feature):
       for key in value:
          print '  %s: %s' % (i, key)
          i = i + 1
+   return(ret)
 
 
 def list_param_info(sess, store, name):
+   ret = 0
    param_obj = get_param(sess, store, name)
-   if param_obj != None:
+   if param_obj == None:
+      ret = 1
+   else:
       print 'Parameter "%s":' % name
       print 'Name: %s' % param_obj.getIndex()
       print 'Type: %s' % param_obj.kind
@@ -241,11 +248,15 @@ def list_param_info(sess, store, name):
       print 'Conflicts:'
       for key in param_obj.conflicts:
          print '  %s' % key
+   return(ret)
 
 
 def list_group_info(sess, store, group):
+   ret = 0
    group_obj = get_group(sess, store, group)
-   if group_obj != None:
+   if group_obj == None:
+      ret = 1
+   else:
       if group == '+++DEFAULT':
          group = 'Internal Default Group'
       print 'Group "%s":' % group
@@ -273,11 +284,15 @@ def list_group_info(sess, store, group):
       print 'Parameters:'
       for key in value.keys():
          print '  %s = %s' % (key, value[key])
+   return(ret)
 
 
 def list_node_info(sess, store, name, verbose=False):
+   ret = 0
    node_obj = get_node(sess, store, name)
-   if node_obj != None:
+   if node_obj == None:
+      ret = 1
+   else:
       print 'Node "%s":' % name
       value = node_obj.last_checkin
       if value == 0:
@@ -314,15 +329,20 @@ def list_node_info(sess, store, name, verbose=False):
             value = result.outArgs['config']
             for key in value.keys():
                print '  %s = %s' % (key, value[key])
+   return(ret)
 
 
 def list_subsys_info(sess, store, name):
+   ret = 0
    subsys_obj = get_subsys(sess, store, name)
-   if subsys_obj != None:
+   if subsys_obj == None:
+      ret = 1
+   else:
       print 'Subsystem "%s":' % name
       print 'Included Parameters:'
       for key in subsys_obj.params:
          print '  %s' % key
+   return(ret)
 
 
 def list_all_objs(store, type, package='com.redhat.grid.config'):

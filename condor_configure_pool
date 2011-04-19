@@ -453,14 +453,17 @@ def save_snapshot(store, name):
    result = store.makeSnapshot(name)
    if result.status != 0:
       print 'Error: Problem saving configuration in store (%d, %s)' % (result.status, result.text)
+      return(1)
    else: 
       print 'Configuration saved'
+      return(0)
 
 
 def main(argv=None):
    if argv is None:
       argv = sys.argv
 
+   ret_val = 0
    action = ''
    features = []
    removed_features = []
@@ -699,28 +702,28 @@ def main(argv=None):
          session.delBroker(broker)
          return(0)
       elif action == 'take-snapshot':
-         save_snapshot(config_store, snapshot_name)
+         ret_val = save_snapshot(config_store, snapshot_name)
          session.delBroker(broker)
-         return(0)
+         return(ret_val)
 
-      # Perform list opertions
+      # Perform list operations
       if action == 'list':
          if name != '':
             # Provide the configuration for the group/node
             if is_node == True:
-               WallabyHelpers.list_node_info(session, config_store, name, verbose)
+               ret_val = WallabyHelpers.list_node_info(session, config_store, name, verbose) or ret_val
             else:
-               WallabyHelpers.list_group_info(session, config_store, name)
+               ret_val = WallabyHelpers.list_group_info(session, config_store, name) or ret_val
          if features != []:
             # Provide the configuration for the features
             for feat in features:
                print 'Configuration for feature %s:' % feat
-               WallabyHelpers.list_feature_info(session, config_store, feat)
+               ret_val = WallabyHelpers.list_feature_info(session, config_store, feat) or ret_val
          for param in params.split(','):
-            WallabyHelpers.list_param_info(session, config_store, param)
+            ret_val = WallabyHelpers.list_param_info(session, config_store, param) or ret_val
                
          session.delBroker(broker)
-         return(0)
+         return(ret_val)
 
       # If configuring a single node, grab that node's identity group and
       # act upon that
@@ -935,12 +938,14 @@ def main(argv=None):
                   retry = True
                   print 'Invalid snapshot name'
                   continue 
-               save_snapshot(config_store, config_name.strip())
+               if save_snapshot(config_store, config_name.strip()) != 0:
+                  ret_val = 1
    
          if raw_input('\nActivate the changes [y/N] ? ').lower() == 'y':
             if activate_configuration(config_store) == True and \
                config_name == '':
-               save_snapshot(config_store, '')
+               if save_snapshot(config_store, '') != 0:
+                  ret_val = 1
          else: 
             print 'Configuration not activated'
       else:
@@ -949,11 +954,10 @@ def main(argv=None):
       print 'Exception received when communicating with the configuration store'
       print 'This could be because of a communcation issue, or because the'
       print 'configuration store was taking too long to complete a task'
-      session.delBroker(broker)
-      return(1)
+      ret_val = 1
 
    session.delBroker(broker)
-   return(0)
+   return(ret_val)
 
 if __name__ == '__main__':
     sys.exit(main())

@@ -1,5 +1,5 @@
 %{!?python_sitelib: %define python_sitelib %(%{__python} -c "from distutils.sysconfig import get_python_lib; print get_python_lib()")}
-%define rel 5
+%define rel 6
 %define ver 4.0
 
 Name: condor-wallaby
@@ -115,6 +115,11 @@ rm -f %{buildroot}/%{python_sitelib}/wallabyclient/WallabyTypes.py
 %{python_sitelib}/wallabyclient/exceptions.py*
 
 %changelog
+* Mon Apr 25 2011  <rrati@redhat> - 4.0-6
+- Fix permissions in 99configd.config for ALLOW_ADMINISTRATOR
+- The list_* methods return 0 for success, 1 for failure.
+- Failure cases in the pool/store tools correctly return non-zero values
+
 * Tue Apr  5 2011  <rrati@redhat> - 4.0-5
 - Fixed issue with configd clean shutdown on windows when QMF_BROKER_HOST set
   incorrectly

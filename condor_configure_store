@@ -468,6 +468,7 @@ def main(argv=None):
                      entry.__class__ == pre_edit_objs[total_objs].__class__ and \
                      entry.get_name() == pre_edit_objs[total_objs].get_name():
                      try:
+                        entry.init_internal_vars()
                         entry.validate(pre_edit_objs[total_objs])
                      except ValidateWarning, warning:
                         for msg in warning.warnings.keys():
@@ -490,12 +491,15 @@ def main(argv=None):
             invalids = {}
             errors = {}
             ask_for_default = {}
+            invalid_objs = []
             for edited in edit_objs:
                try:
                   edited.store_validate(config_store)
                except WallabyValidateError, error:
                   for type in error.invalids.keys():
                      if error.invalids[type] != []:
+                        if not edited in invalid_objs:
+                           invalid_objs += [edited]
                         for item in error.invalids[type]:
                            try:
                               if item not in invalids[type]:
@@ -513,6 +517,7 @@ def main(argv=None):
                   print '  %d: ' % err,
                   for line in errors[err].split('\\n'):
                      print '%s' % line
+               return(1)
 
             if invalids != {}:
                print 'The store does not know about the following items:'
@@ -551,6 +556,20 @@ def main(argv=None):
                            edit_obj.init_from_obj(obj)
                            edit_objs += [edit_obj]
                   continue
+               else:
+                  # The invalid items weren't added to the store, so remove
+                  # them from being asked for default values
+                  if invalids.has_key('Parameter'):
+                     for item in invalids['Parameter']:
+                        for obj in ask_for_default.keys():
+                           if item in ask_for_default[obj]:
+                              del ask_for_default[obj][item]
+
+                  # Remove all invalid entries for all objects containing
+                  # invalid data
+                  for obj in invalid_objs:
+                     print 'Removing invalid changes from "%s"' % obj.get_name()
+                     obj.remove_invalids()
 
             if ask_for_default != {}:
                for obj in ask_for_default.keys():

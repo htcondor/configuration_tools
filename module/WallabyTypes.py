@@ -29,6 +29,11 @@ def print_wallaby_types(data):
 class WallabyBaseObject(YAMLObject):
    def __init__(self, name):
       self.name = name
+      self.init_internal_vars()
+
+
+   def init_internal_vars(self):
+      self.invalid = {}
 
 
    def get_name(self):
@@ -70,6 +75,7 @@ class Feature(WallabyBaseObject):
 
 
    def init_from_obj(self, obj):
+      WallabyBaseObject.__init__(self, str(obj.name))
       param_meta = obj.param_meta
       for meta in param_meta.keys():
          if param_meta[meta]['uses_default'] == True:
@@ -92,18 +98,17 @@ class Feature(WallabyBaseObject):
 
 
    def store_validate(self, store):
-      invalid = {}
       errors = {}
       ask_default = []
 
+      self.invalid['Parameter'] = []
       if self.params != None and isinstance(self.params, dict):
          result = store.checkParameterValidity(self.params.keys())
-         invalid['Parameter'] = []
          if result.status != 0:
             errors[result.status] = result.text
          else:
             if result.outArgs['invalidParameters'] != []:
-               invalid['Parameter'] = result.outArgs['invalidParameters']
+               self.invalid['Parameter'] = result.outArgs['invalidParameters']
 
          for p in self.params.keys():
             if self.params[p] != None and \
@@ -111,14 +116,14 @@ class Feature(WallabyBaseObject):
                self.params[p].strip() == '':
                ask_default += [p]
 
-      invalid['Feature'] = []
+      self.invalid['Feature'] = []
       if self.includes != None and isinstance(self.includes, list):
          result = store.checkFeatureValidity(self.includes)
          if result.status != 0:
             errors[result.status] = result.text
          else:
             if result.outArgs['invalidFeatures'] != []:
-               invalid['Feature'] = result.outArgs['invalidFeatures']
+               self.invalid['Feature'] = result.outArgs['invalidFeatures']
 
       if self.conflicts != None and isinstance(self.conflicts, list):
          result = store.checkFeatureValidity(self.conflicts)
@@ -126,7 +131,7 @@ class Feature(WallabyBaseObject):
             errors[result.status] = result.text
          else:
             if result.outArgs['invalidFeatures'] != []:
-               invalid['Feature'] = invalid['Feature'] + result.outArgs['invalidFeatures']
+               self.invalid['Feature'] = self.invalid['Feature'] + result.outArgs['invalidFeatures']
 
       if self.depends != None and isinstance(self.depends, list):
          result = store.checkFeatureValidity(self.depends)
@@ -134,14 +139,40 @@ class Feature(WallabyBaseObject):
             errors[result.status] = result.text
          else:
             if result.outArgs['invalidFeatures'] != []:
-               invalid['Feature'] = invalid['Feature'] + result.outArgs['invalidFeatures']
+               self.invalid['Feature'] = self.invalid['Feature'] + result.outArgs['invalidFeatures']
 
-      if invalid != {} or errors != {} or ask_default != []:
-         raise WallabyValidateError(invalid, errors, ask_default)
+      if self.invalid != {} or errors != {} or ask_default != []:
+         raise WallabyValidateError(self.invalid, errors, ask_default)
 
 
    def set_use_default_val(self, name):
       self.params[name.strip()] = 0
+
+
+   def remove_invalids(self):
+      for key in self.invalid.keys():
+         for item in self.invalid[key]:
+            if key == 'Parameter':
+               try:
+                  del self.params[item]
+               except: 
+                  pass
+            elif key == 'Feature':
+               try:
+                  while (1):
+                     self.includes.remove(item)
+               except: 
+                  pass
+               try:
+                  while (1):
+                     self.conflicts.remove(item)
+               except: 
+                  pass
+               try:
+                  while (1):
+                     self.depends.remove(item)
+               except: 
+                  pass
 
 
    def update(self, obj):
@@ -193,6 +224,7 @@ class Parameter(WallabyBaseObject):
 
 
    def init_from_obj(self, obj):
+      WallabyBaseObject.__init__(self, str(obj.name))
       self.type = str(obj.kind)
       self.default = str(obj.default)
       self.description = str(obj.description)
@@ -225,17 +257,16 @@ class Parameter(WallabyBaseObject):
 
 
    def store_validate(self, store):
-      invalid = {}
       errors = {}
 
-      invalid['Parameter'] = []
+      self.invalid['Parameter'] = []
       if self.depends != None and isinstance(self.depends, list):
          result = store.checkParameterValidity(self.depends)
          if result.status != 0:
             errors[result.status] = result.text
          else:
             if result.outArgs['invalidParameters'] != []:
-               invalid['Parameter'] = result.outArgs['invalidParameters']
+               self.invalid['Parameter'] = result.outArgs['invalidParameters']
 
       if self.conflicts != None and isinstance(self.conflicts, list):
          result = store.checkParameterValidity(self.conflicts)
@@ -243,10 +274,25 @@ class Parameter(WallabyBaseObject):
             errors[result.status] = result.text
          else:
             if result.outArgs['invalidParameters'] != []:
-               invalid['Parameter'] = invalid['Parameter'] + result.outArgs['invalidParameters']
+               self.invalid['Parameter'] = self.invalid['Parameter'] + result.outArgs['invalidParameters']
 
-      if invalid != {} or errors != {}:
-         raise WallabyValidateError(invalid, errors, [])
+      if self.invalid != {} or errors != {}:
+         raise WallabyValidateError(self.invalid, errors, [])
+
+
+   def remove_invalids(self):
+      for key in self.invalid.keys():
+         for item in self.invalid[key]:
+            try:
+               while (1):
+                  self.conflicts.remove(item)
+            except: 
+               pass
+            try:
+               while (1):
+                  self.depends.remove(item)
+            except: 
+               pass
 
 
    def update(self, obj):
@@ -316,7 +362,7 @@ class Node(WallabyBaseObject):
 
 
    def init_from_obj(self, obj):
-      self.name = str(obj.name)
+      WallabyBaseObject.__init__(self, str(obj.name))
       self.memberships = list(obj.memberships)
 
 
@@ -326,7 +372,6 @@ class Node(WallabyBaseObject):
 
 
    def store_validate(self, store):
-      invalid = {}
       errors = {}
 
       if self.memberships != None and isinstance(self.memberships, list):
@@ -335,10 +380,20 @@ class Node(WallabyBaseObject):
             errors[result.status] = result.text
          else:
             if result.outArgs['invalidGroups'] != []:
-               invalid['Group'] = result.outArgs['invalidGroups']
+               self.invalid['Group'] = result.outArgs['invalidGroups']
 
-      if invalid != {} or errors != {}:
-         raise WallabyValidateError(invalid, errors, [])
+      if self.invalid != {} or errors != {}:
+         raise WallabyValidateError(self.invalid, errors, [])
+
+
+   def remove_invalids(self):
+      for key in self.invalid.keys():
+         for item in self.invalid[key]:
+            try:
+               while (1):
+                  self.memberships.remove(item)
+            except:
+               pass
 
 
    def update(self, obj):
@@ -371,7 +426,7 @@ class Subsystem(WallabyBaseObject):
 
 
    def init_from_obj(self, obj):
-      self.name = str(obj.name)
+      WallabyBaseObject.__init__(self, str(obj.name))
       self.params = list(obj.params)
 
 
@@ -381,7 +436,6 @@ class Subsystem(WallabyBaseObject):
 
 
    def store_validate(self, store):
-      invalid = {}
       errors = {}
 
       if self.params != None and isinstance(self.params, list):
@@ -390,10 +444,20 @@ class Subsystem(WallabyBaseObject):
             errors[result.status] = result.text
          else:
             if result.outArgs['invalidParameters'] != []:
-               invalid['Parameter'] = result.outArgs['invalidParameters']
+               self.invalid['Parameter'] = result.outArgs['invalidParameters']
 
-      if invalid != {} or errors != {}:
-         raise WallabyValidateError(invalid, errors, [])
+      if self.invalid != {} or errors != {}:
+         raise WallabyValidateError(self.invalid, errors, [])
+
+
+   def remove_invalids(self):
+      for key in self.invalid.keys():
+         for item in self.invalid[key]:
+            try:
+               while (1):
+                  self.params.remove(item)
+            except:
+               pass
 
 
    def update(self, obj):
@@ -429,9 +493,10 @@ class Group(WallabyBaseObject):
 
    def init_from_obj(self, obj):
       if obj.name == '+++DEFAULT':
-         self.name = 'Internal Default Group'
+         n = 'Internal Default Group'
       else:
-         self.name = str(obj.name)
+         n = str(obj.name)
+      WallabyBaseObject.__init__(self, n)
       self.features = list(obj.features)
       self.params = dict(obj.params)
 
@@ -442,7 +507,6 @@ class Group(WallabyBaseObject):
 
 
    def store_validate(self, store):
-      invalid = {}
       errors = {}
 
       if self.features != None and isinstance(self.params, dict):
@@ -451,7 +515,7 @@ class Group(WallabyBaseObject):
             errors[result.status] = result.text
          else:
             if result.outArgs['invalidFeatures'] != []:
-               invalid['Feature'] = result.outArgs['invalidFeatures']
+               self.invalid['Feature'] = result.outArgs['invalidFeatures']
 
       if self.params != None and isinstance(self.params, list):
          result = store.checkParameterValidity(self.params)
@@ -459,10 +523,26 @@ class Group(WallabyBaseObject):
             errors[result.status] = result.text
          else:
             if result.outArgs['invalidParameters'] != []:
-               invalid['Parameter'] = result.outArgs['invalidParameters']
+               self.invalid['Parameter'] = result.outArgs['invalidParameters']
 
-      if invalid != {} or errors != {}:
-         raise WallabyValidateError(invalid, errors, [])
+      if self.invalid != {} or errors != {}:
+         raise WallabyValidateError(self.invalid, errors, [])
+
+
+   def remove_invalids(self):
+      for key in self.invalid.keys():
+         for item in self.invalid[key]:
+            if key == 'Parameter':
+               try:
+                  del self.params[item]
+               except: 
+                  pass
+            elif key == 'Feature':
+               try:
+                  while (1):
+                     self.features.remove(item)
+               except: 
+                  pass
 
 
    def update(self, obj):

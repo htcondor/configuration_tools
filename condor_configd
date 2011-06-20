@@ -100,11 +100,21 @@ class EventConsole(Console):
 
       if event.getClassKey().getClassName() == 'NodeUpdatedNotice':
          log(logging.DEBUG, self.logger_name, 'Received a NodeUpdatedNotice')
-         args = event.getArguments()
-         nodes = args['nodes']
+         try:
+            args = event.getArguments()
+            nodes = args['nodes']
+         except:
+            log(logging.ERROR, self.logger_name, 'Unable to determine affected nodes.  Discarding')
+            return
+         
          if self.node_name in nodes or '*' in nodes:
             log(logging.DEBUG, self.logger_name, 'The event is for this node')
-            event_ver = int(args['version'])
+            try:
+               event_ver = int(args['version'])
+            except:
+               log(logging.INFO, self.logger_name, 'Unable to determine configuration version in event.  Discarding')
+               return
+
             try:
                version_queue.put(event_ver, False)
             except Queue.Full, error:
@@ -144,7 +154,10 @@ class Service:
    def config(self, filename, user='', password=''):
       global stop_running 
 
-      if self.broker != None:
+      if self.session == None:
+         return(False)
+
+      if self.broker != None and self.session != None:
          self.session.delBroker(self.broker)
          self.broker = None
 
@@ -260,12 +273,15 @@ class Service:
    def get_store_obj(self):
       global stop_running
 
+      if self.console == None:
+         return(None)
+
       agent = self.console.get_store_agent()
       try:
          obj = agent.getObjects(_class='Store', _package='com.redhat.grid.config')
       except:
          if stop_running == False:
-            log(logging.CRITICAL, self.logger_name, 'Failed to contact configuration store')
+            log(logging.ERROR, self.logger_name, 'Failed to contact configuration store')
          return(None)
       return(obj[0])
 
@@ -277,10 +293,16 @@ class Service:
       if store == None:
          return(None)
 
-      result = store.getNode(self.node_name)
+      try:
+         result = store.getNode(self.node_name)
+      except:
+         if stop_running == False:
+            log(logging.ERROR, self.logger_name, 'Exception retrieving node object')
+         return(None)
+
       if result.status != 0:
          if stop_running == False:
-            log(logging.CRITICAL, self.logger_name, '(%d, %s): Store does not know about this node' % (result.status, result.text))
+            log(logging.ERROR, self.logger_name, '(%d, %s): Store does not know about this node' % (result.status, result.text))
          return(None)
       else:
          try:
@@ -288,7 +310,7 @@ class Service:
             obj = agent.getObjects(_objectId=result.outArgs['obj'])
          except:
             if stop_running == False:
-               log(logging.CRITICAL, self.logger_name, 'Unable to get node information object')
+               log(logging.ERROR, self.logger_name, 'Unable to get node information object')
             return(None)
          return(obj[0])
 
@@ -559,13 +581,13 @@ class Service:
             result = node_obj.whatChanged(running_version, version)
          except:
             if stop_running == False:
-               log(logging.ERROR, self.logger_name, 'Unable to retrieve configuration differences')
+               log(logging.ERROR, self.logger_name, 'Unable to retrieve configuration differences.  The configuration will not take affect')
             return(False)
 
          if result.status != 0:
             if stop_running == False:
                log(logging.ERROR, self.logger_name, 'Store error: %d, %s' % (result.status, result.text))
-               log(logging.ERROR, self.logger_name, 'Failed to retrive differences between versions "%d" and "%d".  No update performed' % (running_version, version))
+               log(logging.ERROR, self.logger_name, 'Failed to retrive differences between versions "%d" and "%d".  The configuration will not take affect' % (running_version, version))
             return(False)
          else:
             restart_list = result.outArgs['restart']
@@ -638,15 +660,17 @@ class Service:
 def exit_signal_handler(signum, frame):
    global service, stop_running, logger_name
 
-   log(logging.DEBUG, logger_name, 'Shutting down')
-   log(logging.DEBUG, logger_name, 'Closing QMF connections')
    if service != None:
+      log(logging.DEBUG, logger_name, 'Shutting down')
+      log(logging.DEBUG, logger_name, 'Closing QMF connections')
       service.shutdown()
       del service
       service = None
-   log(logging.DEBUG, logger_name, 'Closed QMF connections')
-   log(logging.DEBUG, logger_name, 'Setting stop flag')
-   stop_running = True
+      log(logging.DEBUG, logger_name, 'Closed QMF connections')
+
+   if stop_running != True:
+      log(logging.DEBUG, logger_name, 'Setting stop flag')
+      stop_running = True
 
 
 def test_for_shutdown():
@@ -660,6 +684,7 @@ def test_for_shutdown():
 
 
 def stop(code):
+   exit_signal_handler(signal.SIGTERM, None)
    log(logging.INFO, logger_name, 'Exiting')
    logging.shutdown()
    return(code)
@@ -766,7 +791,7 @@ def main(argv=None):
          # Need to set a Timer for shutdown on windows
          log(logging.INFO, logger_name, 'Setting windows shutdown Timer')
          shutdown_interval = int(read_condor_config('CONFIGD', ['WIN_INTERVAL'])['win_interval'])
-         shutdown_timer = Timer(shutdown_interval,test_for_shutdown)
+         shutdown_timer = Timer(shutdown_interval, test_for_shutdown)
          shutdown_timer.start()
 
       # Create the log file
@@ -799,7 +824,6 @@ def main(argv=None):
          if retrieve == True:
             print 'Error: Unable to retrieve configuration'
             log(logging.CRITICAL, logger_name, 'Unable to retrieve configuration')
-         exit_signal_handler(0, 0)
          return(stop(1))
 
       # Wait for connection to the store
@@ -815,7 +839,6 @@ def main(argv=None):
             if service.check_config_ver(force=True) == False:
                print 'Error: Unable to retrieve configuration'
                log(logging.CRITICAL, logger_name, 'Unable to retrieve configuration')
-            exit_signal_handler(0, 0)
             return(stop(0))
 
          # Delay initial checkin after startup 
@@ -866,9 +889,6 @@ def main(argv=None):
    except Exception, e:
       if stop_running == False:
          log(logging.INFO, logger_name, e)
-      if service != None:
-         service.shutdown()
-         del service
       if stop_running == True:
          return(stop(0))
       else:

@@ -38,8 +38,10 @@ except:
 
 
 class Timer (threading.Thread):
-   def __init__ (self, interval, function, args=[], kwargs={}):
+   def __init__ (self, interval, function, name=None, args=[], kwargs={}):
       threading.Thread.__init__(self)
+      if name != None:
+         self.name = name
       self.interval = interval
       self.function = function
       self.args = args
@@ -203,12 +205,14 @@ class Service:
          val = read_condor_config('CONFIGD', ['CHECK_INTERVAL'])
          self.interval = int(val['check_interval'])
       except ConfigError, error:
-         log(logging.INFO, self.logger_name, '%s. Node configuration evaluation disabled' % error.msg)
+         log(logging.INFO, self.logger_name, error.msg)
          self.interval = 0
       except Exception, e:
          log(logging.INFO, self.logger_name, e)
-         log(logging.INFO, self.logger_name, 'Invalid check interval. Node configuration evaluation disabled')
          self.interval = 0
+
+      if self.interval <= 0:
+         log(logging.INFO, self.logger_name, 'Invalid CHECK_INTERVAL. Periodic node check-in disabled')
 
       if filename == '':
          try:
@@ -315,11 +319,18 @@ class Service:
          return(obj[0])
 
 
+   def clear_timers(self):
+      if self.timer != None:
+         del self.timer
+      self.timer = None
+
    def setup_timers(self):
+      global interval_thread_name
+
       # Setup the timer for checking configuration version
       if self.timer == None:
          if self.interval > 0:
-            self.timer = Timer(self.interval, self.check_config_ver)
+            self.timer = Timer(self.interval, self.check_config_ver, interval_thread_name)
             self.timer.start()
 
 
@@ -684,10 +695,55 @@ def test_for_shutdown():
 
 
 def stop(code):
+   global logger_name
+
    exit_signal_handler(signal.SIGTERM, None)
    log(logging.INFO, logger_name, 'Exiting')
    logging.shutdown()
    return(code)
+
+
+def monitor_timers():
+   global interval_thread_name, service, logger_name
+   interval_found = False
+
+   if os.name == 'nt' or os.name == 'ce':
+      global windows_shutdown_timer_name
+      win_shutdown_found = False
+
+   for thread in threading.enumerate():
+      if thread.name == interval_thread_name:
+         interval_found = True
+
+      if (os.name == 'nt' or os.name == 'ce') and thread.name == windows_shutdown_timer_name:
+         win_shutdown_found = True
+
+   # Start the timers that are expected to be running but aren't
+   if interval_found != True and service.interval > 0:
+      log(logging.DEBUG, logger_name, 'Restarting interval timer')
+      service.clear_timers()
+      service.setup_timers()
+
+   if (os.name == 'nt' or os.name == 'ce') and win_shutdown_found != True:
+      log(logging.DEBUG, logger_name, 'Restarting windows shutdown timer')
+      clear_shutdown_timer()
+      start_shutdown_timer()
+
+
+def clear_shutdown_timer():
+   global shutdown_timer
+
+   if shutdown_timer != None:
+      del shutdown_timer
+   shutdown_timer = None
+
+
+def start_shutdown_timer():
+   global windows_shutdown_timer_name, shutdown_timer, shutdown_interval
+
+   if shutdown_timer == None:
+      shutdown_timer = Timer(shutdown_interval, test_for_shutdown, windows_shutdown_timer_name)
+      shutdown_timer.start()
 
 
 version_queue = Queue.Queue()
@@ -697,10 +753,15 @@ replacing_file = False
 pidfile = os.path.normpath(os.getcwd() + '/.pid' + str(os.getpid()))
 logger_name = os.path.basename(sys.argv[0])
 old_config_filename = 'condor.old_config'
+interval_thread_name = 'Thread for Interval Timer'
+if os.name == 'nt' or os.name == 'ce':
+   windows_shutdown_timer_name = 'Thread for Windows Shutdown Timer'
+   shutdown_timer = None
+   shutdown_interval = 0
 
 
 def main(argv=None):
-   global service, stop_running, replacing_file, version_queue, logger_name, old_config_filename
+   global service, stop_running, replacing_file, version_queue, logger_name, old_config_filename, shutdown_interval
 
    if argv is None:
       argv = sys.argv
@@ -718,6 +779,26 @@ def main(argv=None):
 
       long_opts = ['debug', 'hostname=', 'logfile=', 'managedfile=', 
                    'password=', 'retrieve', 'user=']
+
+      # Set signal handlers
+      signal.signal(signal.SIGINT, exit_signal_handler)
+      signal.signal(signal.SIGTERM, exit_signal_handler)
+      signal.signal(signal.SIGABRT, exit_signal_handler)
+      signal.signal(signal.SIGILL, exit_signal_handler)
+      signal.signal(signal.SIGFPE, exit_signal_handler)
+      signal.signal(signal.SIGSEGV, exit_signal_handler)
+      if os.name != 'nt' and os.name != 'ce':
+         # These aren't available on windows
+         signal.signal(signal.SIGQUIT, exit_signal_handler)
+         signal.signal(signal.SIGHUP, exit_signal_handler)
+
+         # Run as the user condor if running as root
+         if os.geteuid() == 0:
+            # Get the uid and gid for the condor user
+            pw_data = pwd.getpwnam('condor')
+            os.setregid(pw_data[3], pw_data[3])
+            os.setreuid(pw_data[2], pw_data[2])
+
       try:
          opts, args = getopt.gnu_getopt(argv[1:], 'dh:l:m:rP:U:', long_opts)
       except getopt.GetoptError, error:
@@ -768,32 +849,6 @@ def main(argv=None):
       except:
          backoff_const = 9
 
-      # Set signal handlers
-      signal.signal(signal.SIGINT, exit_signal_handler)
-      signal.signal(signal.SIGTERM, exit_signal_handler)
-      signal.signal(signal.SIGABRT, exit_signal_handler)
-      signal.signal(signal.SIGILL, exit_signal_handler)
-      signal.signal(signal.SIGFPE, exit_signal_handler)
-      signal.signal(signal.SIGSEGV, exit_signal_handler)
-      if os.name != 'nt' and os.name != 'ce':
-         # These aren't available on windows
-         signal.signal(signal.SIGQUIT, exit_signal_handler)
-         signal.signal(signal.SIGHUP, exit_signal_handler)
-
-         # Run as the user condor if running as root
-         if os.geteuid() == 0:
-            # Get the uid and gid for the condor user
-            pw_data = pwd.getpwnam('condor')
-            os.setregid(pw_data[3], pw_data[3])
-            os.setreuid(pw_data[2], pw_data[2])
-
-      if os.name == 'nt' or os.name == 'ce':
-         # Need to set a Timer for shutdown on windows
-         log(logging.INFO, logger_name, 'Setting windows shutdown Timer')
-         shutdown_interval = int(read_condor_config('CONFIGD', ['WIN_INTERVAL'])['win_interval'])
-         shutdown_timer = Timer(shutdown_interval, test_for_shutdown)
-         shutdown_timer.start()
-
       # Create the log file
       try:
          base_logger = create_file_logger(logger_name, file['log'], log_level, size=size)
@@ -804,6 +859,27 @@ def main(argv=None):
 
       log(logging.INFO, logger_name, 'Starting Up')
       log(logging.INFO, logger_name, 'Hostname is "%s"' % node_name)
+
+      if os.name == 'nt' or os.name == 'ce':
+         # Need to set a Timer for shutdown on windows
+         log(logging.INFO, logger_name, 'Setting windows shutdown Timer')
+         try:
+            shutdown_interval = int(read_condor_config('CONFIGD', ['WIN_INTERVAL'])['win_interval'])
+         except ConfigError, error:
+            log(logging.WARNING, logger_name, '%s' % error.msg)
+            log(logging.WARNING, logger_name, 'Using default (5)')
+            shutdown_interval = 5
+         except:
+            log(logging.WARNING, logger_name, 'WIN_INTERVAL must have a valid value')
+            log(logging.WARNING, logger_name, 'Using default (5)')
+            shutdown_interval = 5
+
+         # Ensure there is a valid interval above 0 as this timer can not be
+         # disabled
+         if shutdown_interval <= 0:
+            log(logging.WARNING, logger_name, 'Invalid WIN_INTERVAL (%d).  Using default (5)' % shutdown_interval)
+            shutdown_interval = 5
+         start_shutdown_timer()
 
       # Remove all temp configuration files
       log(logging.INFO, logger_name, 'Cleaning up temporary configuration files')
@@ -882,6 +958,9 @@ def main(argv=None):
                      # Installation was successful
                      num_attempts = 0
                   last_attempt = 0
+
+            # Verify timers are still running
+            monitor_timers()
          except:
             pass
 

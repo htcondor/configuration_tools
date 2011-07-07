@@ -85,6 +85,39 @@ def represent_subsys(self, data):
    return self.represent_mapping(u'!Subsystem', WallabyTypes.print_wallaby_types(data))
 
 
+def sync_memberships(obj_list, old_list):
+   group_sync = []
+   node_sync = []
+   for obj in obj_list:
+      if isinstance(obj, WallabyTypes.GroupMembership):
+         group_sync += [(obj.name, obj)]
+      elif isinstance(obj, WallabyTypes.Node):
+         node_sync += [(obj.name, obj)]
+
+   for n,n_obj in node_sync:
+      for g,g_obj in group_sync:
+         if g in n_obj.memberships and \
+            n not in g_obj.members:
+            try:
+               old = [x for x in old_list if x.__class__ == g_obj.__class__ and x.name == g_obj.name][0]
+            except:
+               old = []
+            if old != [] and n in old.members:
+               n_obj.memberships.remove(g)
+            else:
+               g_obj.members += [n]
+         elif n in g_obj.members and \
+            g not in n_obj.memberships:
+            try:
+               old = [x for x in old_list if x.__class__ == n_obj.__class__ and x.name == n_obj.name][0]
+            except:
+               old = []
+            if old != [] and g in old.memberships:
+               g_obj.members.remove(n)
+            else:
+               n_obj.memberships += [g]
+
+
 def main(argv=None):
    if argv is None:
       argv = sys.argv
@@ -273,7 +306,6 @@ def main(argv=None):
                   obj = WallabyHelpers.add_node(session, config_store, node)
                else:
                   print 'Node names beginning with "+++" are reserved and can not be added'
-                  ret_val = 1
             elif action == 'delete' and node != '':
                if '+++' != node[0:3]:
                   print 'Removing node "%s"' % node
@@ -308,7 +340,6 @@ def main(argv=None):
                   obj = WallabyHelpers.add_param(session, config_store, param)
                else:
                   print 'Parameter names beginning with "+++" are reserved and can not be added'
-                  ret_val = 1
             elif action == 'delete' and param != '':
                if '+++' != param[0:3]:
                   print 'Removing parameter "%s"' % param
@@ -342,7 +373,6 @@ def main(argv=None):
                   obj = WallabyHelpers.add_feature(session, config_store, feat)
                else:
                   print 'Feature names beginning with "+++" are reserved and can not be added'
-                  ret_val = 1
             elif action == 'delete' and feat != '':
                if '+++' != feat[0:3]:
                   print 'Removing feature "%s"' % feat
@@ -369,18 +399,15 @@ def main(argv=None):
       # Process the groups
       if groups != '':
          for group in groups.split(','):
+            obj = None
             group = group.strip()
             if action == 'add' and group != '':
                if '+++' != group[0:3]:
-                  if WallabyHelpers.add_group(session, config_store, group) == None:
-                     ret_val = 1
+                  obj = WallabyHelpers.add_group(session, config_store, group)
                else:
                   print 'Group names beginning with "+++" are reserved and can not be added'
-                  ret_val = 1
             elif action == 'edit' and group != '':
-               print 'Groups can not be edited'
-               ret_val = 1
-               break
+               obj = WallabyHelpers.get_group(session, config_store, group)
             elif action == 'delete' and group != '':
                if '+++' != group[0:3]:
                   print 'Removing group "%s"' % group
@@ -395,6 +422,13 @@ def main(argv=None):
                ret_val = WallabyHelpers.list_group_info(session, config_store, group) or ret_val
                print
 
+            if obj != None:
+               edit_obj = WallabyTypes.GroupMembership(group, config_store, session)
+               edit_obj.init_from_obj(obj)
+               edit_objs += [edit_obj]
+            elif action != 'list' and action != 'delete' and group != '':
+               ret_val = 1
+
       # Process the subsystems
       if subsys != '':
          for sub in subsys.split(','):
@@ -405,7 +439,6 @@ def main(argv=None):
                   obj = WallabyHelpers.add_subsys(session, config_store, sub)
                else:
                   print 'Subsystem names beginning with "+++" are reserved and can not be added'
-                  ret_val = 1
             elif action == 'delete' and sub != '':
                if '+++' != sub[0:3]:
                   print 'Removing subsystem "%s"' % sub
@@ -434,6 +467,7 @@ def main(argv=None):
          retry = True
          yaml.add_representer(WallabyTypes.Feature, represent_feature) 
          yaml.add_representer(WallabyTypes.Node, represent_node) 
+         yaml.add_representer(WallabyTypes.GroupMembership, represent_group) 
          yaml.add_representer(WallabyTypes.Parameter, represent_param) 
          yaml.add_representer(WallabyTypes.Subsystem, represent_subsys) 
          yaml.add_representer(unicode, lambda dumper, value: dumper.represent_scalar(u'tag:yaml.org,2002:str', value))
@@ -469,6 +503,8 @@ def main(argv=None):
                      entry.get_name() == pre_edit_objs[total_objs].get_name():
                      try:
                         entry.init_internal_vars()
+                        if isinstance(entry, WallabyTypes.GroupMembership):
+                           entry.set_internal_vars(pre_edit_objs[total_objs].members, config_store, session)
                         entry.validate(pre_edit_objs[total_objs])
                      except ValidateWarning, warning:
                         for msg in warning.warnings.keys():
@@ -547,7 +583,10 @@ def main(argv=None):
                            if obj != None:
                               edit_obj = WallabyTypes.Node(item)
                         elif type == 'Group':
-                           WallabyHelpers.add_group(session, config_store, item)
+                           obj = WallabyHelpers.add_group(session, config_store, item)
+
+                           if obj != None:
+                              edit_obj = WallabyTypes.GroupMembership(item, config_store, session)
                         elif type == 'Subsystem':
                            obj = WallabyHelpers.add_subsys(session, config_store, item)
                            if obj != None:
@@ -555,6 +594,9 @@ def main(argv=None):
                         if obj != None:
                            edit_obj.init_from_obj(obj)
                            edit_objs += [edit_obj]
+
+                  # Synchronize any new group/node memberships
+                  sync_memberships(edit_objs, pre_edit_objs)
                   continue
                else:
                   # The invalid items weren't added to the store, so remove
@@ -578,6 +620,11 @@ def main(argv=None):
                      if answer.lower() != 'n':
                         obj.set_use_default_val(param)
 
+            # Ensure group/node memberships are synchronized.  If it exists
+            # in one list, it will exist in both.  IE, we favor adding over
+            # removing
+            sync_memberships(edit_objs, pre_edit_objs)
+
             # Make the changes
             for edited in edit_objs:
                if isinstance(edited, WallabyTypes.Parameter):
@@ -586,6 +633,8 @@ def main(argv=None):
                   obj = WallabyHelpers.get_feature(session, config_store, edited.name)
                if isinstance(edited, WallabyTypes.Node):
                   obj = WallabyHelpers.get_node(session, config_store, edited.name)
+               if isinstance(edited, WallabyTypes.GroupMembership):
+                  obj = WallabyHelpers.get_group(session, config_store, edited.name)
                if isinstance(edited, WallabyTypes.Subsystem):
                   obj = WallabyHelpers.get_subsys(session, config_store, edited.name)
 

@@ -29,7 +29,7 @@ def print_wallaby_types(data):
 class WallabyBaseObject(YAMLObject):
    def __init__(self, name):
       self.name = name
-      self.init_internal_vars()
+      WallabyBaseObject.init_internal_vars(self)
 
 
    def init_internal_vars(self):
@@ -558,6 +558,106 @@ class Group(WallabyBaseObject):
       result = obj.modifyParams('replace', self.params, {})
       if result.status != 0:
           errors[result.status] = result.text
+
+      if errors != {}:
+         raise WallabyError(errors)
+
+
+class GroupMembership(WallabyBaseObject):
+   yaml_tag = u'!Group'
+   def __init__(self, name, store, session, members=[]):
+      WallabyBaseObject.__init__(self, str(name))
+      self.members = list(members)
+      self.orig_members = self.members
+      self.store = store
+      self.session = session
+
+
+   def __repr__(self):
+      return '%s(name=%r, members=%s)' % (self.__class__.__name__, self.name, self.members)
+
+
+   def dict_as_list(self):
+      return [('name',self.name), ('members', self.members)]
+
+
+   def init_from_obj(self, obj):
+      WallabyBaseObject.__init__(self, str(obj.name))
+      result = obj.membership()
+      if result.status != 0:
+         # TODO: Raise an error?
+         pass
+      else:
+         self.members = list(result.outArgs['nodes'])
+         self.orig_members = self.members
+
+
+   def init_internal_vars(self):
+      self.orig_members = self.members
+      self.store = None
+      self.session = None
+      WallabyBaseObject.init_internal_vars(self)
+
+
+   def set_internal_vars(self, old_members, store, session):
+      self.store = store
+      self.session = session
+      self.orig_members = old_members
+
+
+   def validate(self, orig):
+      self.name = str(self.name)
+      WallabyBaseObject.validate(self, orig)
+
+
+   def store_validate(self, store):
+      errors = {}
+
+      if self.members != None and isinstance(self.members, list):
+         result = store.checkNodeValidity(self.members)
+         if result.status != 0:
+            errors[result.status] = result.text
+         else:
+            if result.outArgs['invalidNodes'] != []:
+               self.invalid['Node'] = result.outArgs['invalidNodes']
+
+      if self.invalid != {} or errors != {}:
+         raise WallabyValidateError(self.invalid, errors, [])
+
+
+   def remove_invalids(self):
+      for key in self.invalid.keys():
+         for item in self.invalid[key]:
+            try:
+               while (1):
+                  self.members.remove(item)
+            except: 
+               pass
+
+
+   def update(self, obj):
+      errors = {}
+
+      if obj == None:
+         raise WallabyError({-1:'No group object to update'})
+
+      for node in self.members:
+         if node not in self.orig_members:
+            # Node was added
+            node = get_node(self.session, self.store, node)
+            if node != None:
+               result = node.modifyMemberships('add', [self.name], {})
+               if result.status != 0:
+                  errors[result.status] = result.text
+
+      for node in self.orig_members:
+         if node not in self.members:
+            # Node was removed
+            node = get_node(self.session, self.store, node)
+            if node != None:
+               result = node.modifyMemberships('remove', [self.name], {})
+               if result.status != 0:
+                  errors[result.status] = result.text
 
       if errors != {}:
          raise WallabyError(errors)

@@ -53,6 +53,7 @@ class WallabyBaseObject(YAMLObject):
             setattr(self, key, getattr(orig, key))
 
       if warnings != {}:
+         print "raising event: warnings = %s" % warnings
          raise ValidateWarning(warnings)
 
 
@@ -509,16 +510,16 @@ class Group(WallabyBaseObject):
    def store_validate(self, store):
       errors = {}
 
-      if self.features != None and isinstance(self.params, dict):
-         result = store.checkFeatureValidity(keys(self.params))
+      if self.features != None and isinstance(self.features, list):
+         result = store.checkFeatureValidity(self.features)
          if result.status != 0:
             errors[result.status] = result.text
          else:
             if result.outArgs['invalidFeatures'] != []:
                self.invalid['Feature'] = result.outArgs['invalidFeatures']
 
-      if self.params != None and isinstance(self.params, list):
-         result = store.checkParameterValidity(self.params)
+      if self.params != None and isinstance(self.params, dict):
+         result = store.checkParameterValidity(self.params.keys())
          if result.status != 0:
             errors[result.status] = result.text
          else:
@@ -549,7 +550,7 @@ class Group(WallabyBaseObject):
       errors = {}
 
       if obj == None:
-         raise WallabyError({-1:'No subsystem object to update'})
+         raise WallabyError({-1:'No group object to update'})
 
       result = obj.modifyFeatures('replace', self.features, {})
       if result.status != 0:

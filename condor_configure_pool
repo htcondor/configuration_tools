@@ -802,6 +802,7 @@ def main(argv=None):
             session.delBroker(broker)
             return(1)
 
+         yaml_output.init_internal_vars()
          try:
             yaml_output.validate(edit_obj[0])
          except:

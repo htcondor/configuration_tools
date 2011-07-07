@@ -53,7 +53,6 @@ class WallabyBaseObject(YAMLObject):
             setattr(self, key, getattr(orig, key))
 
       if warnings != {}:
-         print "raising event: warnings = %s" % warnings
          raise ValidateWarning(warnings)
 
 

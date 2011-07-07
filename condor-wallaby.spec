@@ -1,5 +1,5 @@
 %{!?python_sitelib: %define python_sitelib %(%{__python} -c "from distutils.sysconfig import get_python_lib; print get_python_lib()")}
-%define rel 1
+%define rel 2
 %define ver 4.1
 
 Name: condor-wallaby
@@ -115,6 +115,10 @@ rm -f %{buildroot}/%{python_sitelib}/wallabyclient/WallabyTypes.py
 %{python_sitelib}/wallabyclient/exceptions.py*
 
 %changelog
+* Thu Jul  7 2011  <rrati@redhat> - 4.1-2
+- Added editing of group memberships to condor_configure_store
+- Fixed issue editing nodes/groups in condor_configure_pool
+
 * Thu Jun 23 2011  <rrati@redhat> - 4.1-1
 - Added monitoring of timers and restart if they exit
 - Added robustness for interval for windows shutdown

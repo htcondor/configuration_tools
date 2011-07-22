@@ -202,7 +202,7 @@ class Service:
          broker_auth_methods = 'ANONYMOUS PLAIN GSSAPI'
 
       try:
-         val = read_condor_config('CONFIGD', ['CHECK_INTERVAL'])
+         val = read_condor_config('CONFIGD', ['CHECK_INTERVAL'], permit_param_only = False)
          self.interval = int(val['check_interval'])
       except ConfigError, error:
          log(logging.INFO, self.logger_name, error.msg)
@@ -243,7 +243,7 @@ class Service:
          return(False)
 
       try:
-         self.override_dir = read_condor_config('CONFIGD', ['OVERRIDE_DIR'])['override_dir']
+         self.override_dir = read_condor_config('CONFIGD', ['OVERRIDE_DIR'], permit_param_only = False)['override_dir']
          if os.access(self.override_dir, os.F_OK) != True or os.access(self.override_dir, os.R_OK) != True:
             log(logging.WARNING, self.logger_name, '"%s" either is not a directory or has incorrect permissions.  Configuration overrides will not take affect' % self.override_dir)
             self.override_dir = ''
@@ -825,7 +825,7 @@ def main(argv=None):
       # Configure the logging system
       if 'log' not in file.keys():
          try:
-            file = read_condor_config('CONFIGD', ['LOG'])
+            file = read_condor_config('CONFIGD', ['LOG'], permit_param_only = False)
          except ConfigError, error:
             print 'Error: %s.  Exiting' % error.msg
             return(1)
@@ -864,7 +864,7 @@ def main(argv=None):
          # Need to set a Timer for shutdown on windows
          log(logging.INFO, logger_name, 'Setting windows shutdown Timer')
          try:
-            shutdown_interval = int(read_condor_config('CONFIGD', ['WIN_INTERVAL'])['win_interval'])
+            shutdown_interval = int(read_condor_config('CONFIGD', ['WIN_INTERVAL'], permit_param_only = False)['win_interval'])
          except ConfigError, error:
             log(logging.WARNING, logger_name, '%s' % error.msg)
             log(logging.WARNING, logger_name, 'Using default (5)')

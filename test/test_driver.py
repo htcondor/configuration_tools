@@ -22,6 +22,7 @@ from condorutils.osutil import run_cmd
 from condorutils.readconfig import read_condor_config
 from qmf.console import Session
 from wallabyclient import WallabyHelpers
+from wallabyclient.exceptions import WallabyStoreError
 
 nodename = 'unit_test'
 checkin_time = 60
@@ -95,14 +96,16 @@ session = Session()
 session.addBroker('amqp://127.0.0.1:5672')
 store = []
 try:
-   store = session.getObjects(_class='Store', _package='com.redhat.grid.config')
+   (agent, store) = WallabyHelpers.get_store_objs(session)
 except Exception, error:
-   print 'Error: %s' % error
+   print 'Error: %s' % error.error_str
 
 if store == []:
-   print 'Unable to contact Configuration Store'
-else:
-   store = store[0]
+   os.killpg(os.getpgid(store_pid), 9)
+   os.killpg(os.getpgid(configd_pid), 9)
+   os.killpg(os.getpgid(broker_pid), 9)
+   run_cmd('killall condor_master')
+   sys.exit(1)
 
 # Wait until the Node object is created in the store, which means the configd
 # has started up and contacted the store
@@ -114,10 +117,14 @@ while result.status != 0:
 # Get the node object
 result = store.getNode(nodename)
 if result.status != 0:
-  print 'Error: Failed to retrieve node object'
-  sys.exit(1)
+   print 'Error: Failed to retrieve node object'
+   os.killpg(os.getpgid(store_pid), 9)
+   os.killpg(os.getpgid(configd_pid), 9)
+   os.killpg(os.getpgid(broker_pid), 9)
+   run_cmd('killall condor_master')
+   sys.exit(1)
 else:
-   node = session.getObjects(_objectId=result.outArgs['obj'])[0]
+   node = agent.getObjects(_objectId=result.outArgs['obj'])[0]
 
 try:
    # Test 1 - Test the initial checkin
@@ -160,7 +167,7 @@ try:
    # Setup for testing override directory
    shutil.copy(override_file, override_dir)
    try:
-      old_value = read_condor_config('CONFIGD', ['TEST_PARAM'], environ={'CONDOR_CONFIG':config_file})['test_param']
+      old_value = read_condor_config('CONFIGD', ['TEST_PARAM'], environ={'CONDOR_CONFIG':config_file}, permit_param_only = False)['test_param']
    except:
       old_value = 0
 
@@ -182,7 +189,7 @@ try:
    # Test 5 - Test files in the override directory are included in the config
    print 'Testing override directory files override values in config: \t',
    try:
-      new_value = read_condor_config('CONFIGD', ['TEST_PARAM'], environ={'CONDOR_CONFIG':config_file})['test_param']
+      new_value = read_condor_config('CONFIGD', ['TEST_PARAM'], environ={'CONDOR_CONFIG':config_file}, permit_param_only = False)['test_param']
    except:
       new_value = old_value
    if new_value != old_value:
@@ -204,7 +211,7 @@ try:
    time.sleep(checkin_time+5)
    old_version = version
    try:
-      version = int(read_condor_config('WALLABY_CONFIG', ['VERSION'], environ={'CONDOR_CONFIG':config_file})['version'])
+      version = int(read_condor_config('WALLABY', ['CONFIG_VERSION'], environ={'CONDOR_CONFIG':config_file}, permit_param_only = False)['config_version'])
    except:
       print 'Error: Failed to find WALLABY_CONFIG_VERSION in config file'
       version = old_version
@@ -315,11 +322,13 @@ try:
 
 except Exception, error:
    print 'Error: Exception raised: %s' % error
-   os.killpg(os.getpgid(store_pid), 15)
+   os.killpg(os.getpgid(store_pid), 9)
+   os.killpg(os.getpgid(configd_pid), 9)
+   os.killpg(os.getpgid(broker_pid), 9)
    run_cmd('killall condor_master')
 
 # Shut everything down
-print run_cmd('killall condor_master')
-os.killpg(os.getpgid(configd_pid), 15)
-os.killpg(os.getpgid(store_pid), 15)
-os.killpg(os.getpgid(broker_pid), 15)
+os.killpg(os.getpgid(configd_pid), 9)
+os.killpg(os.getpgid(store_pid), 9)
+os.killpg(os.getpgid(broker_pid), 9)
+run_cmd('killall condor_master')

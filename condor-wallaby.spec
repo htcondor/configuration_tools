@@ -1,5 +1,5 @@
 %{!?python_sitelib: %define python_sitelib %(%{__python} -c "from distutils.sysconfig import get_python_lib; print get_python_lib()")}
-%define rel 2
+%define rel 3
 %define ver 4.1
 
 Name: condor-wallaby
@@ -25,7 +25,7 @@ Group: Applications/System
 Requires: condor >= 7.4.4-0.9
 Requires: python >= 2.3
 Requires: python-qmf >= 0.9.1073306
-Requires: python-condorutils >= 1.5-2
+Requires: python-condorutils >= 1.5-4
 Requires: python-wallabyclient = %{ver}-%{rel}%{?dist}
 Obsoletes: condor-remote-configuration
 
@@ -59,7 +59,7 @@ Summary: Tools for interacting with wallaby
 Group: Applications/System
 BuildRequires: python-devel
 Requires: python >= 2.3
-Requires: python-condorutils >= 1.5-2
+Requires: python-condorutils >= 1.5-4
 %if 0%{?rhel} != 4
 Requires: PyYAML
 %endif
@@ -115,6 +115,11 @@ rm -f %{buildroot}/%{python_sitelib}/wallabyclient/WallabyTypes.py
 %{python_sitelib}/wallabyclient/exceptions.py*
 
 %changelog
+* Fri Jul 22 2011  <rrati@redhat> - 4.1-3
+- Updated dep on python-condorutils
+- Fixed exception when  removing invalid params from list of params to ask
+  for default values
+
 * Thu Jul  7 2011  <rrati@redhat> - 4.1-2
 - Added editing of group memberships to condor_configure_store
 - Fixed issue editing nodes/groups in condor_configure_pool

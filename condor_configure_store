@@ -605,7 +605,7 @@ def main(argv=None):
                      for item in invalids['Parameter']:
                         for obj in ask_for_default.keys():
                            if item in ask_for_default[obj]:
-                              del ask_for_default[obj][item]
+                              ask_for_default[obj].remove(item)
 
                   # Remove all invalid entries for all objects containing
                   # invalid data

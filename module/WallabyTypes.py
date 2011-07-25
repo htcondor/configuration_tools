@@ -564,7 +564,7 @@ class Group(WallabyBaseObject):
 
 
 class GroupMembership(WallabyBaseObject):
-   yaml_tag = u'!Group'
+   yaml_tag = u'!GroupMembership'
    def __init__(self, name, store, session, members=[]):
       WallabyBaseObject.__init__(self, str(name))
       self.members = list(members)

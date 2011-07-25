@@ -70,7 +70,7 @@ def represent_feature(self, data):
 
 
 def represent_group(self, data):
-   return self.represent_mapping(u'!Group', WallabyTypes.print_wallaby_types(data))
+   return self.represent_mapping(u'!GroupMembership', WallabyTypes.print_wallaby_types(data))
 
 
 def represent_node(self, data):

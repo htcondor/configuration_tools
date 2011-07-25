@@ -1,5 +1,5 @@
 %{!?python_sitelib: %define python_sitelib %(%{__python} -c "from distutils.sysconfig import get_python_lib; print get_python_lib()")}
-%define rel 3
+%define rel 4
 %define ver 4.1
 
 Name: condor-wallaby
@@ -115,6 +115,9 @@ rm -f %{buildroot}/%{python_sitelib}/wallabyclient/WallabyTypes.py
 %{python_sitelib}/wallabyclient/exceptions.py*
 
 %changelog
+* Mon Jul 25 2011  <rrati@redhat> - 4.1-4
+- Fixed issue with ccs and ccp group objects steping on each other
+
 * Fri Jul 22 2011  <rrati@redhat> - 4.1-3
 - Updated dep on python-condorutils
 - Fixed exception when  removing invalid params from list of params to ask

@@ -502,3 +502,24 @@ def get_id_group_name(obj, sess):
       name = idgroup_ref[0].name
 
    return name
+
+
+def parse_option_args(args):
+   items = []
+   quotes = False
+   current = ""
+   for c in args:
+      if (c == '"' or c == "'"):
+         if quotes == False:
+            quotes = True
+            continue
+         else:
+            quotes = False
+            continue
+      elif c == ',' and quotes == False:
+         items.append(current)
+         current = ""
+         continue
+      current += c
+   items.append(current)
+   return items

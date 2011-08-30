@@ -298,7 +298,7 @@ def main(argv=None):
 
       # Process the nodes
       if nodes != '':
-         for node in nodes.split(','):
+         for node in WallabyHelpers.parse_option_args(nodes):
             obj = None
             node = node.strip()
             if action == 'add' and node != '':
@@ -332,7 +332,7 @@ def main(argv=None):
 
       # Process the parameters
       if params != '':
-         for param in params.split(','):
+         for param in WallabyHelpers.parse_option_args(params):
             obj = None
             param = param.strip()
             if action == 'add' and param != '':
@@ -365,7 +365,7 @@ def main(argv=None):
 
       # Process the features
       if features != '':
-         for feat in features.split(','):
+         for feat in WallabyHelpers.parse_option_args(features):
             obj = None
             feat = feat.strip()
             if action == 'add' and feat != '':
@@ -398,7 +398,7 @@ def main(argv=None):
 
       # Process the groups
       if groups != '':
-         for group in groups.split(','):
+         for group in WallabyHelpers.parse_option_args(groups):
             obj = None
             group = group.strip()
             if action == 'add' and group != '':
@@ -431,7 +431,7 @@ def main(argv=None):
 
       # Process the subsystems
       if subsys != '':
-         for sub in subsys.split(','):
+         for sub in WallabyHelpers.parse_option_args(subsys):
             obj = None
             sub = sub.strip()
             if action == 'add' and sub != '':
@@ -648,7 +648,8 @@ def main(argv=None):
                         print '%s' % line
                   ret_val = 1
             file.close()
-   except:
+   except Exception, e:
+      print e
       print 'Exception received when communicating with the configuration store'
       print 'This could be because of a communcation issue, or because the'
       print 'configuration store was taking too long to complete a task'

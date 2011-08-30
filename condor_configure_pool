@@ -470,7 +470,7 @@ def main(argv=None):
    features = []
    removed_features = []
    added_features = []
-   params = ''
+   params = []
    broker_ip = '127.0.0.1'
    name = ''
    node = ''
@@ -540,7 +540,7 @@ def main(argv=None):
             return(1)
          action = 'edit'
       if option in ('-f', '--features'):
-         features = arg.split(',')
+         features = WallabyHelpers.parse_option_args(arg)
       if option in ('-g', '--group'):
          if name != '':
             print 'Can only configure 1 node or group at a time'
@@ -598,7 +598,7 @@ def main(argv=None):
             print 'Invalid broker port'
             return(1)
       if option in ('-p', '--params'):
-         params = arg
+         params = WallabyHelpers.parse_option_args(arg)
       if option in ('-P', '--password'):
          passwd = arg
       if option == '--qmfbroker':
@@ -632,7 +632,7 @@ def main(argv=None):
       print_help(argv[0])
       return(1)
 
-   if features == [] and params == '' and schedd_prompts == False and \
+   if features == [] and params == [] and schedd_prompts == False and \
       broker_prompts == False and action not in no_entity_needed:
       print 'No configuration entities specified.  Exiting'
       print_help(argv[0])
@@ -721,7 +721,7 @@ def main(argv=None):
             for feat in features:
                print 'Configuration for feature %s:' % feat
                ret_val = WallabyHelpers.list_feature_info(session, config_store, feat) or ret_val
-         for param in params.split(','):
+         for param in params:
             ret_val = WallabyHelpers.list_param_info(session, config_store, param) or ret_val
                
          session.delBroker(broker)
@@ -763,9 +763,9 @@ def main(argv=None):
          if features != []:
             print 'Warning: Ignoring list of features in edit mode'
             features = []
-         if params != '':
+         if params != []:
             print 'Warning: Ignoring list of parameters in edit mode'
-            params = ''
+            params = []
          if schedd_prompts == True:
             print 'Warning: Ignoring request to prompt for schedd information in edit mode'
             schedd_prompts = False
@@ -845,7 +845,7 @@ def main(argv=None):
                print 'Error: Failed to remove the ConsoleCollector from the feature list.'
 
       # Prompt for param values entered on the command line, if any
-      for param in params.split(','):
+      for param in params:
          if param != '':
             if action == 'add' or action == 'insert':
                input = raw_input('Value for "%s": ' % param)

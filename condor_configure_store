@@ -335,6 +335,9 @@ def main(argv=None):
          for param in WallabyHelpers.parse_option_args(params):
             obj = None
             param = param.strip()
+            if param.find(',') >= 0:
+               print 'Parameter name "%s" is not allowed because it contains a comma' % param
+               continue
             if action == 'add' and param != '':
                if '+++' != param[0:3]:
                   obj = WallabyHelpers.add_param(session, config_store, param)

@@ -545,7 +545,10 @@ def main(argv=None):
          if name != '':
             print 'Can only configure 1 node or group at a time'
             return(1)
-         name = arg
+         if arg == "Internal Default Group":
+            name = "+++DEFAULT"
+         else:
+            name = arg
          is_node = False
       if option in ('-h', '--help'):
          print_help(argv[0])

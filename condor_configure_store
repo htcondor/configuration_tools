@@ -38,14 +38,14 @@ def print_help(name):
    print '  -o|--port <port>           - The port of the broker used by the configuration'
    print '                               store'
    print '  -U|--user <user>           - The username used to authenticate with the broker'
-   print '  -p|--password <password>   - The password used to authenticate with the broker'
+   print '  -P|--password <password>   - The password used to authenticate with the broker'
    print '  -m|--auth-mechanism <mech> - A comma separated list of authentication'
    print '                               mechanisms to use when communicating with the'
    print '                               broker.  Supported mechanisms are: ANONYMOUS,'
    print '                               PLAIN, GSSAPI'
    print '  -h|--help                  - Print help'
    print '  -v|--verbose               - Print more information, if available'
-   print '\nAction: (Only 1 allowe per invocation)'
+   print '\nAction: (Only 1 allowed per invocation)'
    print '  -a|--add              - Add the target(s) to the store'
    print '  -d|--delete           - Remove the target(s) from the store'
    print '  -e|--edit             - Edit the target(s) in the store'
@@ -401,22 +401,19 @@ def main(argv=None):
          for group in groups.split(','):
             obj = None
             group = group.strip()
+            if '+++' == group[0:3]:
+               print 'Group names beginning with "+++" are reserved and can not be acted upon'
+               ret_val = 1
+               continue
             if action == 'add' and group != '':
-               if '+++' != group[0:3]:
-                  obj = WallabyHelpers.add_group(session, config_store, group)
-               else:
-                  print 'Group names beginning with "+++" are reserved and can not be added'
+               obj = WallabyHelpers.add_group(session, config_store, group)
             elif action == 'edit' and group != '':
                obj = WallabyHelpers.get_group(session, config_store, group)
             elif action == 'delete' and group != '':
-               if '+++' != group[0:3]:
-                  print 'Removing group "%s"' % group
-                  result = config_store.removeGroup(group)
-                  if result.status != 0:
-                     print 'Error: Failed to remove group "%s" (%d, %s)' % (group, result.status, result.text)
-                     ret_val = 1
-               else:
-                  print 'Group names beginning with "+++" are reserved and can not be deleted'
+               print 'Removing group "%s"' % group
+               result = config_store.removeGroup(group)
+               if result.status != 0:
+                  print 'Error: Failed to remove group "%s" (%d, %s)' % (group, result.status, result.text)
                   ret_val = 1
             elif action == 'list' and group != '':
                ret_val = WallabyHelpers.list_group_info(session, config_store, group) or ret_val

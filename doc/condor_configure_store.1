@@ -1,0 +1,125 @@
+.TH CONDOR_CONFIGURE_STORE 1 "August 2011" condor-wallaby "User Commands"
+.SH NAME
+condor_configure_store \- Configure entities in wallaby
+.SH SYNOPSIS
+.B condor_configure_store
+[\fIOPTION\fR]... \fIACTION TARGET\fR...
+.SH DESCRIPTION
+.PP
+Configure entities in wallaby.  The condor_configure_store tool uses a text
+editor to present the entity metadata in YAML format.
+
+There are five types of entities than can be acted upon in wallaby: Nodes,
+Groups, Features, Parameters, and Subsystems.
+.SH OPTIONS
+.SS Options
+.TP
+\-b, --broker BROKER
+The ip/hostname of the broker used by wallaby.
+.TP
+-o, --port PORT
+The port of the broker used by wallaby.
+.TP
+-U, --user USER
+The username used to authenticate with the AMQP broker.
+.TP
+-P, --password PASSWORD
+The password used to authenticate with the AMQP broker.
+.TP
+-m, --auth-mechanism MECH
+A comma separated list of authentication mechanisms to use when communicating
+with the broker.  Supported mechanisms are: ANONYMOUS, PLAIN, GSSAPI.
+.TP
+-h, --help
+Print help.
+.TP
+-v, --verbose
+Print more information, if available.
+.SS Action:
+Only 1 action is allowed per command invocation.
+.TP
+-a, --add
+Add the target(s) to wallaby.
+.TP
+-d, --delete
+Remove the target(s) from wallaby.
+.TP
+-e, --edit
+Edit the target(s) in wallaby.  The target entities must already exist in
+wallaby
+.TP
+-l, --list
+List specific information in wallaby about the target(s) provided
+.SS Special List Actions:
+Unlike regular actions, more than 1 is allowed per command invocation.
+However, these can not be mixed with regular actions in a single command
+invocation.  These actions do not require a target.
+.TP
+--list-all-features
+List all features in wallaby.
+.TP
+--list-all-groups
+List all groups in wallaby.
+.TP
+--list-all-nodes
+List all nodes in wallaby.
+.TP
+--list-all-params
+List all params in wallaby.
+.TP
+--list-all-subsystems
+List all subsystems in wallaby.
+.SS Targets
+Multiple targets can be acted upon in a single command invocation, and lists
+of each target are separated by commas.  If a name has a comma in it, then
+the name will need to be surrounded by escaped quotes (\\").
+
+NOTE: condor_configure_store will not allow the creation of a parameter
+with a comma in its name.
+.TP
+-f, --features FEATURE[,FEATURE,...]
+A comma separated list of feature names that will be acted upon.
+.TP
+-g, --groups GROUP[,GROUP,...]
+A comma separated list of group names that will be acted upon.
+
+NOTE: The only property of a group editable by condor_configure_store is
+the node membership of the group.
+
+NOTE: It is not possible to perform any action upon wallaby's default group,
+nor create a group named "Internal Default Group".  The
+"Internal Default Group" name is reserved by the tools to refer to wallaby's
+default group.  However, it is possible to create a group with the same name
+that differs in capitalization.
+.TP
+-n, --nodes NODE[,NODE,...]
+A comma separated list of node names that will be acted upon.
+.TP
+-p, --params PARAM[,PARAM,...]
+A comma separated list of parameters.
+.TP
+-s, --subsys SUBSYSTEM[,SUBSYSTEM,...]
+A comma separated list of subsystems.
+.SH EXIT STATUS
+.PP
+The exit status is 0 if the action is performed successfully on all targets
+and 1 otherwise.  Failure to find the name of an entity in wallaby is
+considered a failure and will return 1.
+.SH ENVIRONMENT
+EDITOR
+.RS
+The editor that will be used to edit YAML representations of wallaby entities.
+If not defined, vi will be used.
+.SH NOTES
+Use condor_configure_pool to create configurations by applying entities to
+nodes or groups
+.SH EXAMPLE
+.TP
+Adding entities to wallaby:
+.B condor_configure_store -a -f FeatureA,FeatureB -g GroupA
+.TP
+Listing all of the nodes and subsystems in wallaby:
+.B condor_configure_store --list-all-nodes --list-all-subsystems
+.TP
+List group details over a secure AMQP broker:
+.B condor_configure_store -U bob -P notsosecure -l -g GroupA

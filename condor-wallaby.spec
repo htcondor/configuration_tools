@@ -44,6 +44,7 @@ Requires: python >= 2.4
 Requires: python-qmf >= 0.9.1073306
 Requires: python-wallabyclient >= %{ver}-%{rel}%{?dist}
 Requires: PyYAML
+Requires: vim-minimal
 Obsoletes: condor-remote-configuration-server
 
 %description tools
@@ -75,6 +76,7 @@ rm -rf %{buildroot}
 mkdir -p %{buildroot}/%{python_sitelib}/wallabyclient
 mkdir -p %{buildroot}/%_sbindir
 mkdir -p %{buildroot}/%_sysconfdir/condor/config.d
+mkdir -p %{buildroot}/%_mandir/man1
 %if 0%{?rhel} != 4
 cp -f condor_configure_pool %{buildroot}/%_sbindir
 cp -f condor_configure_store %{buildroot}/%_sbindir
@@ -82,6 +84,7 @@ cp -f condor_configure_store %{buildroot}/%_sbindir
 cp -f condor_configd %{buildroot}/%_sbindir
 cp -f 99configd.config %{buildroot}/%_sysconfdir/condor/config.d
 cp -f module/*.py %{buildroot}/%{python_sitelib}/wallabyclient
+cp -f doc/*.1 %{buildroot}/%_mandir/man1
 %if 0%{?rhel} == 4
 rm -f %{buildroot}/%{python_sitelib}/wallabyclient/WallabyTypes.py
 %endif
@@ -98,6 +101,7 @@ rm -f %{buildroot}/%{python_sitelib}/wallabyclient/WallabyTypes.py
 %files tools
 %defattr(-,root,root,-)
 %doc LICENSE-2.0.txt README
+%doc %_mandir/man1/*
 %defattr(0755,root,root,-)
 %_sbindir/condor_configure_store
 %_sbindir/condor_configure_pool

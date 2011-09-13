@@ -1,5 +1,5 @@
 %{!?python_sitelib: %define python_sitelib %(%{__python} -c "from distutils.sysconfig import get_python_lib; print get_python_lib()")}
-%define rel 4
+%define rel 5
 %define ver 4.1
 
 Name: condor-wallaby
@@ -119,6 +119,13 @@ rm -f %{buildroot}/%{python_sitelib}/wallabyclient/WallabyTypes.py
 %{python_sitelib}/wallabyclient/exceptions.py*
 
 %changelog
+* Tue Sep 13 2011  <rrati@redhat> - 4.1-5
+- Added man pages for store and pool tools
+- Tools now support names with a comma in them
+- Allow "Internal Default Group" as a valid target for the default group
+- Fixed typoes in tool help
+- Added dependency on vim-minimal
+
 * Mon Jul 25 2011  <rrati@redhat> - 4.1-4
 - Fixed issue with ccs and ccp group objects steping on each other
 

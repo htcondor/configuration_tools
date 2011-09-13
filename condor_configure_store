@@ -657,8 +657,7 @@ def main(argv=None):
                         print '%s' % line
                   ret_val = 1
             file.close()
-   except Exception, e:
-      print e
+   except:
       print 'Exception received when communicating with the configuration store'
       print 'This could be because of a communcation issue, or because the'
       print 'configuration store was taking too long to complete a task'

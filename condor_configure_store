@@ -404,15 +404,21 @@ def main(argv=None):
          for group in WallabyHelpers.parse_option_args(groups):
             obj = None
             group = group.strip()
+            if group == "Internal Default Group":
+               group = "+++DEFAULT"
             if action == 'add' and group != '':
-               if '+++' != group[0:3]:
+               if group == "+++DEFAULT":
+                  print '"Internal Default Group" is a reserved group name and can not be created'
+               elif '+++' != group[0:3]:
                   obj = WallabyHelpers.add_group(session, config_store, group)
                else:
                   print 'Group names beginning with "+++" are reserved and can not be added'
             elif action == 'edit' and group != '':
                obj = WallabyHelpers.get_group(session, config_store, group)
             elif action == 'delete' and group != '':
-               if '+++' != group[0:3]:
+               if group == "+++DEFAULT":
+                  print '"Internal Default Group" is a reserved group name and can not be deleted'
+               elif '+++' != group[0:3]:
                   print 'Removing group "%s"' % group
                   result = config_store.removeGroup(group)
                   if result.status != 0:

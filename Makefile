@@ -23,12 +23,14 @@ SOURCES/${SOURCE}:
 	mkdir -p SOURCES
 	rm -rf ${DIR}
 	mkdir ${DIR}
+	mkdir ${DIR}/doc
 	cp -f condor_configure_pool ${DIR}
 	cp -f condor_configure_store ${DIR}
 	cp -f condor_configd ${DIR}
 	cp -Rf module ${DIR}
 	cp -f config/* ${DIR}
 	cp -f LICENSE-2.0.txt README ${DIR}
+	cp -f doc/* ${DIR}/doc
 	tar -cf ${SOURCE} ${DIR}
 	mv "${SOURCE}" SOURCES
 

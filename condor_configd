@@ -176,8 +176,7 @@ class Service:
          broker_ip = '127.0.0.1'
 
       try:
-         val = read_condor_config('CONFIGD', ['QMF_BROKER_PORT'])
-         port = val['qmf_broker_port']
+         port = read_condor_config('CONFIGD', ['QMF_BROKER_PORT'])['qmf_broker_port']
       except ConfigError, error:
          log(logging.DEBUG, self.logger_name, '%s. Using default (5672)' % error.msg)
          port = 5672
@@ -836,18 +835,23 @@ def main(argv=None):
          size = 1000000
 
       try:
-         backoff_factor = int(read_condor_config('CONFIGD', ['BACKOFF_FACTOR']))
+         backoff_factor = int(read_condor_config('CONFIGD', ['BACKOFF_FACTOR'])['backoff_factor'])
          if backoff_factor < 0:
             backoff_factor = 2
       except:
          backoff_factor = 2
 
       try:
-         backoff_const = int(read_condor_config('CONFIGD', ['BACKOFF_CONSTANT']))
+         backoff_const = int(read_condor_config('CONFIGD', ['BACKOFF_CONSTANT'])['backoff_constant'])
          if backoff_const < 0:
             backoff_const = 9
       except:
          backoff_const = 9
+
+      try:
+         connect_timeout = int(read_condor_config('CONFIGD', ['WALLABY_CONNECT_TIMEOUT'])['wallaby_connect_timeout'])
+      except:
+         connect_timeout = 60
 
       # Create the log file
       try:
@@ -904,7 +908,11 @@ def main(argv=None):
 
       # Wait for connection to the store
       log(logging.DEBUG, logger_name, 'Looking for the store agent')
+      start = time.time()
       while service.console.get_store_agent() == None and stop_running == False:
+         if time.time() - start >= connect_timeout:
+            log(logging.INFO, logger_name, 'Timed out looking for store agent')
+            break
          time.sleep(1)
 
       if service.console.get_store_agent() != None:

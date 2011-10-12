@@ -1,6 +1,6 @@
 %{!?python_sitelib: %define python_sitelib %(%{__python} -c "from distutils.sysconfig import get_python_lib; print get_python_lib()")}
-%define rel 5
-%define ver 4.1
+%define rel 1
+%define ver 4.1.1
 
 Name: condor-wallaby
 Summary: Condor configuration using wallaby
@@ -119,6 +119,11 @@ rm -f %{buildroot}/%{python_sitelib}/wallabyclient/WallabyTypes.py
 %{python_sitelib}/wallabyclient/exceptions.py*
 
 %changelog
+* Wed Oct 12 2011  <rrati@redhat> - 4.1.1-1
+- Added CONFIGD_WALLABY_CONNECT_TIMEOUT to control how long the configd
+  waits to contact wallaby on start up
+- Fixed reading of backoff param values
+
 * Tue Sep 13 2011  <rrati@redhat> - 4.1-5
 - Added man pages for store and pool tools
 - Tools now support names with a comma in them

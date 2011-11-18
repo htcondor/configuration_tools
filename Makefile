@@ -4,9 +4,8 @@ RPMBUILD_DIRS := BUILD BUILDROOT RPMS SOURCES SPECS SRPMS
 
 NAME := condor-wallaby
 SPEC := ${NAME}.spec
-VERSION := $(shell grep -i 'define ver' "${SPEC}" | awk '{print $$3}')
-RELEASE := $(shell grep -i 'define rel' "${SPEC}" | awk '{print $$3}')
-SOURCE := ${NAME}-${VERSION}-${RELEASE}.tar.gz
+VERSION := $(shell grep -i Version: "${SPEC}" | awk '{print $$2}')
+SOURCE := ${NAME}-${VERSION}.tar.gz
 DIR := ${NAME}-${VERSION}
 
 build: condor-wallaby

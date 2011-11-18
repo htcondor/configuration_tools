@@ -1,16 +1,22 @@
 %{!?python_sitelib: %define python_sitelib %(%{__python} -c "from distutils.sysconfig import get_python_lib; print get_python_lib()")}
-%define rel 1
-%define ver 4.1.2
+
+%if (0%{?fedora} == 0 && 0%{?rhel} <= 5)
+%global building_for_el5 1
+%else
+%global building_for_el5 0
+%endif
 
 Name: condor-wallaby
 Summary: Condor configuration using wallaby
-Version: %{ver}
-Release: %{rel}%{?dist}
+Version: 4.1.2
+Release: 1%{?dist}
 Group: Applications/System
 License: ASL 2.0
 URL: http://git.fedorahosted.org/git/grid/configuration-tools.git
-Source0: %{name}-%{version}-%{rel}.tar.gz
+Source0: %{name}-%{version}.tar.gz
+%if %{building_for_el5}
 BuildRoot: %(mktemp -ud %{_tmppath}/%{name}-%{version}-%{release}-XXXXXX)
+%endif
 BuildArch: noarch
 BuildRequires: python >= 2.3
 
@@ -26,7 +32,7 @@ Requires: condor >= 7.4.4-0.9
 Requires: python >= 2.3
 Requires: python-qmf >= 0.9.1073306
 Requires: python-condorutils >= 1.5-4
-Requires: python-wallabyclient = %{ver}-%{rel}%{?dist}
+Requires: python-wallabyclient = %{version}-%{release}%{?dist}
 Obsoletes: condor-remote-configuration
 
 %description client
@@ -36,13 +42,13 @@ apply them to nodes.
 
 This package provides the tools needed for managed clients
 
-%if 0%{?rhel} != 4
+%if 0%{?rhel} != 4 && 0%{?fedora} == 0
 %package tools
 Summary: Wallaby configuration tools for configuring condor
 Group: Applications/System
 Requires: python >= 2.4
 Requires: python-qmf >= 0.9.1073306
-Requires: python-wallabyclient >= %{ver}-%{rel}%{?dist}
+Requires: python-wallabyclient >= %{version}-%{release}%{?dist}
 Requires: PyYAML
 Requires: vim-minimal
 Obsoletes: condor-remote-configuration-server
@@ -77,29 +83,40 @@ mkdir -p %{buildroot}/%{python_sitelib}/wallabyclient
 mkdir -p %{buildroot}/%_sbindir
 mkdir -p %{buildroot}/%_sysconfdir/condor/config.d
 mkdir -p %{buildroot}/%_mandir/man1
-%if 0%{?rhel} != 4
+%if 0%{?rhel} != 4 && 0%{?fedora} == 0
 cp -f condor_configure_pool %{buildroot}/%_sbindir
 cp -f condor_configure_store %{buildroot}/%_sbindir
 %endif
 cp -f condor_configd %{buildroot}/%_sbindir
 cp -f 99configd.config %{buildroot}/%_sysconfdir/condor/config.d
 cp -f module/*.py %{buildroot}/%{python_sitelib}/wallabyclient
+%if 0%{?rhel} != 4 && 0%{?fedora} == 0
 cp -f doc/*.1 %{buildroot}/%_mandir/man1
+%endif
 %if 0%{?rhel} == 4
 rm -f %{buildroot}/%{python_sitelib}/wallabyclient/WallabyTypes.py
 %endif
 
+%if %{building_for_el5}
+%clean
+rm -rf %{buildroot}
+%endif
+
 %files client
+%if %{building_for_el5}
 %defattr(-,root,root,-)
+%endif
 %doc LICENSE-2.0.txt
 %defattr(0755,root,root,-)
 %_sbindir/condor_configd
 %defattr(0644,root,root,-)
 %config %_sysconfdir/condor/config.d/99configd.config
 
-%if 0%{?rhel} != 4
+%if 0%{?rhel} != 4 && 0%{?fedora} == 0
 %files tools
+%if %{building_for_el5}
 %defattr(-,root,root,-)
+%endif
 %doc LICENSE-2.0.txt README
 %doc %_mandir/man1/*
 %defattr(0755,root,root,-)

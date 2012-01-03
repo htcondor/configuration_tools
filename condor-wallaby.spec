@@ -33,7 +33,9 @@ Requires: python >= 2.3
 Requires: python-qmf >= 0.9.1073306
 Requires: python-condorutils >= 1.5-4
 Requires: python-wallabyclient = %{version}-%{release}%{?dist}
+%if 0%{?fedora} == 0
 Obsoletes: condor-remote-configuration
+%endif
 
 %description client
 This package provides a means to quickly and easily configure machines
@@ -51,7 +53,9 @@ Requires: python-qmf >= 0.9.1073306
 Requires: python-wallabyclient >= %{version}-%{release}%{?dist}
 Requires: PyYAML
 Requires: vim-minimal
+%if 0%{?fedora} == 0
 Obsoletes: condor-remote-configuration-server
+%endif
 
 %description tools
 This package provides a means to quickly and easily configure machines
@@ -76,6 +80,8 @@ Tools for interacting with wallaby
 
 %prep
 %setup -q
+
+%build
 
 %install
 rm -rf %{buildroot}
@@ -110,7 +116,7 @@ rm -rf %{buildroot}
 %defattr(0755,root,root,-)
 %_sbindir/condor_configd
 %defattr(0644,root,root,-)
-%config %_sysconfdir/condor/config.d/99configd.config
+%_sysconfdir/condor/config.d/99configd.config
 
 %if 0%{?rhel} != 4 && 0%{?fedora} == 0
 %files tools

@@ -30,7 +30,7 @@ SOURCES/${SOURCE}:
 	cp -f config/* ${DIR}
 	cp -f LICENSE-2.0.txt README ${DIR}
 	cp -f doc/* ${DIR}/doc
-	tar -cf ${SOURCE} ${DIR}
+	tar -zcf ${SOURCE} ${DIR}
 	mv "${SOURCE}" SOURCES
 
 clean:

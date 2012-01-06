@@ -61,7 +61,7 @@ SOURCES/${SOURCE}: rpmdirs pristine
 	cp ${SOURCE} SOURCES
 
 pristine:
-	git archive --format=tar ${ORIG_VER} --prefix=${PREFIX}/ | gzip -9nv > ${SOURCE} 2> /dev/null
+	@git archive --format=tar ${ORIG_VER} --prefix=${PREFIX}/ | gzip -9nv > ${SOURCE} 2> /dev/null
 
 upload_pristine: pristine
 ifndef FH_USERNAME

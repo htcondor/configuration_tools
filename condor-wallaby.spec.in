@@ -145,6 +145,10 @@ rm -rf %{buildroot}
 %{python_sitelib}/wallabyclient/exceptions.py*
 
 %changelog
+* Fri Jan  6 2012  <rrati@redhat> - 4.1.2-2
+- Workflow and packaging improvements
+- Added VERSION file
+
 * Thu Oct 27 2011  <rrati@redhat> - 4.1.2-1
 - Fixed issues in condor_configure_pool manpage
 

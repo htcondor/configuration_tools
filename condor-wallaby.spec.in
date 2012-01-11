@@ -33,7 +33,7 @@ Requires: condor >= 7.4.4-0.9
 Requires: python >= 2.3
 Requires: python-qmf >= 0.9.1073306
 Requires: python-condorutils >= 1.5-4
-Requires: python-wallabyclient = %{version}-%{release}%{?dist}
+Requires: python-wallabyclient = %{version}
 %if 0%{?fedora} == 0
 Obsoletes: condor-remote-configuration
 %endif
@@ -51,7 +51,7 @@ Summary: Wallaby configuration tools for configuring condor
 Group: Applications/System
 Requires: python >= 2.4
 Requires: python-qmf >= 0.9.1073306
-Requires: python-wallabyclient >= %{version}-%{release}%{?dist}
+Requires: python-wallabyclient >= %{version}
 Requires: PyYAML
 Requires: vim-minimal
 %if 0%{?fedora} == 0

@@ -16,7 +16,7 @@ URL: http://git.fedorahosted.org/git/grid/configuration-tools.git
 Source0: https://fedorahosted.org/releases/g/r/grid/%{name}-%{version}.tar.gz
 #PATCHES#
 %if %{building_for_el5}
-BuildRoot: %(mktemp -ud %{_tmppath}/%{name}-%{version}-%{release}-XXXXXX)
+BuildRoot: %(mktemp -ud %{_tmppath}/%{name}-%{version}-XXXXXX)
 %endif
 BuildArch: noarch
 BuildRequires: python >= 2.3
@@ -33,7 +33,7 @@ Requires: condor >= 7.4.4-0.9
 Requires: python >= 2.3
 Requires: python-qmf >= 0.9.1073306
 Requires: python-condorutils >= 1.5-4
-Requires: python-wallabyclient = %{version}
+Requires: python-wallabyclient = %{version}-%{release}
 %if 0%{?fedora} == 0
 Obsoletes: condor-remote-configuration
 %endif
@@ -51,7 +51,7 @@ Summary: Wallaby configuration tools for configuring condor
 Group: Applications/System
 Requires: python >= 2.4
 Requires: python-qmf >= 0.9.1073306
-Requires: python-wallabyclient >= %{version}
+Requires: python-wallabyclient >= %{version}-%{release}
 Requires: PyYAML
 Requires: vim-minimal
 %if 0%{?fedora} == 0
@@ -134,7 +134,9 @@ rm -rf %{buildroot}
 %endif
 
 %files -n python-wallabyclient
+%if %{building_for_el5}
 %defattr(-,root,root,-)
+%endif
 %doc LICENSE-2.0.txt
 %defattr(0644, root,root,-)
 %{python_sitelib}/wallabyclient/WallabyHelpers.py*

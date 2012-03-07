@@ -158,9 +158,6 @@ module Mrg
           def run_wscmds
             @cmds.compact!
             @cmds.each do |cmdset|
-              puts "cmdset = #{cmdset.inspect}"
-              puts "cmd = #{cmdset[0].inspect}"
-              puts "args = #{cmdset[1].to_s.inspect}"
               cmdset[0].new(store, "").main(cmdset[1])
             end
           end
@@ -227,7 +224,6 @@ module Mrg
             names.each_key do |t|
               list = []
               list = names[t]
-#              list -= @already_added[t] if @already_added.has_key?(t)
               list -= @entities[t].keys if @entities.has_key?(t)
               bad = store.send("check#{t}Validity", list)
               bad_names[t] = bad if not bad.empty?
@@ -270,7 +266,6 @@ module Mrg
           def edit_objs
             retry_loop = true
             editor = ENV['EDITOR'] || "/bin/vi"
-#            @already_added = {}
 
             # Dump the data into a file and open an editor
             yaml_file = Tempfile.new("ccs")
@@ -340,8 +335,6 @@ module Mrg
                     c = Mrg::Grid::Config::Shell.constants.grep(/Add#{key.to_s[0,4].capitalize}[a-z]*$/).to_s
                     value.each do |n|
                       @entities[key][n] = self.send("create_#{key.to_s.downcase}_obj", n)
-#                      @already_added.has_key?(key) ? @already_added[key].push(n) : @already_added[key] = [n]
-#                    nsl.has_key?(key) ? nsl[key].merge!({@entities[key][n].name=>@entities[key][n]}) : nsl[key] = {@entities[key][n].name=>@entities[key][n]}
                       @cmds.push([Mrg::Grid::Config::Shell.const_get(c), [n]])
                     end
                   end

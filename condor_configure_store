@@ -12,6 +12,7 @@
 #   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 #   See the License for the specific language governing permissions and
 #   limitations under the License.
+require 'rbconfig'
 require 'optparse'
 require 'mrg/grid/config/shell'
 
@@ -20,7 +21,7 @@ module Mrg
     module Config
       class CCS
         def store_types
-          [:Node, :Parameter, :Feature, :Group, :Subsystem]
+          [:Feature, :Group, :Node, :Parameter, :Subsystem]
         end
 
         def parse_option_args(args)
@@ -79,7 +80,7 @@ module Mrg
               ws_args << ["-P", p]
             end
 
-            opts.on("-M", "--auth-mechanism PASS", %w{ANONYMOUS PLAIN GSSAPI}, "A comma separated list of authentication mechanisms (#{%w{ANONYMOUS PLAIN GSSAPI}.join(", ")}) for authenticating with the qpid broker") do |m|
+            opts.on("-m", "--auth-mechanism PASS", %w{ANONYMOUS PLAIN GSSAPI}, "A comma separated list of authentication mechanisms (#{%w{ANONYMOUS PLAIN GSSAPI}.join(", ")}) for authenticating with the qpid broker") do |m|
               ws_args << ["-M", m]
             end
 
@@ -90,36 +91,18 @@ module Mrg
             opts.separator ""
             opts.separator "Action: (Only 1 allowed per invocation)"
 
-            opts.on("-a", "--add", "Add the target(s) to the store") do
-              if options.has_key?(:action)
-                puts "Only 1 action may be specified"
-                exit(1)
+            actions = [["a", "add", "Add the target(s) to the store"],
+                       ["d", "delete", "Remove the target(s) from the store"],
+                       ["e", "edit", "Edit the target(s) in the store"],
+                       ["l", "list", "List specific information about the target(s) provided"]]
+            actions.each do |short, long, desc|
+              opts.on("-#{short}", "--#{long}", desc) do
+                if options.has_key?(:action)
+                  puts "Only 1 action may be specified"
+                  exit(1)
+                end
+                options[:action] = long.to_sym
               end
-              options[:action] = :add
-            end
-
-            opts.on("-d", "--delete", "Remove the target(s) from the store") do
-              if options.has_key?(:action)
-                puts "Only 1 action may be specified"
-                exit(1)
-              end
-              options[:action] = :delete
-            end
-
-            opts.on("-e", "--edit", "Edit the target(s) in the store") do
-              if options.has_key?(:action)
-                puts "Only 1 action may be specified"
-                exit(1)
-              end
-              options[:action] = :edit
-            end
-
-            opts.on("-l", "--list", "List specific information about the target(s) provided") do
-              if options.has_key?(:action)
-                puts "Only 1 action may be specified"
-                exit(1)
-              end
-              options[:action] = :list
             end
 
             opts.separator ""
@@ -131,7 +114,7 @@ module Mrg
                 str = type.to_s.downcase
               end
               opts.on("--list-all-#{str}s", "List all #{str}s in the store") do
-                if options.has_key?(:action) and options[:action] != :listall
+                if options.has_key?(:action) && options[:action] != :listall
                   puts "Actions and List Actions cannot be combined"
                   exit(1)
                 end
@@ -178,9 +161,13 @@ module Mrg
             puts ao
             puts @op
             exit(1)
+          rescue OptionParser::MissingArgument => ma
+            puts ma
+            puts @op
+            exit(1)
           end
 
-          if not options.has_key?(:action)
+          unless options.has_key?(:action)
             puts "No action specified.  Exiting"
             puts @op
             exit(1)
@@ -190,24 +177,22 @@ module Mrg
           store_types.each do |t|
             continue = continue || options.has_key?(t)
           end
-          if not continue
-            puts "No targets or list actions specified.  Exiting"
+          unless continue
+            puts "No targets specified.  Exiting"
             puts @op
             exit(1)
           end
 
           opts = []
           options.each_key do |type|
-            if (type == :action)
-              next
-            end
+            next if (type == :action)
             parse_option_args(options[type]).each do |name|
               opts.push("#{type}=#{name}")
             end
           end
   
           # Call wallaby shell ccs to perform the actions
-          ENV['WALLABY_COMMAND_DIR'] = "./commands" if not ENV['WALLABY_COMMAND_DIR']
+          ENV['WALLABY_COMMAND_DIR'] = "#{Config::CONFIG["sitelibdir"]}/condor_wallaby_tools" unless ENV['WALLABY_COMMAND_DIR']
           Mrg::Grid::Config::Shell::install_commands()
           Mrg::Grid::Config::Shell::main(ws_args + ["ccs-#{options[:action]}"] + opts.flatten)
         end

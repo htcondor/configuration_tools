@@ -25,63 +25,6 @@ module Mrg
 
     module Config
       module Shell
-        module UXOps
-          def get_param_values
-            @entities[:Parameter].each do |pname|
-              print "Value for \"#{pname}\": "
-              @entities[:Parameter][pname] = gets.strip
-            end
-          end
-
-          def config_node_schedulers
-            return if not @options.has_key?(:schedds)
-            if action == "delete"
-              @entities[:Parameter]["SCHEDD_NAME"] = nil
-              @entities[:Parameter]["SCHEDD_HOST"] = nil
-            else
-              print "Enter the name of the default scheduler: "
-              name = gets.strip
-              print "Is this a High Available Scheduler [y/N] ? "
-              if gets.downcase.strip == 'y'
-                @entities[:Parameter]["SCHEDD_NAME"] = name
-                @entities[:Parameter]["SCHEDD_HOST"] = nil
-              else
-                @entities[:Parameter]["SCHEDD_NAME"] = nil
-                @entities[:Parameter]["SCHEDD_HOST"] = name
-              end
-            end
-          end
-
-          def config_qmf_broker
-            return if not @options.has_key?(:qmf)
-            if action == "delete"
-              @entities[:Parameter]["QMF_BROKER_HOST"] = nil
-              @entities[:Parameter]["QMF_BROKER_PORT"] = nil
-            else
-              print "Enter the hostname of the AMQP broker this group will use to communicate with the Management Console: "
-              @entities[:Parameter]["QMF_BROKER_HOST"] = gets.strip
-
-              valid = false
-              while not valid
-                print "Enter the port the AMQP broker listens on: "
-                num = gets.strip
-                valid = Integer(num) rescue false
-                if valid
-                  @entities[:Parameter]["QMF_BROKER_PORT"] = num
-                else
-                  puts "Error: \"#{num}\" is not a valid port"
-                end
-              end
-            end
-          end
-
-          def apply?
-            puts
-            print "Apply these changes [Y/n] ? "
-            gets.downcase.strip != 'n'
-          end
-        end
-
         module CommonOps
           def run_wscmds
             @cmds.compact!
@@ -118,12 +61,15 @@ module Mrg
             yaml_file.seek(0, IO::SEEK_SET)
             YAML::parse(yaml_file.read).transform
           end
-
         end
 
         module CCPOps
           def action
             @action ||= self.class.opname.split("-")[1].to_sym
+          end
+
+          def valid_actions
+            [action]
           end
 
           def params_as_array(phash)
@@ -133,16 +79,6 @@ module Mrg
               list.push(k) if not v
             end
             list
-          end
-
-          def change_action(new)
-            return if new == @action
-            @orig_action = action
-            @action = new
-          end
-
-          def reset_action
-            @action = @orig_action if @orig_action
           end
 
           def init_option_parser
@@ -165,40 +101,29 @@ module Mrg
             end
           end
 
-          def new_feature_type
-            []
-          end
-
-          def new_parameter_type
-            {}
-          end
-
-          def min_args
-            2
+          def entities_needed
+            not (@options.has_key?(:schedds) || @options.has_key?(:qmf))
           end
 
           def parse_args(*args)
             @cmds = []
-            if args.size < min_args
-              exit!(1, "Incorrect number of arguments")
-            end
 
             # Retrieve the target
+            exit!(1, "No target specified.  Exiting") if args.size < 1
             @target = {}
             t = args.shift.split('=', 2)
+            if store.send("check#{t[0].capitalize}Validity", [t[1]]) != []
+              exit!(1, "failed to find #{t[0].downcase} \"#{t[1]}\"")
+            end
             @target[t[0].to_sym] = t[1]
 
-            @entities = Hash.new {|h,k| h[k] = Hash.new {|h1,k1| h1[k1] = nil}}
+            exit!(1, "No configuration entities specified.  Exiting") if entities_needed && args.size < 1
             args.each do |arg|
               as = arg.split('=', 2)
-              type = as[0].to_sym
-              if not @entities[action].has_key?(type)
-                @entities[action][type] = self.send("new_#{type.to_s.downcase}_type")
-              end
-              @entities[action][type][as[1]] = nil if @entities[action][type].instance_of?(Hash)
-              @entities[action][type].push(as[1]) if @entities[action][type].instance_of?(Array)
+              ent_list = self.send("#{action}_#{as[0].downcase}s")
+              ent_list[as[1]] = nil if ent_list.instance_of?(Hash)
+              ent_list.push(as[1]) if ent_list.instance_of?(Array)
             end
-puts "Entities: #{@entities.inspect}"
           end
 
           def self.included(receiver)
@@ -223,43 +148,24 @@ puts "Entities: #{@entities.inspect}"
             end
           end
 
-          def add_param(name, value)
-            add_params[name] = value
-            unique_params.delete(name)
-          end
-
-          def unique_params
-            @uniques ||= {}
-            @uniques[action] ||= get_unique_mustchange_params
-          end
-
-          def params
-            self.send("#{action}_params")
-          end
-
-          def add_params
-            @entities[:add][:Parameter] ||= {}
-#            @entities[action][:Parameter] ||= {}
+          def add_parameters
+            @padded ||= {}
           end
  
-          def remove_params
-            @entities[:remove][:Parameter] ||= {}
+          def remove_parameters
+            @premoved ||= {}
           end
 
           def finalize_params
             nil
           end
 
-          def features
-            self.send("#{action}_features")
-          end
-
           def add_features
-            @entities[:add][:Feature] ||= []
+            @fadded ||= []
           end
  
           def remove_features
-            @entities[:remove][:Feature] ||= []
+            @fremoved ||= []
           end
 
           def finalize_features
@@ -278,14 +184,69 @@ puts "Entities: #{@entities.inspect}"
             Hash[list.flatten.map {|n| [n, nil]}]
           end
 
+          def get_param_values
+            add_parameters.keys.each do |pname|
+              print "Value for \"#{pname}\": "
+              add_parameters[pname] = gets.strip
+            end
+          end
+
+          def config_node_schedulers
+            return if not @options.has_key?(:schedds)
+            if action == :remove
+              remove_parameters["SCHEDD_NAME"] = nil
+              remove_parameters["SCHEDD_HOST"] = nil
+            else
+              print "Enter the name of the default scheduler: "
+              name = gets.strip
+              print "Is this a High Available Scheduler [y/N] ? "
+              if gets.downcase.strip == 'y'
+                add_parameters["SCHEDD_NAME"] = name
+                remove_parameters["SCHEDD_HOST"] = nil
+              else
+                remove_parameters["SCHEDD_NAME"] = nil
+                add_parameters["SCHEDD_HOST"] = name
+              end
+            end
+          end
+
+          def config_qmf_broker
+            return if not @options.has_key?(:qmf)
+            if action == :remove
+              remove_parameters["QMF_BROKER_HOST"] = nil
+              remove_parameters["QMF_BROKER_PORT"] = nil
+            else
+              print "Enter the hostname of the AMQP broker this group will use to communicate with the Management Console: "
+              add_parameters["QMF_BROKER_HOST"] = gets.strip
+
+              valid = false
+              while not valid
+                print "Enter the port the AMQP broker listens on: "
+                num = gets.strip
+                break if num.empty?
+                valid = Integer(num) rescue false
+                if valid
+                  add_parameters["QMF_BROKER_PORT"] = num
+                else
+                  puts "Error: \"#{num}\" is not a valid port"
+                end
+              end
+            end
+          end
+
+          def apply?
+            puts
+            print "Apply these changes [Y/n] ? "
+            gets.downcase.strip != 'n'
+          end
+
           def check_add_params_needed
-            change_action(:add)
             p_on_target = target_obj.getConfig
 
             # Check for special case parameters
 
             # EC2 Enhanced
-            if (p_on_target.keys.include?("NEED_SET_EC2E_ROUTES") && p_on_target["NEED_SET_EC2E_ROUTES"].downcase == "true") || (add_features.include?("EC2Enhanced")) || (params.keys.include?("NEED_SET_EC2E_ROUTES") && params["NEED_SET_EC2E_ROUTES"].downcase == "true")
+            if (p_on_target.keys.include?("NEED_SET_EC2E_ROUTES") && p_on_target["NEED_SET_EC2E_ROUTES"].downcase == "true") || (add_features.include?("EC2Enhanced")) || (add_parameters.keys.include?("NEED_SET_EC2E_ROUTES") && add_parameters["NEED_SET_EC2E_ROUTES"].downcase == "true")
               route_data = [["Name of the route", "Name"],
                             ["Route requirements", "requirements"],
                             ["Amazon Instance Type", "set_amazoninstancetype"],
@@ -308,14 +269,14 @@ puts "Entities: #{@entities.inspect}"
                   routes += " [ GridResource = \"condor localhost $(COLLECTOR_HOST)\";"
                   route_data.each do |prompt, name|
                     print "#{prompt}: "
-                    quote = "\"" if name == "requirements"
+                    quote = '"' unless name == "requirements"
                     routes += " #{name} = #{quote}#{gets.strip}#{quote};"
                   end
                   routes += " set_remote_jobuniverse = 5; ]"
                 end
               end while continue
-              add_param("JOB_ROUTER_ENTRIES", base_route + routes)
-              add_param("NEED_SET_EC2E_ROUTES", routes.empty?)
+              add_parameters["JOB_ROUTER_ENTRIES"] = base_route + routes
+              add_parameters["NEED_SET_EC2E_ROUTES"] = (routes.empty? ? "TRUE" : "FALSE")
             end
 
             # VM Universe
@@ -326,16 +287,14 @@ puts "Entities: #{@entities.inspect}"
                 type = gets.strip
                 puts "Error: \"#{type}\" is not a valid Virtual Machine type.  Please try again" if not vm_types.include?(type)
               end while not vm_types.include?(type)
-puts "before: #{unique_params.inspect}"
-              add_param("VM_TYPE", type)
-puts "after: #{unique_params.inspect}"
-              add_param("XEN_BOOTLOADER", "/usr/bin/pygrub") if type.downcase == "xen"
-              remove_params["XEN_BOOTLOADER"] = nil if type.downcase != "xen"
+              add_parameters["VM_TYPE"] = type
+              add_parameters["XEN_BOOTLOADER"] = "/usr/bin/pygrub" if type.downcase == "xen"
+              remove_parameters["XEN_BOOTLOADER"] = nil if type.downcase != "xen"
 
               # Networking params
               print "Enable networking in the VM universe [y/N] ? "
               enabled = (gets.strip.downcase == 'y')
-              add_param("VM_NETWORKING", enabled)
+              add_parameters["VM_NETWORKING"] = (enabled ? "TRUE" : "FALSE")
               if enabled
                 vm_net_types = {:nat=>"nat", :bridge=>"bridge", :both=>"nat, bridge"}
                 type = ""
@@ -344,8 +303,13 @@ puts "after: #{unique_params.inspect}"
                   type = gets.strip.to_sym
                   puts "Invalid VM networking type \"#{type}\"" if not vm_net_types.keys.include?(type)
                 end while not vm_net_types.keys.include?(type)
-                add_param("VM_NETWORKING_TYPE", vm_net_types[type])
-                remove_params["VM_NETWORKING_DEFAULT_TYPE"] = nil if type != :both
+                add_parameters["VM_NETWORKING_TYPE"] = vm_net_types[type]
+                remove_parameters["VM_NETWORKING_DEFAULT_TYPE"] = nil if type != :both
+                if type != :nat
+                  print "Networking interface for bridge networking: "
+                  add_parameters["VM_NETWORKING_BRIDGE_INTERFACE"] = gets.strip
+                end
+
                 if type == :both
                   vm_net_types.delete(:both)
                   begin
@@ -354,23 +318,24 @@ puts "after: #{unique_params.inspect}"
                     type = type.to_sym if not type.empty?
                     puts "\"#{type}\" is an invalid default VM networking type" if not vm_net_types.keys.include?(type)
                   end while not vm_net_types.keys.include?(type)
-                  add_param("VM_NETWORKING_DEFAULT_TYPE", vm_net_types[type])
+                  add_parameters["VM_NETWORKING_DEFAULT_TYPE"] = vm_net_types[type]
                 end
               else
-                remove_params["VM_NETWORKING_TYPE"] = nil
-                remove_params["VM_NETWORKING_DEFAULT_TYPE"] = nil
+                remove_parameters["VM_NETWORKING_TYPE"] = nil
+                remove_parameters["VM_NETWORKING_DEFAULT_TYPE"] = nil
+                remove_parameters["VM_NETWORKING_BRIDGE_INTERFACE"] = nil
               end
             end
 
             # Prompt the user if there are still parameters that need to be set
-puts "unique = #{unique_params.inspect}"
-            if (unique_params - params.keys).size > 0
+            uparams = get_unique_mustchange_params(add_features)
+            if (uparams - add_parameters.keys).size > 0
               puts "The following parameters need to be set for this configuration to be valid:"
-              unique_params.sort.each {|p| puts p if not params.keys.include?(p)}
+              uparams.sort.each {|p| puts p if not add_parameters.keys.include?(p)}
               print "Set these parameters now ? [y/N] "
               if gets.strip.downcase == 'y'
-                unique_params.sort.each do |param|
-                  if not params.include?(p)
+                uparams.sort.each do |param|
+                  if not add_parameters.include?(p)
                     print "#{param}: "
                     value = gets.strip
                     if value.empty?
@@ -380,7 +345,7 @@ puts "unique = #{unique_params.inspect}"
                         next
                       end
                     end
-                    add_param(param, value)
+                    add_parameters[param] = value
                   end
                 end
               else
@@ -388,34 +353,38 @@ puts "unique = #{unique_params.inspect}"
                 puts "WARNING: This configuration may not be able to be activated"
               end
             end
-            reset_action
+          end
+
+          def ec2enhanced_params
+            ["NEED_SET_EC2E_ROUTES"]
+          end
+
+          def vmuniverse_params
+            ["VM_TYPE", "XEN_BOOTLOADER", "VM_NETWORKING",
+             "VM_NETWORKING_TYPE", "VM_NETWORKING_DEFAULT_TYPE",
+             "VM_NETWORKING_BRIDGE_INTERFACE"]
           end
 
           def check_remove_params_needed
-            change_action(:remove)
-            remove_params.merge!(hashify(unique_params))
+            remove_parameters.merge!(hashify(get_unique_mustchange_params(remove_features)))
 
-            special_params = ["NEED_SET_EC2E_ROUTES", "VM_TYPE",
-                              "XEN_BOOTLOADER", "VM_NETWORKING",
-                              "VM_NETWORKING_TYPE",
-                              "VM_NETWORKING_DEFAULT_TYPE"]
-            special_params.each do |p|
-              remove_features.each do |f|
-                fparams = store.getFeature(f).params
-                remove_params[p] = nil if fparams.keys.include?(p)
+            ["EC2Enhanced", "VMUniverse"].each do |fn|
+              if remove_features.include?(fn)
+                self.send("#{fn.downcase}_params").each do |p|
+                  remove_parameters[p] = nil
+                end
               end
             end
-            reset_action
           end
 
-          def get_unique_mustchange_params
+          def get_unique_mustchange_params(list)
             unique = []
             candidates = []
             mustchange = store.getMustChangeParams
 
             # Iterate over the provided list of features and check each
             # to see they include parameters that are using default values.
-            features.each do |f|
+            list.each do |f|
               params_on_feature = store.getFeature(f).explain
 
               # For each list of parameters on the feature, check to see if
@@ -432,7 +401,7 @@ puts "unique = #{unique_params.inspect}"
             # have explicitly set values.  
             mc_w_values = []
             target_obj.features.each do |f|
-              if not features.include?(f)
+              if not list.include?(f)
                 pof = store.getFeature(f).explain
                 pof.keys.each {|p| mc_w_values.push(p) if mustchange.keys.include?(p) && pof[p]['how'] == "set-explicitly"}
               end
@@ -460,38 +429,29 @@ puts "unique = #{unique_params.inspect}"
               features.delete("ConsoleCollector") if gets.strip.downcase != 'y'
             end
 
+            get_param_values
             config_node_schedulers
             config_qmf_broker
-puts "add early: #{add_features.inspect}"
-puts "entities before: #{@entities.inspect}"
             check_add_params_needed
             check_remove_params_needed
-puts "entities after: #{@entities.inspect}"
 
             return 0 if not apply?
 
             finalize_params
             finalize_features
-puts "before loop: #{add_features.inspect}"
-            @entities.keys.each do |act|
-#              change_action(act)
+            valid_actions.each do |act|
               # Modify the features
               prefix = ws_prefix(act)
-puts "prefix: #{prefix.inspect}"
-puts "act: #{act.inspect}"
-puts "features: #{self.send("#{act}_features").inspect}"
               if (not self.send("#{act}_features").empty?) || prefix == :Replace
                 c = Mrg::Grid::Config::Shell.constants.grep(/#{prefix}#{@target.keys}Feature$/).to_s
                 @cmds.push([Mrg::Grid::Config::Shell.const_get(c), [@target.values.to_s] + self.send("#{act}_features")])
               end
 
               # Modify the parameters
-puts "params: #{self.send("#{act}_params").inspect}"
-              if (not self.send("#{act}_params").empty?) || prefix == :Replace
+              if (not self.send("#{act}_parameters").empty?) || prefix == :Replace
                 c = Mrg::Grid::Config::Shell.constants.grep(/#{prefix}#{@target.keys}Param$/).to_s
-                @cmds.push([Mrg::Grid::Config::Shell.const_get(c), [@target.values.to_s] + params_as_array(self.send("#{act}_params"))])
+                @cmds.push([Mrg::Grid::Config::Shell.const_get(c), [@target.values.to_s] + params_as_array(self.send("#{act}_parameters"))])
               end
-#              reset_action
             end
 
             begin
@@ -763,15 +723,6 @@ puts @cmds.inspect
                   break
                 end
 
-#              # Entities that may need to sync
-#              if obj.instance_of?(Mrg::Grid::SerializedConfigs::Node)
-#                nsl.has_key?(:Node) ? nsl[:Node].merge!({obj.name=>obj}) : nsl[:Node] = {obj.name=>obj}
-#                osl.has_key?(:Node) ? osl[:Node].merge!({old_obj.name=>old_obj}) : osl[:Node] = {old_obj.name=>old_obj}
-#              elsif obj.instance_of?(Mrg::Grid::SerializedConfigs::GroupMembership)
-#                nsl.has_key?(:Group) ? nsl[:Group].merge!({obj.name=>obj}) : nsl[:Group] = {obj.name=>obj}
-#                osl.has_key?(:Group) ? osl[:Group].merge!({old_obj.name=>old_obj}) : osl[:Group] = {old_obj.name=>old_obj}
-#              end
-#
                 # Verify all metadata is valid
                 new_invalids = verify_obj(obj)
                 new_invalids.keys.each {|k| @invalids.has_key?(k) ? @invalids[k] = @invalids[k].push(new_invalids[k]).flatten.uniq : @invalids[k] = new_invalids[k]}
@@ -828,28 +779,6 @@ puts @cmds.inspect
             sync_memberships
           end
         end
-
-#          def act
-#            action = self.class.opname.split("-")[1].to_sym
-#            cmds = []
-#            @data.each_key do |type|
-#              if action == :list
-#              elsif action == :listall
-#              elsif action == :delete
-#              else
-#                @data[type].each_key do |name|
-#                  if action == :add
-#                    c = Mrg::Grid::Config::Shell.constants.grep(/Add#{type.to_s[0,4].capitalize}[a-z]*$/).to_s
-#                    cmds.push([Mrg::Grid::Config::Shell.const_get(c), @entities[type].keys.join(" ")])
-#                  end
-#                  cmds.push(self.send("update_#{type.to_s.downcase}_cmds", name, @data[type][name]))
-#                end
-#              end
-#            end
-#            puts cmds.inspect
-#            return 0
-#          end
-#        end
 
         class CCSAdd < ::Mrg::Grid::Config::Shell::Command
           include CommonOps
@@ -999,7 +928,6 @@ puts @cmds.inspect
         class CCPAdd < ::Mrg::Grid::Config::Shell::Command
           include CommonOps
           include CCPOps
-          include UXOps
 
           def self.opname
             "ccp-add"
@@ -1008,12 +936,15 @@ puts @cmds.inspect
           def self.description
             "Append to the group/node with lowest priority"
           end
+
+          def valid_actions
+            [:add, :remove]
+          end
         end
 
         class CCPRemove < ::Mrg::Grid::Config::Shell::Command
           include CommonOps
           include CCPOps
-          include UXOps
 
           def self.opname
             "ccp-remove"
@@ -1027,7 +958,6 @@ puts @cmds.inspect
         class CCPInsert < ::Mrg::Grid::Config::Shell::Command
           include CommonOps
           include CCPOps
-          include UXOps
 
           def self.opname
             "ccp-insert"
@@ -1038,8 +968,7 @@ puts @cmds.inspect
           end
 
           def finalize_params
-puts "add_params = #{add_params.inspect}"
-            add_params.replace(target_obj.params.merge(add_params))
+            add_parameters.replace(target_obj.params.merge(add_parameters))
           end
 
           def finalize_features
@@ -1058,7 +987,6 @@ puts "add_params = #{add_params.inspect}"
         class CCPEdit < ::Mrg::Grid::Config::Shell::Command
           include CommonOps
           include CCPOps
-          include UXOps
 
           def self.opname
             "ccp-edit"
@@ -1074,7 +1002,6 @@ puts "add_params = #{add_params.inspect}"
 
           def group_obj
             group = Mrg::Grid::SerializedConfigs::Group.new
-#            group.saved_fields.delete(:is_identity_group)
             group.name = @target.values.to_s
             group.features = target_obj.features
             group.params = target_obj.params
@@ -1085,36 +1012,20 @@ puts "add_params = #{add_params.inspect}"
             @serialized ||= group_obj
           end
 
-          def min_args
-            1
-          end
-
           def finalize_params
-            edit_params.merge!(add_params)
+            edit_parameters.merge!(add_parameters)
           end
 
-          def add_params
-            @padded ||= {}
-          end
-
-          def remove_params
-            @premoved ||= {}
-          end
-
-          def add_features
-            @fadded ||= []
-          end
-
-          def remove_features
-            @fremoved ||= []
-          end
-
-          def edit_params
-            @entities[:edit][:Parameter] ||= {}
+          def edit_parameters
+            @eparams ||= {}
           end
 
           def edit_features
-            @entities[:edit][:Feature] ||= []
+            @efeatures ||= []
+          end
+
+          def entities_needed
+            false
           end
 
           def edit_target
@@ -1124,26 +1035,20 @@ puts "add_params = #{add_params.inspect}"
                         [:qmf, "request to prompt for broker information"]
                        ]
             warnings.each do |key, txt|
-              puts "Warning: Ignoring #{txt} in edit mode" if @options.has_key?(key) || @entities[action].has_key?(key)
-              @options.delete(key) if @options.has_key?(key)
-              @entities[action].delete(key) if @entities[action].has_key?(key)
+              f = "#{action}_#{key.to_s.downcase}s"
+              ents = self.send(f) if self.respond_to?(f)
+              puts "Warning: Ignoring #{txt} in edit mode" if @options.has_key?(key) || (ents && (not ents.empty?))
+              @options.delete(key)
+              ents.delete(key) if ents
             end
 
             edited = run_editor
-puts edited.inspect
-puts "entities after edit: #{@entities.inspect}"
-            add_params.replace(Hash[edited.params.select{|k, v| (not target_obj.params.keys.include?(k)) || ([k, v] != [k, target_obj.params[k]])}])
-            remove_params.replace(Hash[target_obj.params.select{|k, v| (not edited.params.keys.include?(k))}])
+            add_parameters.replace(Hash[edited.params.select{|k, v| (not target_obj.params.keys.include?(k)) || ([k, v] != [k, target_obj.params[k]])}])
+            remove_parameters.replace(Hash[target_obj.params.select{|k, v| (not edited.params.keys.include?(k))}])
             add_features.replace(edited.features.select{|n| (not target_obj.features.include?(n))})
             remove_features.replace(target_obj.features.select{|n| (not edited.features.include?(n))})
-puts "add params: #{add_params.inspect}"
-puts "remove params: #{remove_params.inspect}"
-puts "add features: #{add_features.inspect}"
-puts "remove features: #{remove_features.inspect}"
-            edit_params.replace(edited.params)
+            edit_parameters.replace(edited.params)
             edit_features.replace(edited.features)
-puts "edit params: #{edit_params.inspect}"
-puts "edit features: #{edit_features.inspect}"
           end
         end
       end

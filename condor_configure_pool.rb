@@ -227,42 +227,30 @@ module Mrg
             exit(1)
           end
 
-          unless options.has_key?(:target) || no_target.include?(options[:action])
-            puts "No target specified.  Exiting"
-            puts @op
-            exit(1)
-          end
+#          unless options.has_key?(:target) || no_target.include?(options[:action])
+#            puts "No target specified.  Exiting"
+#            puts @op
+#            exit(1)
+#          end
+#
+#          continue = no_entities.include?(options[:action])
+#
+#          entities.each do |t|
+#            continue = continue || options.has_key?(t) if (options[:action] != :list) && (options[:action] != :edit)
+#            options.delete(t) if options[:action] == :list
+#          end
+#          unless continue
+#            puts "No configuration entities specified.  Exiting"
+#            puts @op
+#            exit(1)
+#          end
 
-          continue = no_entities.include?(options[:action])
-
-          entities.each do |t|
-            continue = continue || options.has_key?(t) if (options[:action] != :list) && (options[:action] != :edit)
-            options.delete(t) if options[:action] == :list
-          end
-          unless continue
-            puts "No configuration entities specified.  Exiting"
-            puts @op
-            exit(1)
-          end
-
-#          if options[:action] == :edit
-#            warnings = [[:Feature, "list of features"],
-#                        [:Parameter, "list of parameters"],
-#                        [:schedds, "request to prompt for schedd information"],
-#                        [:qmf, "request to prompt for broker information"]
-#                       ]
-#            warnings.each do |key, txt|
-#              puts "Warning: Ignoring #{txt} in edit mode" if options.has_key?(key)
-#              options.delete(key)
-#            end
-#          else
+          opts = []
           opts.push("--schedds") if options.has_key?(:schedds)
           opts.push("--qmf") if options.has_key?(:qmf)
-#          end
   
           # Generate the option string to pass to the shell command
-          opts = []
-          opts = ["#{options[:target]}=#{options[:target_name]}"] if options.has_key?(:target)
+          opts.push("#{options[:target]}=#{options[:target_name]}") if options.has_key?(:target)
 puts options.inspect
           options.each_key do |type|
             next if not store_types.include?(type)
@@ -279,10 +267,8 @@ puts options.inspect
             cmd = "#{options[:action]}"
             opts = []
           end
-puts opts.inspect
 
           # Call wallaby shell ccp to perform the actions
-#          Config::CONFIG["sitelibdir"]
           ENV['WALLABY_COMMAND_DIR'] = "#{Config::CONFIG["sitelibdir"]}/condor_wallaby_tools" unless ENV['WALLABY_COMMAND_DIR']
           Mrg::Grid::Config::Shell::install_commands()
           Mrg::Grid::Config::Shell::main(ws_args + [cmd] + opts.flatten)

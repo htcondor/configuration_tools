@@ -1,16 +1,23 @@
 %{!?python_sitelib: %define python_sitelib %(%{__python} -c "from distutils.sysconfig import get_python_lib; print get_python_lib()")}
-%define rel 1
-%define ver 4.1.1
+
+%if (0%{?fedora} == 0 && 0%{?rhel} <= 5)
+%global building_for_el5 1
+%else
+%global building_for_el5 0
+%endif
 
 Name: condor-wallaby
 Summary: Condor configuration using wallaby
-Version: %{ver}
-Release: %{rel}%{?dist}
+Version: #VERSION#
+Release: #RELEASE#%{?dist}
 Group: Applications/System
 License: ASL 2.0
 URL: http://git.fedorahosted.org/git/grid/configuration-tools.git
-Source0: %{name}-%{version}-%{rel}.tar.gz
-BuildRoot: %(mktemp -ud %{_tmppath}/%{name}-%{version}-%{release}-XXXXXX)
+Source0: https://fedorahosted.org/releases/g/r/grid/%{name}-%{version}.tar.gz
+#PATCHES#
+%if %{building_for_el5}
+BuildRoot: %(mktemp -ud %{_tmppath}/%{name}-%{version}-XXXXXX)
+%endif
 BuildArch: noarch
 BuildRequires: python >= 2.3
 
@@ -26,8 +33,10 @@ Requires: condor >= 7.4.4-0.9
 Requires: python >= 2.3
 Requires: python-qmf >= 0.9.1073306
 Requires: python-condorutils >= 1.5-4
-Requires: python-wallabyclient = %{ver}-%{rel}%{?dist}
+Requires: python-wallabyclient = %{version}-%{release}
+%if 0%{?fedora} == 0
 Obsoletes: condor-remote-configuration
+%endif
 
 %description client
 This package provides a means to quickly and easily configure machines
@@ -36,16 +45,18 @@ apply them to nodes.
 
 This package provides the tools needed for managed clients
 
-%if 0%{?rhel} != 4
+%if 0%{?rhel} != 4 && 0%{?fedora} == 0
 %package tools
 Summary: Wallaby configuration tools for configuring condor
 Group: Applications/System
 Requires: python >= 2.4
 Requires: python-qmf >= 0.9.1073306
-Requires: python-wallabyclient >= %{ver}-%{rel}%{?dist}
+Requires: python-wallabyclient >= %{version}-%{release}
 Requires: PyYAML
 Requires: vim-minimal
+%if 0%{?fedora} == 0
 Obsoletes: condor-remote-configuration-server
+%endif
 
 %description tools
 This package provides a means to quickly and easily configure machines
@@ -71,35 +82,50 @@ Tools for interacting with wallaby
 %prep
 %setup -q
 
+#APPLY_PATCHES#
+
+%build
+
 %install
 rm -rf %{buildroot}
 mkdir -p %{buildroot}/%{python_sitelib}/wallabyclient
 mkdir -p %{buildroot}/%_sbindir
 mkdir -p %{buildroot}/%_sysconfdir/condor/config.d
 mkdir -p %{buildroot}/%_mandir/man1
-%if 0%{?rhel} != 4
+%if 0%{?rhel} != 4 && 0%{?fedora} == 0
 cp -f condor_configure_pool %{buildroot}/%_sbindir
 cp -f condor_configure_store %{buildroot}/%_sbindir
 %endif
 cp -f condor_configd %{buildroot}/%_sbindir
-cp -f 99configd.config %{buildroot}/%_sysconfdir/condor/config.d
+cp -f config/99configd.config %{buildroot}/%_sysconfdir/condor/config.d
 cp -f module/*.py %{buildroot}/%{python_sitelib}/wallabyclient
+%if 0%{?rhel} != 4 && 0%{?fedora} == 0
 cp -f doc/*.1 %{buildroot}/%_mandir/man1
+%endif
 %if 0%{?rhel} == 4
 rm -f %{buildroot}/%{python_sitelib}/wallabyclient/WallabyTypes.py
 %endif
 
+%if %{building_for_el5}
+%clean
+rm -rf %{buildroot}
+%endif
+
 %files client
+%if %{building_for_el5}
 %defattr(-,root,root,-)
+%endif
 %doc LICENSE-2.0.txt
 %defattr(0755,root,root,-)
 %_sbindir/condor_configd
 %defattr(0644,root,root,-)
-%config %_sysconfdir/condor/config.d/99configd.config
+%_sysconfdir/condor/config.d/99configd.config
 
-%if 0%{?rhel} != 4
+%if 0%{?rhel} != 4 && 0%{?fedora} == 0
 %files tools
+%if %{building_for_el5}
 %defattr(-,root,root,-)
+%endif
 %doc LICENSE-2.0.txt README
 %doc %_mandir/man1/*
 %defattr(0755,root,root,-)
@@ -108,7 +134,9 @@ rm -f %{buildroot}/%{python_sitelib}/wallabyclient/WallabyTypes.py
 %endif
 
 %files -n python-wallabyclient
+%if %{building_for_el5}
 %defattr(-,root,root,-)
+%endif
 %doc LICENSE-2.0.txt
 %defattr(0644, root,root,-)
 %{python_sitelib}/wallabyclient/WallabyHelpers.py*
@@ -119,6 +147,16 @@ rm -f %{buildroot}/%{python_sitelib}/wallabyclient/WallabyTypes.py
 %{python_sitelib}/wallabyclient/exceptions.py*
 
 %changelog
+* Fri Jan 11 2012  <rrati@redhat> - 4.1.2-3
+- Fixed dependency issue on python-wallabyclient
+
+* Fri Jan  6 2012  <rrati@redhat> - 4.1.2-2
+- Workflow and packaging improvements
+- Added VERSION file
+
+* Thu Oct 27 2011  <rrati@redhat> - 4.1.2-1
+- Fixed issues in condor_configure_pool manpage
+
 * Wed Oct 12 2011  <rrati@redhat> - 4.1.1-1
 - Added CONFIGD_WALLABY_CONNECT_TIMEOUT to control how long the configd
   waits to contact wallaby on start up

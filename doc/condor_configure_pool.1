@@ -110,15 +110,16 @@ The name of the group that will have the configuration change applied to it.
 NOTE: "Internal Default Group" can be used as the group name to denote
 wallaby's default group instead of using --default-group.
 .SS Entities
-Multiple targets can be acted upon in a single command invocation, and lists
-of each target are separated by commas.  If a name has a comma in it, then
+Multiple entities can be acted upon in a single command invocation, and lists
+of each entity are separated by commas.  If a name has a comma in it, then
 the name will need to be surrounded by escaped quotes (\\").
 .TP
 -f, --features FEATURE[,FEATURE,...]
 A comma separated list of feature names that will be acted upon.
 .TP
--g, --groups GROUP[,GROUP,...]
-A comma separated list of group names that will be acted upon.
+-p, --params PARAM[,PARAM,...]
+A comma separated list of parameter names that will be acted upon.  Values for
+the parameters will be prompted for if they are being added.
 .SH EXIT STATUS
 .PP
 The exit status is 0 if the action is performed successfully on all targets

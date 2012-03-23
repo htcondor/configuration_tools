@@ -192,7 +192,7 @@ module Mrg
           end
   
           # Call wallaby shell ccs to perform the actions
-          ENV['WALLABY_COMMAND_DIR'] = "#{Config::CONFIG["sitelibdir"]}/condor_wallaby_tools" unless ENV['WALLABY_COMMAND_DIR']
+          ENV['WALLABY_COMMAND_DIR'] = "#{Config::CONFIG["sitelibdir"]}/condor_wallaby_tools/commands" unless ENV['WALLABY_COMMAND_DIR']
           Mrg::Grid::Config::Shell::install_commands()
           Mrg::Grid::Config::Shell::main(ws_args + ["ccs-#{options[:action]}"] + opts.flatten)
         end

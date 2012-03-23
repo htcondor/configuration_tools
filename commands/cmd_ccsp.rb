@@ -26,6 +26,10 @@ module Mrg
     module Config
       module Shell
         module CommonOps
+          def action
+            @action ||= self.class.opname.split("-")[1].to_sym
+          end
+
           def run_wscmds
             @cmds.compact!
             @cmds.each do |cmdset|
@@ -64,10 +68,6 @@ module Mrg
         end
 
         module CCPOps
-          def action
-            @action ||= self.class.opname.split("-")[1].to_sym
-          end
-
           def valid_actions
             [action]
           end
@@ -109,7 +109,9 @@ module Mrg
             @cmds = []
 
             # Retrieve the target
-            exit!(1, "No target specified.  Exiting") if args.size < 1
+            has_target = false
+            args.each {|a| has_target = has_target || a.include?("Group=") || a.include?("Node=")}
+            exit!(1, "No target specified.  Exiting") if not has_target
             @target = {}
             t = args.shift.split('=', 2)
             if store.send("check#{t[0].capitalize}Validity", [t[1]]) != []
@@ -473,7 +475,6 @@ module Mrg
               @cmds.push(save_snapshot_cmds) if (not name) || name.empty?
             end
 
-puts @cmds.inspect
             run_wscmds
             return 0
           end
@@ -502,6 +503,8 @@ puts @cmds.inspect
               as = arg.split('=', 2)
               @entities[as[0].to_sym][as[1]] = nil
             end
+
+            exit!(1, "can not #{action} the group +++DEFAULT") if @entities[:Group].has_key?("+++DEFAULT")
           end
 
           def self.included(receiver)

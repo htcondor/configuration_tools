@@ -227,31 +227,12 @@ module Mrg
             exit(1)
           end
 
-#          unless options.has_key?(:target) || no_target.include?(options[:action])
-#            puts "No target specified.  Exiting"
-#            puts @op
-#            exit(1)
-#          end
-#
-#          continue = no_entities.include?(options[:action])
-#
-#          entities.each do |t|
-#            continue = continue || options.has_key?(t) if (options[:action] != :list) && (options[:action] != :edit)
-#            options.delete(t) if options[:action] == :list
-#          end
-#          unless continue
-#            puts "No configuration entities specified.  Exiting"
-#            puts @op
-#            exit(1)
-#          end
-
           opts = []
           opts.push("--schedds") if options.has_key?(:schedds)
           opts.push("--qmf") if options.has_key?(:qmf)
   
           # Generate the option string to pass to the shell command
           opts.push("#{options[:target]}=#{options[:target_name]}") if options.has_key?(:target)
-puts options.inspect
           options.each_key do |type|
             next if not store_types.include?(type)
             parse_option_args(options[type]).each do |name|

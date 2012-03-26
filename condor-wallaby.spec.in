@@ -1,9 +1,21 @@
-%{!?python_sitelib: %define python_sitelib %(%{__python} -c "from distutils.sysconfig import get_python_lib; print get_python_lib()")}
-
 %if (0%{?fedora} == 0 && 0%{?rhel} <= 5)
 %global building_for_el5 1
 %else
 %global building_for_el5 0
+%endif
+
+%if (0%{?fedora} >= 17)
+%global ruby_abi 1.9.1
+%global ruby_install_dir %{ruby_vendorlibdir}
+%else
+%global ruby_abi 1.8
+%{!?ruby_sitelib: %global ruby_sitelib %(ruby -rrbconfig -e 'puts Config::CONFIG["sitelibdir"] ')}
+%global ruby_install_dir %{ruby_sitelib}
+%endif
+
+%if %{building_for_el5} == 1
+%{!?python_sitelib: %define python_sitelib %(%{__python} -c "from distutils.sysconfig import get_python_lib; print get_python_lib()")}
+%{!?python_sitearch: %global python_sitearch %(%{__python} -c "from distutils.sysconfig import get_python_lib; print(get_python_lib(1))")}
 %endif
 
 Name: condor-wallaby
@@ -18,8 +30,9 @@ Source0: https://fedorahosted.org/releases/g/r/grid/%{name}-%{version}.tar.gz
 %if %{building_for_el5}
 BuildRoot: %(mktemp -ud %{_tmppath}/%{name}-%{version}-XXXXXX)
 %endif
-BuildArch: noarch
 BuildRequires: python >= 2.3
+BuildRequires: ruby
+BuildArch: noarch
 
 %description
 The condor wallaby package provides a means to quickly and easily
@@ -45,14 +58,13 @@ apply them to nodes.
 
 This package provides the tools needed for managed clients
 
-%if 0%{?rhel} != 4 && 0%{?fedora} == 0
+%if 0%{?rhel} != 4
 %package tools
 Summary: Wallaby configuration tools for configuring condor
 Group: Applications/System
-Requires: python >= 2.4
-Requires: python-qmf >= 0.9.1073306
-Requires: python-wallabyclient >= %{version}-%{release}
-Requires: PyYAML
+Requires: ruby(abi) = %{?ruby_abi}
+Requires: ruby-%{name}-tools = %{version}-%{release}
+Requires: wallaby-utils >= 0.13.1
 Requires: vim-minimal
 %if 0%{?fedora} == 0
 Obsoletes: condor-remote-configuration-server
@@ -72,12 +84,18 @@ Group: Applications/System
 BuildRequires: python-devel
 Requires: python >= 2.3
 Requires: python-condorutils >= 1.5-4
-%if 0%{?rhel} != 4
-Requires: PyYAML
-%endif
 
 %description -n python-wallabyclient
 Tools for interacting with wallaby
+
+%package -n ruby-%{name}-tools
+Summary: Tools for use with wallaby shell
+Group: Applications/System
+Requires: ruby-wallaby
+Requires: ruby(abi) = %{?ruby_abi}
+
+%description -n ruby-%{name}-tools
+Tools for executing condor specific commands in wallaby shell
 
 %prep
 %setup -q
@@ -87,23 +105,25 @@ Tools for interacting with wallaby
 %build
 
 %install
+%if %{building_for_el5}
 rm -rf %{buildroot}
+%endif
+mkdir -p %{buildroot}/%{ruby_install_dir}/condor_wallaby_tools
+mkdir -p %{buildroot}/%{ruby_install_dir}/condor_wallaby_tools/commands
 mkdir -p %{buildroot}/%{python_sitelib}/wallabyclient
 mkdir -p %{buildroot}/%_sbindir
 mkdir -p %{buildroot}/%_sysconfdir/condor/config.d
 mkdir -p %{buildroot}/%_mandir/man1
-%if 0%{?rhel} != 4 && 0%{?fedora} == 0
+%if 0%{?rhel} != 4
 cp -f condor_configure_pool %{buildroot}/%_sbindir
 cp -f condor_configure_store %{buildroot}/%_sbindir
 %endif
 cp -f condor_configd %{buildroot}/%_sbindir
 cp -f config/99configd.config %{buildroot}/%_sysconfdir/condor/config.d
 cp -f module/*.py %{buildroot}/%{python_sitelib}/wallabyclient
-%if 0%{?rhel} != 4 && 0%{?fedora} == 0
+cp -f commands/*.rb %{buildroot}/%{ruby_install_dir}/condor_wallaby_tools/commands
+%if 0%{?rhel} != 4
 cp -f doc/*.1 %{buildroot}/%_mandir/man1
-%endif
-%if 0%{?rhel} == 4
-rm -f %{buildroot}/%{python_sitelib}/wallabyclient/WallabyTypes.py
 %endif
 
 %if %{building_for_el5}
@@ -121,7 +141,7 @@ rm -rf %{buildroot}
 %defattr(0644,root,root,-)
 %_sysconfdir/condor/config.d/99configd.config
 
-%if 0%{?rhel} != 4 && 0%{?fedora} == 0
+%if 0%{?rhel} != 4
 %files tools
 %if %{building_for_el5}
 %defattr(-,root,root,-)
@@ -140,11 +160,16 @@ rm -rf %{buildroot}
 %doc LICENSE-2.0.txt
 %defattr(0644, root,root,-)
 %{python_sitelib}/wallabyclient/WallabyHelpers.py*
-%if 0%{?rhel} != 4
-%{python_sitelib}/wallabyclient/WallabyTypes.py*
-%endif
 %{python_sitelib}/wallabyclient/__init__.py*
 %{python_sitelib}/wallabyclient/exceptions.py*
+
+%files -n ruby-%{name}-tools
+%if %{building_for_el5}
+%defattr(-,root,root,-)
+%endif
+%doc LICENSE-2.0.txt
+%defattr(0644, root,root,-)
+/%{ruby_install_dir}/condor_wallaby_tools/commands/cmd_ccsp.rb
 
 %changelog
 * Fri Jan 11 2012  <rrati@redhat> - 4.1.2-3

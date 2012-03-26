@@ -1,5 +1,5 @@
-#!/usr/bin/python
-#   Copyright 2008 Red Hat, Inc.
+#!/usr/bin/ruby
+#   Copyright 2012 Red Hat, Inc.
 #
 #   Licensed under the Apache License, Version 2.0 (the "License");
 #   you may not use this file except in compliance with the License.
@@ -12,960 +12,244 @@
 #   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 #   See the License for the specific language governing permissions and
 #   limitations under the License.
-
-import copy
-import getopt
-import os
-import sys
-import signal
-import tempfile
-import yaml
-from wallabyclient import WallabyHelpers, WallabyTypes
-from wallabyclient.exceptions import WallabyStoreError, WallabyUnsupportedAPI
-from condorutils.osutil import run_cmd
-from qmf.console import Session
-
-
-def exit_signal_handler(signum, frame):
-   sys.exit(0)
-
-
-def print_help(name):
-   print '\nUsage:'
-   print '  %s -h|--help' % os.path.basename(name)
-   print '  %s [options] <action> <target> [config entities]' % os.path.basename(name)
-   print '\nOptions:'
-   print '  -b|--broker <broker>       - The ip/hostname of the broker used by the'
-   print '                               configuration store'
-   print '  -o|--port <port>           - The port of the broker used by the configuration'
-   print '                               store'
-   print '  -U|--user <user>           - The username used to authenticate with the broker'
-   print '  -P|--password <password>   - The password used to authenticate with the broker'
-   print '  -m|--auth-mechanism <mech> - A comma separated list of authentication'
-   print '                               mechanisms to use when communicating with the'
-   print '                               broker.  Supported mechanisms are: ANONYMOUS,'
-   print '                               PLAIN, GSSAPI'
-   print '  --schedds                  - Prompt for scheduler information'
-   print '  --qmfbroker                - Prompt for QMF broker information'
-   print '  -h|--help                  - Print help'
-   print '  -v|--verbose               - Print more information, if available'
-   print '\nTarget: (Only 1 allowed per invocation)'
-   print '  --default-group   - Perform actions on the Internal Default Group in the store'
-   print '  -n|--node <name>  - The name of a specific machine that will have the'
-   print '                      configuration changes applied to it'
-   print '  -g|--group <name> - The name of the group that will have the configuration'
-   print '                      applied to it'
-   print '\nAction: (Only 1 allowed per invocation)'
-   print '  -a|--add                 - Append to the group/node with lowest priority'
-   print '  -d|--delete              - Remove from the group/node'
-   print '  -e|--edit                - Edit the group/node'
-   print '  -i|--insert              - Insert into the group/node with highest priority'
-   print '  -l|--list                - List detailed information'
-   print '  --activate               - Attempt to activate the configuration in'
-   print '                             the store'
-   print '  --load-snapshot <name>   - Load snapshot with the given name'
-   print '  --take-snapshot <name>   - Create snapshot with the given name'
-   print '  --remove-snapshot <name> - Remove snapshot with the given name'
-   print '  --list-all-features      - List all features in the store'
-   print '  --list-all-groups        - List all groups in the store'
-   print '  --list-all-nodes         - List all nodes in the store'
-   print '  --list-all-params        - List all params in the store'
-   print '  --list-all-snapshots     - List all snapshots in the store'
-   print '\nConfig Entities:'
-   print '  -f|--features feature[,feature,...] - A comma separated list of features'
-   print '  -p|--params param1[,param2,...]     - A comma separated list of parameters'
-
-
-def represent_group(self, data):
-   return self.represent_mapping(u'!Group', WallabyTypes.print_wallaby_types(data))
-
-
-def configure_node_schedulers(params, is_delete):
-   if is_delete == True:
-      params['SCHEDD_NAME'] = False
-      params['SCHEDD_HOST'] = False
-   else: 
-      def_sched = raw_input('Enter the name of the default scheduler: ')
-      if def_sched != '':
-         if raw_input('Is this a High Available Scheduler [y/N] ? ').lower() == 'y':
-            params['SCHEDD_NAME'] = def_sched.strip()
-            params['SCHEDD_HOST'] = False
-         else:
-            params['SCHEDD_HOST'] = def_sched.strip()
-            params['SCHEDD_NAME'] = False
-
-
-def configure_qmf_broker(params, is_delete):
-   if is_delete == True:
-      params['QMF_BROKER_HOST'] = False
-      params['QMF_BROKER_PORT'] = False
-   else:
-      value = raw_input('Enter the hostname of the AMQP broker this group will use to communicate with the Management Console: ')
-      if value != '':
-         params['QMF_BROKER_HOST'] = value.strip()
-      else:
-         params['QMF_BROKER_HOST'] = value
-
-      valid = False
-      while valid == False:
-         valid = True
-         value = raw_input('Enter the port the AMQP broker listens on: ')
-         if value != '':
-            try:
-               junk = int(value)
-               params['QMF_BROKER_PORT'] = value.strip()
-            except ValueError:
-               print 'Error: "%s" is not a valid value' % value
-               valid = False
-
-
-def get_ec2e_routes():
-   config = '$(JOB_ROUTER_ENTRIES)'
-   answer = raw_input('Enable EC2 routing to the Small AMI type [y/N] ? ')
-   if answer.lower() == 'y':
-      config += ' [ GridResource = "condor localhost $(COLLECTOR_HOST)";'
-      config += ' Name = "Amazon Small";'
-      config += ' requirements=target.WantAWS is true && (target.Universe is vanilla || target.Universe is 5) && (target.WantArch is "INTEL" || target.WantArch is UNDEFINED) && (target.WantCpus <= 1 || target.WantCpus is UNDEFINED) && (target.WantMemory < 1.7 || target.WantMemory is UNDEFINED) && (target.WantDisk < 160 || target.WantDisk is UNDEFINED);'
-      config += ' set_amazoninstancetype = "m1.small";'
-      config += ' set_remote_jobuniverse = 5;'
-      config += get_aws_data()
-      config += ' ]'
-
-   answer = raw_input('Enable EC2 routing to the High-Compute Medium AMI type [y/N] ? ')
-   if answer.lower() == 'y':
-      config += ' [ GridResource = "condor localhost $(COLLECTOR_HOST)";'
-      config += ' Name = "Amazon High-CPU Medium";'
-      config += ' requirements=target.WantAWS is true && (target.Universe is vanilla || target.Universe is 5) && (target.WantArch is "INTEL" || target.WantArch is UNDEFINED) && ((target.WantCpus > 1 && target.WantCpus <= 5) || (target.WantDisk > 160 && target.WantDisk <= 350));'
-      config += ' set_amazoninstancetype = "c1.medium";'
-      config += ' set_remote_jobuniverse = 5;'
-      config += get_aws_data()
-      config += ' ]'
-
-   answer = raw_input('Enable EC2 routing to the High-Compute Extra Large AMI type [y/N] ? ')
-   if answer.lower() == 'y':
-      config += ' [ GridResource = "condor localhost $(COLLECTOR_HOST)";'
-      config += ' Name = "Amazon High-CPU Extra Large";'
-      config += ' requirements=target.WantAWS is true && (target.Universe is vanilla || target.Universe is 5) && target.WantArch is "X86_64" && target.WantCpus > 8 && target.WantCpus <= 20 && (target.WantMemory <= 7 || target.WantMemory is UNDEFINED) && (target.WantDisk <= 1690 || target.WantDisk is UNDEFINED);'
-      config += ' set_amazoninstancetype = "c1.xlarge";'
-      config += ' set_remote_jobuniverse = 5;'
-      config += get_aws_data()
-      config += ' ]'
-
-   answer = raw_input('Enable EC2 routing to the XLarge AMI type [y/N] ? ')
-   if answer.lower() == 'y':
-      config += ' [ GridResource = "condor localhost $(COLLECTOR_HOST)";'
-      config += ' Name = "Amazon XLarge";'
-      config += ' requirements=target.WantAWS is true && (target.Universe is vanilla || target.Universe is 5) && target.WantArch is "X86_64" && ((target.WantMemory > 7.5 && target.WantMemory <= 15) || (target.WantDisk > 850 && target.WantDisk < 1690) || (target.WantCpus > 4 && target.WantCpus <= 8));'
-      config += ' set_amazoninstancetype = "m1.xlarge";'
-      config += ' set_remote_jobuniverse = 5;'
-      config += get_aws_data()
-      config += ' ]'
-
-   answer = raw_input('Enable EC2 routing to the Large AMI type [y/N] ? ')
-   if answer.lower() == 'y':
-      config += ' [ GridResource = "condor localhost $(COLLECTOR_HOST)";'
-      config += ' Name = "Amazon Large";'
-      config += ' requirements=target.WantAWS is true && (target.Universe is vanilla || target.Universe is 5) && target.WantArch is "X86_64" && (target.WantCpus <= 4 || target.WantCpus is UNDEFINED) && (target.WantMemory <= 7.5 || target.WantMemory is UNDEFINED) && (target.WantDisk <= 850 || target.WantDisk is UNDEFINED);'
-      config += ' set_amazoninstancetype = "m1.large";'
-      config += ' set_remote_jobuniverse = 5;'
-      config += get_aws_data()
-      config += ' ]'
-   return (config, config == '$(JOB_ROUTER_ENTRIES)')
-
-
-def get_aws_data():
-   info = ''
-   resp = raw_input('Enter a filename containing an AWS Public Key for this route: ')
-   if resp.strip() != '':
-      info += ' set_amazonpublickey = "%s";' % resp.strip()
-   resp = raw_input('Enter a filename containing an AWS Private Key for this route: ')
-   if resp.strip() != '':
-      info += ' set_amazonprivatekey = "%s";' % resp.strip()
-   resp = raw_input('Enter a filename containing an AWS Access Key for this route: ')
-   if resp.strip() != '':
-      info += ' set_amazonaccesskey = "%s";' % resp.strip()
-   resp = raw_input('Enter a filename containing an AWS Secret Key for this route: ')
-   if resp.strip() != '':
-      info += ' set_amazonsecretkey = "%s";' % resp.strip()
-   resp = raw_input('Enter a filename containing an RSA Public Key for this route: ')
-   if resp.strip() != '':
-      info += ' set_rsapublickey = "%s";' % resp.strip()
-   resp = raw_input('Enter an S3 Storage Bucket name for this route: ')
-   info += ' set_amazons3bucketname = "%s";' % resp.strip()
-   resp = raw_input('Enter an SQS Queue name for this route: ')
-   info += ' set_amazonsqsqueuename = "%s";' % resp.strip()
-   resp = raw_input('Enter an AMI ID for use with this route: ')
-   info += ' set_amazonamiid = "%s";' % resp.strip()
-   return info
-
-
-def get_feature_params(sess, store, feature):
-   params = {}
-
-   if feature != '':
-      obj = WallabyHelpers.get_feature(sess, store, feature)
-      if obj != None:
-         params = obj.params
-   return params
-
-
-def get_unique_mustchange_params(sess, store, feature_list, group_obj):
-   param_list = {}
-   feature_mustchange = []
-   configed_feats = {}
-   candidate_params = []
-   mustchange_list = {}
-   unique_params = {}
-
-   # Get the list of parameters that must change from the store
-   result = store.getMustChangeParams()
-   if result.status != 0:
-      print 'Error: Failed to retrieve list of MustChange parameters from the Configuration Store'
-   else:
-      mustchange_list = result.outArgs['params']
-
-   # Iterate over the provided list of features and check each
-   # to see if it is a parameter that must have its value changed.  The end
-   # result will be a list of parameters that are must change and using
-   # the default value in the store (ie parameters that must be chagned, but
-   # haven't been).  This list will be compared against the parameters from the
-   # list of features already configured on the group to see if the param is
-   # set by another feature.  If not, then it is unique.
-   for feat in feature_list:
-      explain_data = {}
-      feat_obj = WallabyHelpers.get_feature(sess, store, feat)
-      if feat_obj == None:
-         print 'Error: Failed to retrieve feature "%s" from the Configuration Store' % feat
-         continue
-      result = feat_obj.explain()
-      if result.status == 0:
-         explain_data = result.outArgs['explanation']
-
-      # For each list of parameters, check to see if the MustChange is
-      # true.
-      if explain_data != {}:
-         for param in explain_data.keys():
-            # check if the parameter must be changed by the user and if so
-            # see if its value is the same as the parameter's default.  If
-            # it is, that means the parameter hasn't been set
-            if param in mustchange_list.keys() and \
-               explain_data[param]['how'] == 'set-to-default':
-               candidate_params += [param]
-
-   # Now, get the parameter list for the features configured on
-   # the group
-   configed_feats = group_obj.features
-
-   # Generate the list of parameters for features not being acted upon
-   for feat in configed_feats:
-      if feat not in feature_list:
-         obj = WallabyHelpers.get_feature(sess, store, feat)
-         if obj != None:
-            result = obj.explain()
-            if result.status == 0:
-               explain_data = result.outArgs['explanation']
-               for param in explain_data.keys():
-                  if param in mustchange_list.keys() and \
-                     explain_data[param]['how'] == 'set-explicitly':
-                     feature_mustchange += [param]
-
-   # Now, determine if any of the candidate parameters aren't set by
-   # any of the configured features.  If they aren't, add them to
-   # the list of unique must set parameters
-   for param in candidate_params:
-      if param not in feature_mustchange:
-         unique_params[param] = False
-
-   return unique_params
-
-
-def set_param(name, value, param_list, unique_list = None):
-   param_list[name] = value
-   if unique_list != None:
-      try:
-         del unique_list[name]
-      except:
-         pass
-
-def check_more_params_needed(sess, store, feature_list, params, more_params, gobj):
-   list = {}
-
-   # Get a list of unique must set parameters for the features being added
-   unique_params = get_unique_mustchange_params(sess, store, feature_list, gobj)
-
-   # Get the list of parameters for the group
-   result = gobj.getConfig()
-   if result.status != 0:
-      print 'Error: Unable to determine if special configuration is needed'
-   else:
-      list = result.outArgs['config']
-
-   # Check for special case parameters
-
-   # Check for EC2 Enhanced
-   if ('NEED_SET_EC2E_ROUTES' in list.keys() and \
-      list['NEED_SET_EC2E_ROUTES'].lower() == 'true') or \
-      'EC2Enhanced' in feature_list or \
-      ('NEED_SET_EC2E_ROUTES' in params.keys() and \
-      params['NEED_SET_EC2E_ROUTES'].lower() == 'true'):
-
-      (routes, empty_routes) = get_ec2e_routes()
-      set_param('JOB_ROUTER_ENTRIES', routes, params, unique_params)
-      if empty_routes == False:
-         set_param('NEED_SET_EC2E_ROUTES', 'FALSE', params, unique_params)
-      else:
-         set_param('NEED_SET_EC2E_ROUTES', 'TRUE', params, unique_params)
-
-   # Check for VM Universe parameters
-   vm_remove_params = {}
-   if 'VMUniverse' in feature_list:
-      input = ''
-      while input != 'xen' and input != 'kvm':
-         input = raw_input('Type of Virtual Machines to run on this node (xen or kvm): ')
-         if input != '':
-            input = input.lower().strip()
-         if input != 'xen' and input != 'kvm':
-            print 'Error: "%s" is not a valid Virtual Machine type.  Please try again' % input
-      
-      set_param('VM_TYPE', input, params, unique_params)
-      if input == 'xen':
-         set_param('XEN_BOOTLOADER', '/usr/bin/pygrub', params, unique_params)
-      else:
-         vm_remove_params['XEN_BOOTLOADER'] = False
-   if 'VMUniverse' in feature_list:
-      input = raw_input('Enable networking in the VM universe [y/N] ? ')
-      if input.lower() == 'y':
-         set_param('VM_NETWORKING', 'TRUE', params, unique_params)
-         type = ''
-         while type.strip().lower() != 'both' and \
-               type.strip().lower() != 'nat' and \
-               type.strip().lower() != 'bridge':
-            type = raw_input('Supported VM networking type (nat, bridge, both): ')
-            if type.strip() == 'both':
-               set_param('VM_NETWORKING_TYPE', 'nat, bridge', params, unique_params)
-               input = ''
-               while input.strip().lower() != 'nat' and \
-                     input.strip().lower() != 'bridge':
-                  input = raw_input('Default VM networking type (nat or bridge): ')
-                  if input.strip().lower() != 'nat' and \
-                     input.strip().lower() != 'bridge':
-                     print '"%s" is an invalid default VM networking type.  Please try again' % input
-               set_param('VM_NETWORKING_DEFAULT_TYPE', input.strip(), params, unique_params)
-            elif type.strip().lower() == 'nat' or type.strip().lower() == 'bridge':
-               set_param('VM_NETWORKING_TYPE', type.strip(), params, unique_params)
-               vm_remove_params['VM_NETWORKING_DEFAULT_TYPE'] = False
-            else:
-               print 'Invalid input "%s"' % type
-      else:
-         set_param('VM_NETWORKING', 'FALSE', params, unique_params)
-         vm_remove_params['VM_NETWORKING_DEFAULT_TYPE'] = False
-         vm_remove_params['VM_NETWORKING_TYPE'] = False
-
-      if vm_remove_params != {}:
-         gparams = gobj.params
-        
-         for remove_param in vm_remove_params.keys():
-            if remove_param in gparams.keys():
-               del gparams[remove_param]
-         result = gobj.modifyParams('replace', gparams, {})
-         if result.status != 0:
-            print 'WARNING: Unable to remove VM Universe Networking parameters (%d, %s)' % (result.status, result.text)
-
-   # Prompt the user if there are still parameters that need to be set
-   if len(unique_params) > 0:
-      print 'The following parameters need to be set for this configuration to be valid.'
-      for param in sorted(unique_params.keys()):
-         if param != '' and param not in params.keys() and \
-            param not in more_params.keys():
-            print param
-      answer = raw_input('Set these parameters now ? [y/N] ')
-      if answer.lower() == 'y':
-         for param in sorted(unique_params.keys()):
-            if param != '' and param not in params.keys() and \
-               param not in more_params.keys():
-               value = raw_input('%s: '% param)
-               if value.strip() == '':
-                  answer = raw_input('Use a value for "%s" defined elsewhere in the pool configuration? [Y/n] ' % param)
-                  if answer.lower() != 'n':
-                     print 'Adding a parameter that uses a default value is not permitted.  This parameter change will be discarded'
-                     continue
-               set_param(param, value.strip(), params)
-      else:
-         print 'Electing not to set these parameters now'
-         print 'WARNING: This configuration may not be able to be activated'
-
-
-def check_delete_params_needed(sess, store, feature_list, params, gobj):
-   # Grab the list of unique must set parameters for each feature being removed
-   unique_params = get_unique_mustchange_params(sess, store, feature_list, gobj)
-
-   # Update the list of parameters to include the unique parameters that
-   # must be set by the user
-   params.update(unique_params)
-
-   # Special cases
-   for feat in feature_list:
-      feat_params = get_feature_params(sess, store, feat)
-      if 'NEED_SET_EC2E_ROUTES' in feat_params.keys():
-         # In case this was set
-         params['NEED_SET_EC2E_ROUTES'] = False
-      if 'VM_TYPE' in feat_params.keys():
-         # Remove all the VM Universe params that are always set
-         params['VM_TYPE'] = False
-         params['XEN_BOOTLOADER'] = False
-         params['VM_NETWORKING'] = False
-         params['VM_NETWORKING_TYPE'] = False
-         params['VM_NETWORKING_DEFAULT_TYPE'] = False
-
-
-def activate_configuration(store):
-   ret_val = False
-
-   print 'Activating configuration.  This may take a while, please be patient'
-   result = store.activateConfiguration(_timeout=600)
-   if result.status != 0:
-      print 'Error: Unable to active changes (%d, %s)' % (result.status, result.text)
-   else:
-      errors = result.outArgs['explain']
-      warnings = result.outArgs['warnings']
-      if warnings != []:
-         for warn in warnings:
-            print 'Warning: %s' % warn
-         print
-      if errors != {}:
-         print 'The configuration is not valid'
-         for node in sorted(errors.keys()):
-            if node == '+++DEFAULT':
-               print 'Node: Internal Default Group'
-            else:
-               print 'Node: %s' % node
-            for reason in errors[node].keys():
-               print '%s:' % reason
-               for param in sorted(errors[node][reason]):
-                  print '  %s' % param
-            print
-         print 'Configuration not activated'
-      elif warnings == []:
-         ret_val = True
-         print 'Configuration activated'
-   return ret_val
-
-
-def save_snapshot(store, name):
-   result = store.makeSnapshot(name)
-   if result.status != 0:
-      print 'Error: Problem saving configuration in store (%d, %s)' % (result.status, result.text)
-      return(1)
-   else: 
-      print 'Configuration saved'
-      return(0)
-
-
-def main(argv=None):
-   if argv is None:
-      argv = sys.argv
-
-   ret_val = 0
-   action = ''
-   features = []
-   removed_features = []
-   added_features = []
-   params = []
-   broker_ip = '127.0.0.1'
-   name = ''
-   node = ''
-   port = 5672
-   param_list = {}
-   added_params = {}
-   removed_params = {}
-   replace_list = {}
-   group_config = {}
-   session = []
-   list_alls = []
-   broker_prompts = False
-   schedd_prompts = False
-   group_obj = []
-   username = ''
-   passwd = ''
-   is_node = False
-   verbose = False
-   no_target_needed = ['activate', 'help', 'list-all', 'load-snapshot',
-                     'remove-snapshot', 'take-snapshot']
-   no_entity_needed = no_target_needed + ['list', 'edit']
-   mechanisms = 'ANONYMOUS PLAIN GSSAPI'
-
-   # Set signal handlers
-   signal.signal(signal.SIGINT, exit_signal_handler)
-   signal.signal(signal.SIGTERM, exit_signal_handler)
-
-   long_opts = ['auth-mechanism=', 'activate', 'add', 'broker=',
-                'default-group', 'delete', 'edit', 'features=', 'group=',
-                'help', 'insert', 'list', 'list-all-features',
-                'list-all-groups', 'list-all-nodes', 'list-all-params',
-                'list-all-snapshots', 'load-snapshot=', 'node=', 'params=',
-                'password=', 'port=', 'qmfbroker', 'remove-snapshot=',
-                'schedds', 'take-snapshot=', 'user=', 'verbose']
-
-   try:
-      opts, args = getopt.gnu_getopt(argv[1:], 'ab:def:g:hilm:n:p:P:o:U:v', long_opts)
-   except getopt.GetoptError, error:
-      print str(error)
-      return(1)
-
-   for option, arg in opts:
-      if option == '--activate':
-         if action != '':
-            print 'Only 1 action may be specified'
-            return(1)
-         action = 'activate'
-      if option in ('-a', '--add'):
-         if action != '':
-            print 'Only 1 action may be specified'
-            return(1)
-         action = 'add'
-      if option in ('-b', '--broker'):
-         broker_ip = arg
-      if option == '--default-group':
-         if name != '' or node != '':
-            print 'Can only configure 1 node or group at a time'
-         name = '+++DEFAULT'
-      if option in ('-d', '--delete'):
-         if action != '':
-            print 'Only 1 action may be specified'
-            return(1)
-         action = 'remove'
-      if option in ('-e', '--edit'):
-         if action != '':
-            print 'Only 1 action may be specified'
-            return(1)
-         action = 'edit'
-      if option in ('-f', '--features'):
-         features = WallabyHelpers.parse_option_args(arg)
-      if option in ('-g', '--group'):
-         if name != '':
-            print 'Can only configure 1 node or group at a time'
-            return(1)
-         if arg == "Internal Default Group":
-            name = "+++DEFAULT"
-         else:
-            name = arg
-         is_node = False
-      if option in ('-h', '--help'):
-         print_help(argv[0])
-         return(0)
-      if option in ('-i', '--insert'):
-         if action != '':
-            print 'Only 1 action may be specified'
-            return(1)
-         action = 'insert'
-      if option in ('-l', '--list'):
-         if action != '':
-            print 'Only 1 action may be specified'
-            return(1)
-         action = 'list'
-      if option in ('--list-all-features', '--list-all-groups',
-                    '--list-all-nodes', '--list-all-params',
-                    '--list-all-snapshots'):
-         if action != '' and action != 'list-all':
-            print 'Only 1 action may be specified'
-            return(1)
-         action = 'list-all'
-         if option == '--list-all-features':
-            list_alls += ['Feature']
-         elif option == '--list-all-groups':
-            list_alls += ['Group']
-         elif option == '--list-all-nodes':
-            list_alls += ['Node']
-         elif option == '--list-all-params':
-            list_alls += ['Parameter']
-         elif option == '--list-all-snapshots':
-            list_alls += ['Snapshot']
-      if option  == '--load-snapshot':
-         if action != '':
-            print 'Only 1 action may be specified'
-            return(1)
-         action = 'load-snapshot'
-         snapshot_name = arg
-      if option in ('-m', '--auth-mechanism'):
-         mechanisms = arg.replace(',', ' ')
-      if option in ('-n', '--node'):
-         if name != '':
-            print 'Can only configure 1 node or group at a time'
-            return(1)
-         name = arg
-         is_node = True
-      if option in ('-o', '--port'):
-         try:
-            port = int(arg)
-         except:
-            print 'Invalid broker port'
-            return(1)
-      if option in ('-p', '--params'):
-         params = WallabyHelpers.parse_option_args(arg)
-      if option in ('-P', '--password'):
-         passwd = arg
-      if option == '--qmfbroker':
-         broker_prompts = True
-      if option in ('--remove-snapshot'):
-         if action != '':
-            print 'Only 1 action may be specified'
-            return(1)
-         action = 'remove-snapshot'
-         snapshot_name = arg
-      if option == '--schedds':
-         schedd_prompts = True
-      if option  == '--take-snapshot':
-         if action != '':
-            print 'Only 1 action may be specified'
-            return(1)
-         action = 'take-snapshot'
-         snapshot_name = arg
-      if option in ('-U', '--user'):
-         username = arg
-      if option in ('-v', '--verbose'):
-         verbose = True
-
-   if action == '':
-      print 'No action specified.  Exiting'
-      print_help(argv[0])
-      return(1)
-
-   if name == '' and action not in no_target_needed:
-      print 'No target supplied.  Exiting'
-      print_help(argv[0])
-      return(1)
-
-   if features == [] and params == [] and schedd_prompts == False and \
-      broker_prompts == False and action not in no_entity_needed:
-      print 'No configuration entities specified.  Exiting'
-      print_help(argv[0])
-      return(1)
-
-   # Connect to the broker
-   session = Session()
-   if username != '' and passwd != '':
-      broker_str = '%s/%s@%s:%d' % (username, passwd, broker_ip, port)
-   elif username != '':
-      broker_str = '%s@%s:%d' % (username, broker_ip, port)
-   else:
-      broker_str = '%s:%d' % (broker_ip, port)
-
-   try:
-      broker = session.addBroker('amqp://%s' % broker_str, mechanisms=mechanisms)
-   except:
-      print 'Unable to connect to broker "%s"' % broker_str
-      return(1)
-
-   # Retrieve the config store object
-   try:
-     (store_agent, config_store) = WallabyHelpers.get_store_objs(session)
-   except WallabyStoreError, error:
-      print 'Error: %s' % error.error_str
-      session.delBroker(broker)
-      return(1)
-
-   try:
-      # Attempt to activate the configuration in the store if told to do so
-      if action == 'activate':
-         if activate_configuration(config_store) == False:
-            session.delBroker(broker)
-            return(1)
-         else:
-            session.delBroker(broker)
-            return(0)
- 
-      # Process the list-alls, if there are any
-      if action == 'list-all':
-         ret_val = 0
-         for type in list_alls:
-            try:
-               WallabyHelpers.list_all_objs(store_agent, type)
-            except WallabyStoreError, error:
-               print 'Error: %s' % error.error_str
-               ret_val = 1
-               break
-         session.delBroker(broker)
-         return(ret_val)
- 
-      # Process snapshots
-      if action == 'load-snapshot':
-         result = config_store.loadSnapshot(snapshot_name)
-         if result.status != 0:
-            print 'Error: Failed to load snapshot "%s" (%d %s)' % (snapshot_name, result.status, result.text)
-            session.delBroker(broker)
-            return(1)
-         print 'Snapshot loaded'
-         session.delBroker(broker)
-         return(0)
-      elif action == 'remove-snapshot':
-         result = config_store.removeSnapshot(snapshot_name)
-         if result.status != 0:
-            print 'Error: Failed to remove snapshot "%s" (%d %s)' % (snapshot_name, result.status, result.text)
-            session.delBroker(broker)
-            return(1)
-         print 'Snapshot removed'
-         session.delBroker(broker)
-         return(0)
-      elif action == 'take-snapshot':
-         ret_val = save_snapshot(config_store, snapshot_name)
-         session.delBroker(broker)
-         return(ret_val)
-
-      # Perform list operations
-      if action == 'list':
-         if name != '':
-            # Provide the configuration for the group/node
-            if is_node == True:
-               ret_val = WallabyHelpers.list_node_info(session, config_store, name, verbose) or ret_val
-            else:
-               ret_val = WallabyHelpers.list_group_info(session, config_store, name) or ret_val
-         if features != []:
-            # Provide the configuration for the features
-            for feat in features:
-               print 'Configuration for feature %s:' % feat
-               ret_val = WallabyHelpers.list_feature_info(session, config_store, feat) or ret_val
-         for param in params:
-            ret_val = WallabyHelpers.list_param_info(session, config_store, param) or ret_val
-               
-         session.delBroker(broker)
-         return(ret_val)
-
-      # If configuring a single node, grab that node's identity group and
-      # act upon that
-      node_name = ''
-      if is_node == True:
-         node_name = name
-         obj = WallabyHelpers.get_node(session, config_store, name)
-         if obj == None:
-            session.delBroker(broker)
-            return(1)
-         else:
-            name = WallabyHelpers.get_id_group_name(obj, session)
-            if name == None:
-               session.delBroker(broker)
-               return(1)
-
-      # Query the store to get the group
-      group_obj = WallabyHelpers.get_group(session, config_store, name)
-      if group_obj == None:
-         session.delBroker(broker)
-         return(1)
-
-      if action == 'add':
-         added_features = copy.deepcopy(features)
-      elif action == 'remove':
-         removed_features = copy.deepcopy(features)
-      elif action == 'insert':
-         # Insert the new features at the head of the list giving them
-         # the highest priority
-         added_features = copy.deepcopy(features)
-         features.extend(group_obj.features)
-      elif action == 'edit':
-         # In edit mode, dump the group data into a file and bring up an
-         # editor.  First, initialize the yaml object
-         if features != []:
-            print 'Warning: Ignoring list of features in edit mode'
-            features = []
-         if params != []:
-            print 'Warning: Ignoring list of parameters in edit mode'
-            params = []
-         if schedd_prompts == True:
-            print 'Warning: Ignoring request to prompt for schedd information in edit mode'
-            schedd_prompts = False
-         if broker_prompts == True:
-            print 'Warning: Ignoring request to prompt for broker information in edit mode'
-            broker_prompts = False
-         preedit_feats = group_obj.features
-         preedit_params = group_obj.params
-         edit_obj = [WallabyTypes.Group(group_obj.name)]
-         edit_obj[0].init_from_obj(group_obj)
-         if node_name != '':
-            edit_obj[0].name = node_name
-
-         # Configure yaml representers
-         yaml.add_representer(WallabyTypes.Group, represent_group)
-         yaml.add_representer(unicode, lambda dumper, value: dumper.represent_scalar(u'tag:yaml.org,2002:str', value))
-
-         # Write the information to a temporary file
-         file = tempfile.NamedTemporaryFile()
-         file.seek(0, 0)
-         file.truncate()
-         yaml.dump_all(edit_obj, file, explicit_start=True, default_flow_style=False)
-
-         # Invoke the editor
-         run_cmd('%s %s' % (os.getenv('EDITOR') or '/bin/vi', file.name), inter=True)
-
-         # Parse the user's updates
-         file.flush()
-         file.seek(0, 0)
-         try:
-            yaml_output = yaml.load_all(file).next()
-         except:
-            print 'Error: Invalid input.  No changes made'
-            session.delBroker(broker)
-            return(1)
-
-         yaml_output.init_internal_vars()
-         try:
-            yaml_output.validate(edit_obj[0])
-         except:
-            print 'Error: Invalid formatting.  No changes made'
-            session.delBroker(broker)
-            return(1)
-
-         features = yaml_output.features
-         param_list = yaml_output.params
-
-         # Determine which features are added/removed
-         for feat in preedit_feats:
-            if feat not in features:
-               removed_features += [feat]
-
-         for feat in features:
-            if feat not in preedit_feats:
-               added_features += [feat]
-
-         # Determine which parameters are added/removed
-         for param in preedit_params.keys():
-            if param not in param_list.keys():
-               removed_params[param] = preedit_params[param]
-
-         for param in param_list.keys():
-            if param not in preedit_params.keys():
-               added_params[param] = param_list[param]
-
-      if 'ConsoleCollector' in added_features:
-         print 'WARNING: The ConsoleCollector feature should be applied to only '
-         print '         1 node in the pool.  Applying the ConsoleCollector '
-         print '         feature to more than node (or a group of nodes) in the'
-         print '         pool can cause dupliate information in the console.'
-         answer = raw_input('Continue adding the ConsoleCollector feature? [y/N] ')
-         if answer.lower() != 'y':
-            try:
-               added_features.remove('ConsoleCollector')
-               features.remove('ConsoleCollector')
-            except:
-               print 'Error: Failed to remove the ConsoleCollector from the feature list.'
-
-      # Prompt for param values entered on the command line, if any
-      for param in params:
-         if param != '':
-            if action == 'add' or action == 'insert':
-               input = raw_input('Value for "%s": ' % param)
-               added_params[param] = input.strip()
-            elif action == 'remove':
-               removed_params[param] = False
-
-      # Configure which schedulers the node can submit to
-      if schedd_prompts == True:
-         configure_node_schedulers(replace_list, action == 'remove')
-
-      # Configure the AMQP broker used to communicate with the Management
-      # Console
-      if broker_prompts == True:
-         configure_qmf_broker(replace_list, action == 'remove')
- 
-      if raw_input('\nApply these changes [Y/n] ? ').lower() != 'n':
-         if features != [] or action == 'edit':
-            if action == 'insert' or action == 'edit':
-               result = group_obj.modifyFeatures('replace', features, {})
-            elif action == 'remove':
-               result = group_obj.modifyFeatures('remove', removed_features, {})
-            else:
-               result = group_obj.modifyFeatures('add', added_features, {})
-            if result.status != 0:
-               print 'Error: Problem modifying features (%d, %s)' % (result.status, result.text)
-               session.delBroker(broker)
-               return(1)
-
-         # Check if any additional params need to be added/removed
-         if added_features != []:
-            check_more_params_needed(session, config_store, added_features, added_params, replace_list, group_obj)
-         if removed_features != []:
-            removed_params.update(replace_list)
-            replace_list = {}
-            check_delete_params_needed(session, config_store, removed_features, removed_params, group_obj)
-
-         error = False
-         if action == 'edit':
-            param_list.update(added_params)
-            for param in removed_params.keys():
-               try:
-                  del param_list[param]
-               except:
-                  pass
-            result = group_obj.modifyParams('replace', param_list, {})
-            if result.status != 0:
-               print 'Error: Problem modifying parameters (%d, %s)' % (result.status, result.text)
-               error = True
-         else:
-            if added_params != {}:
-               result = group_obj.modifyParams('add', added_params, {})
-               if result.status != 0:
-                  print 'Error: Problem adding parameters (%d, %s)' % (result.status, result.text)
-                  error = True
-            elif removed_params != {}:
-               result = group_obj.modifyParams('remove', removed_params, {})
-               if result.status != 0:
-                  print 'Error: Problem removing parameters (%d, %s)' % (result.status, result.text)
-                  error = True
-
-         if error == True:
-            session.delBroker(broker)
-            return(1)
-
-         if replace_list != {}:
-            group_obj.update()
-            all_params = group_obj.params
-            all_params.update(replace_list)
-            special = ['SCHEDD_NAME', 'SCHEDD_HOST', 'QMF_BROKER_HOST',
-                       'QMF_BROKER_PORT']
-            for sparam in special:
-               if sparam in all_params.keys() and \
-                  (sparam in replace_list.keys() and \
-                  all_params[sparam] == False):
-                  try:
-                     del all_params[sparam]
-                  except:
-                     pass
-              
-            result = group_obj.modifyParams('replace', all_params, {})
-            if result.status != 0:
-               print 'Error: Problem modifying parameters (%d, %s)' % (result.status, result.text)
-               session.delBroker(broker)
-               return(1)
-         print 'Configuration applied'
-
-         retry = True
-         config_name = ''
-         while retry == True:
-            retry = False
-            if raw_input('\nCreate a named snapshot of this configuration [y/N] ? ').lower() == 'y':
-               config_name = raw_input('  Snapshot Name: ')
-               if config_name == '':
-                  retry = True
-                  print 'Invalid snapshot name'
-                  continue 
-               if save_snapshot(config_store, config_name.strip()) != 0:
-                  ret_val = 1
-   
-         if raw_input('\nActivate the changes [y/N] ? ').lower() == 'y':
-            if activate_configuration(config_store) == True and \
-               config_name == '':
-               if save_snapshot(config_store, '') != 0:
-                  ret_val = 1
-         else: 
-            print 'Configuration not activated'
-      else:
-         print 'Configuration not applied'
-   except:
-      print 'Exception received when communicating with the configuration store'
-      print 'This could be because of a communcation issue, or because the'
-      print 'configuration store was taking too long to complete a task'
-      ret_val = 1
-
-   session.delBroker(broker)
-   return(ret_val)
-
-if __name__ == '__main__':
-    sys.exit(main())
+require 'rbconfig'
+require 'optparse'
+require 'mrg/grid/config/shell'
+
+module Mrg
+  module Grid
+    module Config
+      class CCP
+        def store_types
+          [:Feature, :Group, :Node, :Parameter, :Snapshot]
+        end
+
+        def entities
+          [:Feature, :Parameter]
+        end
+
+        def actions
+          [[:add, "Append to the group/node with lowest priority"],
+           [:delete, "Remove from the group/node"],
+           [:edit, "Edit the group/node"],
+           [:insert, "Insert into the group/node with highest priority"],
+           [:list, "List detailed information"],
+           [:activate, "Attempt to activate the configuration in the store"]]
+        end
+
+        def parse_option_args(args)
+          items = []
+          quotes = false
+          current = ""
+          args.each_byte do |c|
+            c = c.chr
+            if (c == '"') || (c == "'"):
+              if quotes == false
+                quotes = true
+                next
+              else
+                quotes = false
+                next
+              end
+            elsif (c == ',') && (quotes == false)
+              items.push(current)
+              current = ""
+              next
+            end
+            current << c
+          end
+          items.push(current) if current and (not current.empty?)
+          items
+        end
+
+        def main(args)
+          ws_args = []
+          verbose = false
+          options = {}
+
+          @op = OptionParser.new do |opts|
+            opts.banner = "Usage: #{File.basename($0)} [options] <action> <target> [config entities]"
+
+            opts.separator ""
+            opts.separator "Options:"
+            opts.on("-h", "--help", "shows this message") do
+              puts @op
+              exit(0)
+            end
+
+            opts.on("-b", "--broker HOSTNAME", "The qpid broker hostname used by the configuration store") do |h|
+              ws_args << ["-H", h]
+            end
+
+            opts.on("-o", "--port NUM", Integer, "The qpid broker port used by the configuration store") do |p|
+              ws_args << ["-p", p]
+            end
+
+            opts.on("-U", "--user NAME", "The username used to authenticate with the qpid broker") do |n|
+              ws_args << ["-U", n]
+            end
+
+            opts.on("-P", "--password PASS", "The password used to authenticate with the qpid broker") do |p|
+              ws_args << ["-P", p]
+            end
+
+            opts.on("-m", "--auth-mechanism PASS", %w{ANONYMOUS PLAIN GSSAPI}, "A comma separated list of authentication mechanisms (#{%w{ANONYMOUS PLAIN GSSAPI}.join(", ")}) for authenticating with the qpid broker") do |m|
+              ws_args << ["-M", m]
+            end
+
+            opts.on("--schedds", "Prompt for scheduler information") do
+              options[:schedds] = true
+            end
+
+            opts.on("--qmfbroker", "Prompt for QMF broker information") do
+              options[:qmf] = true
+            end
+
+            opts.on("-v", "--verbose", "Print more information, if available") do
+              verbose = true
+            end
+
+            opts.separator ""
+            opts.separator "Target: (Only 1 allowed per invocation)"
+
+            targets = [["", "default-group", "Perform actions on the Internal Default Group in the store", nil],
+                       ["-n", "node", "The name of a specific machine that will have the configuration changes applied to it", "NAME"],
+                       ["-g", "group", "The name of the group that will have the configuration changes applied to it", "NAME"],
+                       ["", "skel-group", "Perform actions on the Skeleton Group in the store", nil]]
+            targets.each do |short, long, desc, arg|
+              s = "-#{short}" unless short.empty?
+              opts.on(s, "--#{[long, arg].join(" ")}", desc) do |n|
+                if options.has_key?(:target)
+                  puts "Can only configure 1 node or group at a time"
+                  exit(1)
+                end
+                t = long.split('-')
+                options[:target] = t[0].capitalize.to_sym if t.length < 2
+                options[:target] = t[1].capitalize.to_sym if t.length > 1
+                options[:target_name] = n if n
+                options[:target_name] = "+++#{long.split("-").first.upcase}" unless n
+              end
+            end
+
+            opts.separator ""
+            opts.separator "Action: (Only 1 allowed per invocation)"
+
+            actions.each do |name, desc|
+              short = "-#{name.to_s[0,1]}" unless name == :activate
+              opts.on(short, "--#{name}", desc) do
+                if options.has_key?(:action)
+                  puts "Only 1 action may be specified"
+                  exit(1)
+                end
+                options[:action] = name
+                options[:action] = :remove if name == :delete
+              end
+            end
+
+            ["load", "take", "remove"].each do |type|
+              opts.on("--#{type}-snapshot NAME", "#{type.capitalize} snapshot with the given name") do |n|
+                if options.has_key?(:action)
+                  puts "Only 1 action may be specified"
+                  exit(1)
+                end
+                options[:action] = :snapshot
+                options[:snapshot] = {:type=>type.gsub(/t/, "m").to_sym, :name=>n}
+              end
+            end
+
+            opts.separator ""
+            opts.separator "List Action: (Cannot be combined with actions)"
+
+            store_types.each do |type|
+              if type == :Parameter
+                str = "param"
+              else
+                str = type.to_s.downcase
+              end
+              opts.on("--list-all-#{str}s", "List all #{str}s in the store") do
+                if options.has_key?(:action) && options[:action] != :listall
+                  puts "Actions and List Actions cannot be combined"
+                  exit(1)
+                end
+                options[type] = "" 
+                options[:action] = :listall
+              end
+            end
+
+            opts.separator ""
+            opts.separator "Config Entities:"
+
+            entities.each do |n|
+              ln = n.to_s.slice(0,5).upcase
+              ln.chop! if n == :Feature
+              on = n.to_s.downcase + "s"
+              on = ln.downcase + "s" if n == :Parameter
+              opts.on("-#{n.to_s[0,1].downcase}", "--#{on} #{ln}[,#{ln},...]", "A comma separated list of #{n}s") do |list|
+                if options.has_key?(n)
+                  options[n] += "," + list
+                else
+                  options[n] = list
+                end
+              end
+            end
+          end
+
+          begin
+            @op.parse!(args)
+          rescue OptionParser::InvalidOption
+            puts @op
+            exit(1)
+          rescue OptionParser::InvalidArgument => ia
+            puts ia
+            puts @op
+            exit(1)
+          rescue OptionParser::AmbiguousOption => ao
+            puts ao
+            puts @op
+            exit(1)
+          rescue OptionParser::MissingArgument => ma
+            puts ma
+            puts @op
+            exit(1)
+          end
+
+          unless options.has_key?(:action)
+            puts "No action specified.  Exiting"
+            puts @op
+            exit(1)
+          end
+
+          opts = []
+          opts.push("--schedds") if options.has_key?(:schedds)
+          opts.push("--qmf") if options.has_key?(:qmf)
+  
+          # Generate the option string to pass to the shell command
+          opts.push("#{options[:target]}=#{options[:target_name]}") if options.has_key?(:target)
+          options.each_key do |type|
+            next if not store_types.include?(type)
+            parse_option_args(options[type]).each do |name|
+              opts.push("#{type}=#{name}")
+            end
+          end
+          cmd = "ccp-#{options[:action]}"
+          if options[:action] == :snapshot
+            cmd = "#{options[:snapshot][:type]}-#{options[:action]}"
+            opts = [options[:snapshot][:name]]
+          end
+          if options[:action] == :activate
+            cmd = "#{options[:action]}"
+            opts = []
+          end
+
+          # Call wallaby shell ccp to perform the actions
+          ENV['WALLABY_COMMAND_DIR'] = "#{::Config::CONFIG["sitelibdir"]}/condor_wallaby_tools/commands" unless ENV['WALLABY_COMMAND_DIR']
+          Mrg::Grid::Config::Shell::install_commands()
+          Mrg::Grid::Config::Shell::main(ws_args + [cmd] + opts.flatten)
+        end
+      end
+    end
+  end
+end
+
+
+Mrg::Grid::Config::CCP.new.main(ARGV)

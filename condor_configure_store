@@ -1,5 +1,5 @@
-#!/usr/bin/python
-#   Copyright 2008 Red Hat, Inc.
+#!/usr/bin/ruby
+#   Copyright 2012 Red Hat, Inc.
 #
 #   Licensed under the Apache License, Version 2.0 (the "License");
 #   you may not use this file except in compliance with the License.
@@ -12,659 +12,184 @@
 #   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 #   See the License for the specific language governing permissions and
 #   limitations under the License.
-import getopt
-import os
-import sys
-import signal
-import yaml
-import tempfile
-from wallabyclient.exceptions import *
-from wallabyclient import WallabyHelpers, WallabyTypes
-from condorutils.osutil import run_cmd
-from qmf.console import Session
+require 'rbconfig'
+require 'optparse'
+require 'mrg/grid/config/shell'
+
+module Mrg
+  module Grid
+    module Config
+      class CCS
+        def store_types
+          [:Feature, :Group, :Node, :Parameter, :Subsystem]
+        end
+
+        def parse_option_args(args)
+          items = []
+          quotes = false
+          current = ""
+          args.each_byte do |c|
+            c = c.chr
+            if (c == '"') || (c == "'"):
+              if quotes == false
+                quotes = true
+                next
+              else
+                quotes = false
+                next
+              end
+            elsif (c == ',') && (quotes == false)
+              items.push(current)
+              current = ""
+              next
+            end
+            current << c
+          end
+          items.push(current) if current and (not current.empty?)
+          items
+        end
+
+        def main(args)
+          ws_args = []
+          verbose = false
+          options = {}
+
+          @op = OptionParser.new do |opts|
+            opts.banner = "Usage: #{File.basename($0)} [options] <action> <target(s)>"
+
+            opts.separator ""
+            opts.separator "Options:"
+            opts.on("-h", "--help", "shows this message") do
+              puts @op
+              exit(0)
+            end
+
+            opts.on("-b", "--broker HOSTNAME", "The qpid broker hostname used by the configuration store") do |h|
+              ws_args << ["-H", h]
+            end
+
+            opts.on("-o", "--port NUM", Integer, "The qpid broker port used by the configuration store") do |p|
+              ws_args << ["-p", p]
+            end
+
+            opts.on("-U", "--user NAME", "The username used to authenticate with the qpid broker") do |n|
+              ws_args << ["-U", n]
+            end
+
+            opts.on("-P", "--password PASS", "The password used to authenticate with the qpid broker") do |p|
+              ws_args << ["-P", p]
+            end
+
+            opts.on("-m", "--auth-mechanism PASS", %w{ANONYMOUS PLAIN GSSAPI}, "A comma separated list of authentication mechanisms (#{%w{ANONYMOUS PLAIN GSSAPI}.join(", ")}) for authenticating with the qpid broker") do |m|
+              ws_args << ["-M", m]
+            end
+
+            opts.on("-v", "--verbose", "Print more information, if available") do
+              verbose = true
+            end
+
+            opts.separator ""
+            opts.separator "Action: (Only 1 allowed per invocation)"
+
+            actions = [["a", "add", "Add the target(s) to the store"],
+                       ["d", "delete", "Remove the target(s) from the store"],
+                       ["e", "edit", "Edit the target(s) in the store"],
+                       ["l", "list", "List specific information about the target(s) provided"]]
+            actions.each do |short, long, desc|
+              opts.on("-#{short}", "--#{long}", desc) do
+                if options.has_key?(:action)
+                  puts "Only 1 action may be specified"
+                  exit(1)
+                end
+                options[:action] = long.to_sym
+              end
+            end
+
+            opts.separator ""
+            opts.separator "List Action: (Cannot be combined with actions)"
+            store_types.each do |type|
+              if type == :Parameter
+                str = "param"
+              else
+                str = type.to_s.downcase
+              end
+              opts.on("--list-all-#{str}s", "List all #{str}s in the store") do
+                if options.has_key?(:action) && options[:action] != :listall
+                  puts "Actions and List Actions cannot be combined"
+                  exit(1)
+                end
+                options[type] = ""
+                options[:action] = :listall
+              end
+            end
+
+            opts.separator ""
+            opts.separator "Targets:"
+
+            store_types.each do |type|
+              str = type.to_s.downcase
+              nl = str.slice(0,5).upcase
+              nl = str.slice(0,6).upcase if type == :Subsystem
+              if type == :Subsystem
+                on = nl.downcase
+              elsif type == :Parameter
+                on = nl.downcase + "s"
+              elsif nl.length == 6
+                on = str.chop + "s"
+              else
+                on = str + "s"
+              end
+              if type == :Feature
+                nl.chop!
+              end
+              opts.on("-#{on[0,1]}", "--#{on} #{nl}[,#{nl},...]", "A comma separated list of #{str}s") do |list|
+                options[type] = list
+              end
+            end
+          end
+
+          begin
+            @op.parse!(args)
+          rescue OptionParser::InvalidOption
+            puts @op
+            exit(1)
+          rescue OptionParser::InvalidArgument => ia
+            puts ia
+            puts @op
+            exit(1)
+          rescue OptionParser::AmbiguousOption => ao
+            puts ao
+            puts @op
+            exit(1)
+          rescue OptionParser::MissingArgument => ma
+            puts ma
+            puts @op
+            exit(1)
+          end
+
+          unless options.has_key?(:action)
+            puts "No action specified.  Exiting"
+            puts @op
+            exit(1)
+          end
+
+          opts = []
+          options.each_key do |type|
+            next if (type == :action)
+            parse_option_args(options[type]).each do |name|
+              opts.push("#{type}=#{name}")
+            end
+          end
+  
+          # Call wallaby shell ccs to perform the actions
+          ENV['WALLABY_COMMAND_DIR'] = "#{::Config::CONFIG["sitelibdir"]}/condor_wallaby_tools/commands" unless ENV['WALLABY_COMMAND_DIR']
+          Mrg::Grid::Config::Shell::install_commands()
+          Mrg::Grid::Config::Shell::main(ws_args + ["ccs-#{options[:action]}"] + opts.flatten)
+        end
+      end
+    end
+  end
+end
 
 
-def exit_signal_handler(signum, frame):
-   sys.exit(0)
-
-
-def print_help(name):
-   print '\nUsage:'
-   print '  %s -h|--help' % os.path.basename(name)
-   print '  %s [options] <action> <target(s)>' % os.path.basename(name)
-   print '\nOptions:'
-   print '  -b|--broker <broker>       - The ip/hostname of the broker used by the'
-   print '                               configuration store'
-   print '  -o|--port <port>           - The port of the broker used by the configuration'
-   print '                               store'
-   print '  -U|--user <user>           - The username used to authenticate with the broker'
-   print '  -P|--password <password>   - The password used to authenticate with the broker'
-   print '  -m|--auth-mechanism <mech> - A comma separated list of authentication'
-   print '                               mechanisms to use when communicating with the'
-   print '                               broker.  Supported mechanisms are: ANONYMOUS,'
-   print '                               PLAIN, GSSAPI'
-   print '  -h|--help                  - Print help'
-   print '  -v|--verbose               - Print more information, if available'
-   print '\nAction: (Only 1 allowed per invocation)'
-   print '  -a|--add              - Add the target(s) to the store'
-   print '  -d|--delete           - Remove the target(s) from the store'
-   print '  -e|--edit             - Edit the target(s) in the store'
-   print '  -l|--list             - List specific information in the store'
-   print '                          about the target(s) provided'
-   print '  --list-all-features   - List all features in the store'
-   print '  --list-all-groups     - List all groups in the store'
-   print '  --list-all-nodes      - List all nodes in the store'
-   print '  --list-all-params     - List all params in the store'
-   print '  --list-all-subsystems - List all subsystems in the store'
-   print '\nTargets:'
-   print '  -f|--features feature[,feature,...]    - A comma separated list of features'
-   print '  -g|--groups group1[,group1,...]        - A comma separated list of group names'
-   print '  -n|--nodes node1[,node1,...]           - A comma separated list of node names'
-   print '  -p|--params param1[,param2,...]        - A comma separated list of parameters'
-   print '  -s|--subsys subsystem1[,subsystem,...] - A comma separated list of subsystems'
-
-
-
-def represent_feature(self, data):
-   return self.represent_mapping(u'!Feature', WallabyTypes.print_wallaby_types(data))
-
-
-def represent_group(self, data):
-   return self.represent_mapping(u'!GroupMembership', WallabyTypes.print_wallaby_types(data))
-
-
-def represent_node(self, data):
-   return self.represent_mapping(u'!Node', WallabyTypes.print_wallaby_types(data))
-
-
-def represent_param(self, data):
-   return self.represent_mapping(u'!Parameter', WallabyTypes.print_wallaby_types(data))
-
-
-def represent_subsys(self, data):
-   return self.represent_mapping(u'!Subsystem', WallabyTypes.print_wallaby_types(data))
-
-
-def sync_memberships(obj_list, old_list):
-   group_sync = []
-   node_sync = []
-   for obj in obj_list:
-      if isinstance(obj, WallabyTypes.GroupMembership):
-         group_sync += [(obj.name, obj)]
-      elif isinstance(obj, WallabyTypes.Node):
-         node_sync += [(obj.name, obj)]
-
-   for n,n_obj in node_sync:
-      for g,g_obj in group_sync:
-         if g in n_obj.memberships and \
-            n not in g_obj.members:
-            try:
-               old = [x for x in old_list if x.__class__ == g_obj.__class__ and x.name == g_obj.name][0]
-            except:
-               old = []
-            if old != [] and n in old.members:
-               n_obj.memberships.remove(g)
-            else:
-               g_obj.members += [n]
-         elif n in g_obj.members and \
-            g not in n_obj.memberships:
-            try:
-               old = [x for x in old_list if x.__class__ == n_obj.__class__ and x.name == n_obj.name][0]
-            except:
-               old = []
-            if old != [] and g in old.memberships:
-               g_obj.members.remove(n)
-            else:
-               n_obj.memberships += [g]
-
-
-def main(argv=None):
-   if argv is None:
-      argv = sys.argv
-
-   broker_ip = '127.0.0.1'
-   port = 5672
-   action = ''
-   features = ''
-   groups = ''
-   nodes = ''
-   params = ''
-   subsys = ''
-   list_alls = []
-   edit_objs = []
-   username = ''
-   passwd = ''
-   verbose = False
-   mechanisms = 'ANONYMOUS PLAIN GSSAPI'
-   ret_val = 0
-
-   # Set signal handlers
-   signal.signal(signal.SIGINT, exit_signal_handler)
-   signal.signal(signal.SIGTERM, exit_signal_handler)
-
-   long_opts = ['auth-mechanism=', 'add', 'broker=', 'delete', 'edit',
-                'features=', 'groups=', 'help', 'list', 'list-all-features',
-                'list-all-groups', 'list-all-nodes', 'list-all-params',
-                'list-all-subsystems', 'nodes=', 'params=', 'password=',
-                'port=', 'subsys=', 'user=', 'verbose']
-   try:
-      opts, args = getopt.getopt(argv[1:], 'ab:def:g:hlm:n:p:P:o:s:U:v', long_opts)
-   except getopt.GetoptError, error:
-      print str(error)
-      return(1)
-
-   for option, arg in opts:
-      if option in ('-a', '--add'):
-         if action != '':
-            print 'Only 1 action may be specified'
-            return(1)
-         action = 'add'
-      if option in ('-b', '--broker'):
-         broker_ip = arg
-      if option in ('-d', '--delete'):
-         if action != '':
-            print 'Only 1 action may be specified'
-            return(1)
-         action = 'delete'
-      if option in ('-e', '--edit'):
-         if action != '':
-            print 'Only 1 action may be specified'
-            return(1)
-         action = 'edit'
-      if option in ('-f', '--features'):
-         features = arg
-      if option in ('-g', '--groups'):
-         groups += arg
-      if option in ('-h', '--help'):
-         print_help(argv[0])
-         return(0)
-      if option in ('-l', '--list'):
-         if action != '':
-            print 'Only 1 action may be specified'
-            return(1)
-         action = 'list'
-      if option in ('--list-all-features', '--list-all-groups',
-                    '--list-all-nodes', '--list-all-params',
-                    '--list-all-subsystems'):
-         if action != '' and action != 'list-all':
-            print 'Only 1 action may be specified'
-            return(1)
-         action = 'list-all'
-         if option == '--list-all-features':
-            list_alls += ['Feature']
-         elif option == '--list-all-groups':
-            list_alls += ['Group']
-         elif option == '--list-all-nodes':
-            list_alls += ['Node']
-         elif option == '--list-all-params':
-            list_alls += ['Parameter']
-         elif option == '--list-all-subsystems':
-            list_alls += ['Subsystem']
-      if option in ('-m', '--auth-mechanism'):
-         mechanisms = arg.replace(',', ' ')
-      if option in ('-n', '--nodes'):
-         nodes = arg
-      if option in ('-p', '--params'):
-         params = arg
-      if option in ('-P', '--password'):
-         passwd = arg
-      if option in ('-o', '--port'):
-         try:
-            port = int(arg)
-         except:
-            print 'Invalid broker port'
-            return(1)
-      if option in ('-s', '--subsys'):
-         subsys = arg
-      if option in ('-U', '--user'):
-         username = arg
-      if option in ('-v', '--verbose'):
-         verbose = True
-
-   if action == '':
-      print 'No action specified.  Exiting'
-      print_help(argv[0])
-      return(1)
-
-   if nodes == '' and params == '' and features == '' and groups == '' and \
-      subsys == '' and action != 'list-all':
-      print 'No targets specified.  Exiting'
-      print_help(argv[0])
-      return(1)
-
-   session = Session()
-   if username != '' and passwd != '':
-      broker_str = '%s/%s@%s:%d' % (username, passwd, broker_ip, port)
-   elif username != '':
-      broker_str = '%s@%s:%d' % (username, broker_ip, port)
-   else:
-      broker_str = '%s:%d' % (broker_ip, port)
-
-   try:
-      broker = session.addBroker('amqp://%s' % broker_str, mechanisms=mechanisms)
-   except:
-      print 'Unable to connect to broker "%s"' % broker_str
-      return(1)
-
-   # Retrieve the config store object
-   try:
-     (store_agent, config_store) = WallabyHelpers.get_store_objs(session)
-   except WallabyStoreError, error:
-      print 'Error: %s' % error.error_str
-      session.delBroker(broker)
-      return(1)
-
-   try:
-      # Process the list-alls, if there are any.
-      if action == 'list-all':
-         for type in list_alls:
-            try:
-               WallabyHelpers.list_all_objs(store_agent, type)
-            except WallabyStoreError, error:
-               print 'Error: %s' % error.error_str
-               ret_val = 1
-               break
-         session.delBroker(broker)
-         return(ret_val)
- 
-      # First add all the params/nodes/features/etc the user entered on the
-      # command line, then edit them if needed.  This is done to address any
-      # potential issues with conflicts/depends/includes
-
-      if nodes == '' and params == '' and features == '' and groups == '' and \
-         subsys == '':
-         print 'No targets provided.  Exiting'
-         print_help(argv[0])
-         session.delBroker(broker)
-         return(1)
-
-      # If performing a delete operation, warn before taking any action
-      if action == 'delete':
-         print 'Warning: About to delete the following entities from the store:'
-         if nodes != '':
-            print 'Nodes: %s' % nodes
-         if groups != '':
-            print 'Groups: %s' % groups
-         if params != '':
-            print 'Parameters: %s' % params
-         if features != '':
-            print 'Features: %s' % features
-         if subsys != '':
-            print 'Subsystems: %s' % subsys
-         answer = raw_input('Proceed to delete the above entities from the store [y/N]? ')
-         if answer.lower() != 'y':
-            session.delBroker(broker)
-            return(0)
-
-      # Process the nodes
-      if nodes != '':
-         for node in WallabyHelpers.parse_option_args(nodes):
-            obj = None
-            node = node.strip()
-            if action == 'add' and node != '':
-               if '+++' != node[0:3]:
-                  obj = WallabyHelpers.add_node(session, config_store, node)
-               else:
-                  print 'Node names beginning with "+++" are reserved and can not be added'
-            elif action == 'delete' and node != '':
-               if '+++' != node[0:3]:
-                  print 'Removing node "%s"' % node
-                  result = config_store.removeNode(node)
-                  if result.status != 0:
-                     print 'Error: Failed to remove node "%s" (%d, %s)' % (node, result.status, result.text)
-                     ret_val = 1
-                     continue
-               else:
-                  print 'Node names beginning with "+++" are reserved and can not be deleted'
-                  ret_val = 1
-            elif action == 'edit' and node != '':
-               obj = WallabyHelpers.get_node(session, config_store, node)
-            elif action == 'list' and node != '':
-               ret_val = WallabyHelpers.list_node_info(session, config_store, node, verbose) or ret_val
-               print
- 
-            if obj != None:
-               edit_obj = WallabyTypes.Node(node)
-               edit_obj.init_from_obj(obj)
-               edit_objs += [edit_obj]
-            elif action != 'list' and action != 'delete' and node != '':
-               ret_val = 1
-
-      # Process the parameters
-      if params != '':
-         for param in WallabyHelpers.parse_option_args(params):
-            obj = None
-            param = param.strip()
-            if param.find(',') >= 0:
-               print 'Parameter name "%s" is not allowed because it contains a comma' % param
-               continue
-            if action == 'add' and param != '':
-               if '+++' != param[0:3]:
-                  obj = WallabyHelpers.add_param(session, config_store, param)
-               else:
-                  print 'Parameter names beginning with "+++" are reserved and can not be added'
-            elif action == 'delete' and param != '':
-               if '+++' != param[0:3]:
-                  print 'Removing parameter "%s"' % param
-                  result = config_store.removeParam(param)
-                  if result.status != 0:
-                     print 'Error: Failed to remove parameter "%s" (%d, %s)' % (param, result.status, result.text)
-                     ret_val = 1
-               else:
-                  print 'Parameter names beginning with "+++" are reserved and can not be deleted'
-                  ret_val = 1
-            elif action == 'list' and param != '':
-               ret_val = WallabyHelpers.list_param_info(session, config_store, param) or ret_val
-               print
-            elif action == 'edit' and param != '':
-               obj = WallabyHelpers.get_param(session, config_store, param)
-
-            if obj != None:
-               edit_obj = WallabyTypes.Parameter(param)
-               edit_obj.init_from_obj(obj)
-               edit_objs += [edit_obj]
-            elif action != 'list' and action != 'delete' and param != '':
-               ret_val = 1
-
-      # Process the features
-      if features != '':
-         for feat in WallabyHelpers.parse_option_args(features):
-            obj = None
-            feat = feat.strip()
-            if action == 'add' and feat != '':
-               if '+++' != feat[0:3]:
-                  obj = WallabyHelpers.add_feature(session, config_store, feat)
-               else:
-                  print 'Feature names beginning with "+++" are reserved and can not be added'
-            elif action == 'delete' and feat != '':
-               if '+++' != feat[0:3]:
-                  print 'Removing feature "%s"' % feat
-                  result = config_store.removeFeature(feat)
-                  if result.status != 0:
-                     print 'Error: Failed to remove feature "%s" (%d, %s)' % (feat, result.status, result.text)
-                     ret_val = 1
-               else:
-                  print 'Feature names beginning with "+++" are reserved and can not be deleted'
-                  ret_val = 1
-            elif action == 'list' and feat != '':
-               ret_val = WallabyHelpers.list_feature_info(session, config_store, feat) or ret_val
-               print
-            elif action == 'edit' and feat != '':
-               obj = WallabyHelpers.get_feature(session, config_store, feat)
-   
-            if obj != None:
-               edit_obj = WallabyTypes.Feature(feat)
-               edit_obj.init_from_obj(obj)
-               edit_objs += [edit_obj]
-            elif action != 'list' and action != 'delete' and feat != '':
-               ret_val = 1
-
-      # Process the groups
-      if groups != '':
-         for group in WallabyHelpers.parse_option_args(groups):
-            obj = None
-            group = group.strip()
-            if group == "Internal Default Group":
-               group = "+++DEFAULT"
-            if action == 'add' and group != '':
-               if group == "+++DEFAULT":
-                  print '"Internal Default Group" is a reserved group name and can not be created'
-               elif '+++' != group[0:3]:
-                  obj = WallabyHelpers.add_group(session, config_store, group)
-               else:
-                  print 'Group names beginning with "+++" are reserved and can not be added'
-            elif action == 'edit' and group != '':
-               obj = WallabyHelpers.get_group(session, config_store, group)
-            elif action == 'delete' and group != '':
-               if group == "+++DEFAULT":
-                  print '"Internal Default Group" is a reserved group name and can not be deleted'
-               elif '+++' != group[0:3]:
-                  print 'Removing group "%s"' % group
-                  result = config_store.removeGroup(group)
-                  if result.status != 0:
-                     print 'Error: Failed to remove group "%s" (%d, %s)' % (group, result.status, result.text)
-                     ret_val = 1
-               else:
-                  print 'Group names beginning with "+++" are reserved and can not be deleted'
-                  ret_val = 1
-            elif action == 'list' and group != '':
-               ret_val = WallabyHelpers.list_group_info(session, config_store, group) or ret_val
-               print
-
-            if obj != None:
-               edit_obj = WallabyTypes.GroupMembership(group, config_store, session)
-               edit_obj.init_from_obj(obj)
-               edit_objs += [edit_obj]
-            elif action != 'list' and action != 'delete' and group != '':
-               ret_val = 1
-
-      # Process the subsystems
-      if subsys != '':
-         for sub in WallabyHelpers.parse_option_args(subsys):
-            obj = None
-            sub = sub.strip()
-            if action == 'add' and sub != '':
-               if '+++' != sub[0:3]:
-                  obj = WallabyHelpers.add_subsys(session, config_store, sub)
-               else:
-                  print 'Subsystem names beginning with "+++" are reserved and can not be added'
-            elif action == 'delete' and sub != '':
-               if '+++' != sub[0:3]:
-                  print 'Removing subsystem "%s"' % sub
-                  result = config_store.removeSubsys(sub)
-                  if result.status != 0:
-                     print 'Error: Failed to remove subsystem "%s" (%d, %s)' % (sub, result.status, result.text)
-                     ret_val = 1
-               else:
-                  print 'Subsystem names beginning with "+++" are reserved and can not be deleted'
-                  ret_val = 1
-            elif action == 'list' and sub != '':
-               ret_val = WallabyHelpers.list_subsys_info(session, config_store, sub) or ret_val
-               print
-            elif action == 'edit' and sub != '':
-               obj = WallabyHelpers.get_subsys(session, config_store, sub)
- 
-            if obj != None:
-               edit_obj = WallabyTypes.Subsystem(sub)
-               edit_obj.init_from_obj(obj)
-               edit_objs += [edit_obj]
-            elif action != 'list' and action != 'delete' and sub != '':
-               ret_val = 1
-
-      # Now modify the params/features/etc
-      if edit_objs != []:
-         retry = True
-         yaml.add_representer(WallabyTypes.Feature, represent_feature) 
-         yaml.add_representer(WallabyTypes.Node, represent_node) 
-         yaml.add_representer(WallabyTypes.GroupMembership, represent_group) 
-         yaml.add_representer(WallabyTypes.Parameter, represent_param) 
-         yaml.add_representer(WallabyTypes.Subsystem, represent_subsys) 
-         yaml.add_representer(unicode, lambda dumper, value: dumper.represent_scalar(u'tag:yaml.org,2002:str', value))
-         file = tempfile.NamedTemporaryFile()
-         while retry == True:
-            retry = False
-            file.seek(0, 0)
-            file.truncate()
-            pre_edit_objs = edit_objs
-            yaml.dump_all(edit_objs, file, explicit_start=True, default_flow_style=False)
-   
-            run_cmd('%s %s' % (os.getenv('EDITOR') or '/bin/vi', file.name), inter=True)
-            file.flush()
-            file.seek(0, 0)
-            try:
-               yaml_output = yaml.load_all(file)
-            except:
-               input = raw_input('Error: Invalid input.  Press <Enter> to correct the errors')
-               retry = True
-               continue
-
-            # load_all returns a stream, so read its data into a python list
-            # that can traverse more than once.  Do validation on the input
-            # to ensure the user hasn't changed the order of the objects,
-            # added objects, removed params, etc.  If eveything checks out,
-            # replace the edit_objs so the changes are preserved
-            obj_list = []
-            total_objs = 0
-            try:
-               for entry in yaml_output:
-                  if total_objs < len(pre_edit_objs) and \
-                     entry.__class__ == pre_edit_objs[total_objs].__class__ and \
-                     entry.get_name() == pre_edit_objs[total_objs].get_name():
-                     try:
-                        entry.init_internal_vars()
-                        if isinstance(entry, WallabyTypes.GroupMembership):
-                           entry.set_internal_vars(pre_edit_objs[total_objs].members, config_store, session)
-                        entry.validate(pre_edit_objs[total_objs])
-                     except ValidateWarning, warning:
-                        for msg in warning.warnings.keys():
-                           print 'WARNING: %s - %s' % (msg, warning.warnings[msg])
-                     obj_list += [entry]
-                     total_objs += 1
-                  else:
-                     raw_input('Error: Corrupted object list.  Press <Enter> to re-edit the objects from scratch')
-                     retry = True
-                     break
-            except:
-               raw_input('Error: Invalid formatting.  Press <Enter> to start over')
-               retry = True
-            if retry == True:
-               continue
-
-            edit_objs = obj_list
-
-            # Check for invalid items in the configurations
-            invalids = {}
-            errors = {}
-            ask_for_default = {}
-            invalid_objs = []
-            for edited in edit_objs:
-               try:
-                  edited.store_validate(config_store)
-               except WallabyValidateError, error:
-                  for type in error.invalids.keys():
-                     if error.invalids[type] != []:
-                        if not edited in invalid_objs:
-                           invalid_objs += [edited]
-                        for item in error.invalids[type]:
-                           try:
-                              if item not in invalids[type]:
-                                 invalids[type] = invalids[type] + [item]
-                           except:
-                              invalids[type] = error.invalids[type]
-                              break
-                  errors.update(error.errors)
-                  if error.ask_list != []:
-                     ask_for_default[edited] = error.ask_list
-
-            if errors != {}:
-               print ' The following errors were reported when checking for configuration validity:'
-               for err in errors.keys():
-                  print '  %d: ' % err,
-                  for line in errors[err].split('\\n'):
-                     print '%s' % line
-               return(1)
-
-            if invalids != {}:
-               print 'The store does not know about the following items:'
-               for type in invalids.keys():
-                  if invalids[type] != []:
-                     print type
-                     for item in invalids[type]:
-                        print '  %s' % item
-               answer = raw_input('Should the above be added to the store [Y/n]? ')
-               if answer.lower() != 'n':
-                  retry = True
-
-                  # Add the unknown items into the store
-                  for type in invalids.keys():
-                     for item in invalids[type]:
-                        obj = None
-                        if type == 'Parameter':
-                           obj = WallabyHelpers.add_param(session, config_store, item)
-                           if obj != None:
-                              edit_obj = WallabyTypes.Parameter(item)
-                        elif type == 'Feature':
-                           obj = WallabyHelpers.add_feature(session, config_store, item)
-                           if obj != None:
-                              edit_obj = WallabyTypes.Feature(item)
-                        elif type == 'Node':
-                           obj = WallabyHelpers.add_node(session, config_store, item)
-                           if obj != None:
-                              edit_obj = WallabyTypes.Node(item)
-                        elif type == 'Group':
-                           obj = WallabyHelpers.add_group(session, config_store, item)
-
-                           if obj != None:
-                              edit_obj = WallabyTypes.GroupMembership(item, config_store, session)
-                        elif type == 'Subsystem':
-                           obj = WallabyHelpers.add_subsys(session, config_store, item)
-                           if obj != None:
-                              edit_obj = WallabyTypes.Subsystem(item)
-                        if obj != None:
-                           edit_obj.init_from_obj(obj)
-                           edit_objs += [edit_obj]
-
-                  # Synchronize any new group/node memberships
-                  sync_memberships(edit_objs, pre_edit_objs)
-                  continue
-               else:
-                  # The invalid items weren't added to the store, so remove
-                  # them from being asked for default values
-                  if invalids.has_key('Parameter'):
-                     for item in invalids['Parameter']:
-                        for obj in ask_for_default.keys():
-                           if item in ask_for_default[obj]:
-                              ask_for_default[obj].remove(item)
-
-                  # Remove all invalid entries for all objects containing
-                  # invalid data
-                  for obj in invalid_objs:
-                     print 'Removing invalid changes from "%s"' % obj.get_name()
-                     obj.remove_invalids()
-
-            if ask_for_default != {}:
-               for obj in ask_for_default.keys():
-                  for param in sorted(ask_for_default[obj]):
-                     answer = raw_input('Use the default value for parameter "%s" in feature "%s"? [Y/n] ' % (param, obj.get_name()))
-                     if answer.lower() != 'n':
-                        obj.set_use_default_val(param)
-
-            # Ensure group/node memberships are synchronized.  If it exists
-            # in one list, it will exist in both.  IE, we favor adding over
-            # removing
-            sync_memberships(edit_objs, pre_edit_objs)
-
-            # Make the changes
-            for edited in edit_objs:
-               if isinstance(edited, WallabyTypes.Parameter):
-                  obj = WallabyHelpers.get_param(session, config_store, edited.name)
-               if isinstance(edited, WallabyTypes.Feature):
-                  obj = WallabyHelpers.get_feature(session, config_store, edited.name)
-               if isinstance(edited, WallabyTypes.Node):
-                  obj = WallabyHelpers.get_node(session, config_store, edited.name)
-               if isinstance(edited, WallabyTypes.GroupMembership):
-                  obj = WallabyHelpers.get_group(session, config_store, edited.name)
-               if isinstance(edited, WallabyTypes.Subsystem):
-                  obj = WallabyHelpers.get_subsys(session, config_store, edited.name)
-
-               try:
-                  edited.update(obj)
-               except WallabyError, error:
-                  print 'The following errors were reported updating "%s":' % edited.get_name()
-                  for key in error.errors.keys():
-                     print '%d: ' % key,
-                     for line in error.errors[key].split('\\n'):
-                        print '%s' % line
-                  ret_val = 1
-            file.close()
-   except:
-      print 'Exception received when communicating with the configuration store'
-      print 'This could be because of a communcation issue, or because the'
-      print 'configuration store was taking too long to complete a task'
-      ret_val = 1
-
-   session.delBroker(broker)
-   return(ret_val)
-
-if __name__ == '__main__':
-    sys.exit(main())
+Mrg::Grid::Config::CCS.new.main(ARGV)

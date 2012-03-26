@@ -37,14 +37,6 @@ module Mrg
            [:activate, "Attempt to activate the configuration in the store"]]
         end
 
-        def no_target
-          [:listall, :activate]
-        end
-
-        def no_entities
-          [:list, :listall, :edit, :activate]
-        end
-
         def parse_option_args(args)
           items = []
           quotes = false
@@ -179,7 +171,7 @@ module Mrg
                   puts "Actions and List Actions cannot be combined"
                   exit(1)
                 end
-                options[str.capitalize.to_sym] = "" 
+                options[type] = "" 
                 options[:action] = :listall
               end
             end
@@ -250,7 +242,7 @@ module Mrg
           end
 
           # Call wallaby shell ccp to perform the actions
-          ENV['WALLABY_COMMAND_DIR'] = "#{Config::CONFIG["sitelibdir"]}/condor_wallaby_tools/commands" unless ENV['WALLABY_COMMAND_DIR']
+          ENV['WALLABY_COMMAND_DIR'] = "#{::Config::CONFIG["sitelibdir"]}/condor_wallaby_tools/commands" unless ENV['WALLABY_COMMAND_DIR']
           Mrg::Grid::Config::Shell::install_commands()
           Mrg::Grid::Config::Shell::main(ws_args + [cmd] + opts.flatten)
         end

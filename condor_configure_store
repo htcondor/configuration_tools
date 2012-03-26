@@ -118,7 +118,7 @@ module Mrg
                   puts "Actions and List Actions cannot be combined"
                   exit(1)
                 end
-                options[str.capitalize.to_sym] = ""
+                options[type] = ""
                 options[:action] = :listall
               end
             end
@@ -173,16 +173,6 @@ module Mrg
             exit(1)
           end
 
-          continue = false
-          store_types.each do |t|
-            continue = continue || options.has_key?(t)
-          end
-          unless continue
-            puts "No targets specified.  Exiting"
-            puts @op
-            exit(1)
-          end
-
           opts = []
           options.each_key do |type|
             next if (type == :action)
@@ -192,7 +182,7 @@ module Mrg
           end
   
           # Call wallaby shell ccs to perform the actions
-          ENV['WALLABY_COMMAND_DIR'] = "#{Config::CONFIG["sitelibdir"]}/condor_wallaby_tools/commands" unless ENV['WALLABY_COMMAND_DIR']
+          ENV['WALLABY_COMMAND_DIR'] = "#{::Config::CONFIG["sitelibdir"]}/condor_wallaby_tools/commands" unless ENV['WALLABY_COMMAND_DIR']
           Mrg::Grid::Config::Shell::install_commands()
           Mrg::Grid::Config::Shell::main(ws_args + ["ccs-#{options[:action]}"] + opts.flatten)
         end

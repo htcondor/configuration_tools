@@ -183,7 +183,9 @@ module Mrg
           end
 
           def hashify(list)
-            Hash[list.flatten.map {|n| [n, nil]}]
+            result = {}
+            list.flatten.each {|n| result[n] = nil}
+            result
           end
 
           def get_param_values
@@ -400,12 +402,13 @@ module Mrg
 
             # Retrieve all the features already configured on the target
             # and see if those features contain must change parameteres that
-            # have explicitly set values.  
-            mc_w_values = []
+            # need explicitly set values.  These are must change params that
+            # are still needed.
+            mc_wo_values = []
             target_obj.features.each do |f|
               if not list.include?(f)
                 pof = store.getFeature(f).explain
-                pof.keys.each {|p| mc_w_values.push(p) if mustchange.keys.include?(p) && pof[p]['how'] == "set-explicitly"}
+                pof.keys.each {|p| mc_wo_values.push(p) if mustchange.keys.include?(p) && pof[p]['how'] == "set-to-default" && (not mc_wo_values.include?(p))}
               end
             end
 
@@ -414,7 +417,7 @@ module Mrg
             # If a candidate parameter isn't given a value by another feature
             # on the target, then add it to the unique must change parameter
             # set
-            candidates.each {|p| unique.push(p) if not mc_w_values.include?(p)}
+            candidates.each {|p| unique.push(p) if (not mc_wo_values.include?(p)) && (not unique.include?(p))}
             unique
           end
 
@@ -492,10 +495,14 @@ module Mrg
             end
           end
 
+          def min_args
+            1
+          end
+
           def parse_args(*args)
             @cmds = []
-            if args.size < 1
-              exit!(1, "Incorrect number of arguments")
+            if args.size < min_args
+              exit!(1, "no targets specified")
             end
 
             @entities = Hash.new {|h,k| h[k] = Hash.new {|h1,k1| h1[k1] = {}}}
@@ -504,7 +511,7 @@ module Mrg
               @entities[as[0].to_sym][as[1]] = nil
             end
 
-            exit!(1, "can not #{action} the group +++DEFAULT") if @entities[:Group].has_key?("+++DEFAULT")
+            exit!(1, "can not #{action} the group +++DEFAULT") if @entities.has_key?(:Group) && @entities[:Group].has_key?("+++DEFAULT")
           end
 
           def self.included(receiver)
@@ -885,6 +892,10 @@ module Mrg
             "List all names of entity types in the store"
           end
 
+          def min_args
+            0
+          end
+
           def act
             @entities.each_key do |type|
               c = Mrg::Grid::Config::Shell.constants.grep(/List#{type.to_s[0,4].capitalize}[a-z]*$/).to_s
@@ -1046,8 +1057,10 @@ module Mrg
             end
 
             edited = run_editor
-            add_parameters.replace(Hash[edited.params.select{|k, v| (not target_obj.params.keys.include?(k)) || ([k, v] != [k, target_obj.params[k]])}])
-            remove_parameters.replace(Hash[target_obj.params.select{|k, v| (not edited.params.keys.include?(k))}])
+            p = edited.params.select{|k, v| (not target_obj.params.keys.include?(k)) || ([k, v] != [k, target_obj.params[k]])}
+            add_parameters.replace((p.empty? ? {} : Hash[p]))
+            p = target_obj.params.select{|k, v| (not edited.params.keys.include?(k))}
+            remove_parameters.replace(p.empty? ? {} : Hash[p])
             add_features.replace(edited.features.select{|n| (not target_obj.features.include?(n))})
             remove_features.replace(target_obj.features.select{|n| (not edited.features.include?(n))})
             edit_parameters.replace(edited.params)

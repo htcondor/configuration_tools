@@ -357,12 +357,8 @@ class Service:
       if ver == 0:
          ver = int(node_obj.last_updated_version)
 
-      # Install the new configuration (if needed)
-      ret_val = True
-      if self.get_config(ver, force) == False:
-         # There was a problem retrieving the configuration.  Logging is
-         # handled by the get_config function
-         ret_val = False
+      # Retrieve and install the node's configuration (if needed)
+      ret_val = self.get_config(ver, force)
 
       return(ret_val)
 
@@ -585,7 +581,12 @@ class Service:
             os.chmod(self.managedfile, stat.S_IRUSR|stat.S_IRGRP|stat.S_IROTH)
          replacing_file = False
          log(logging.INFO, self.logger_name, 'Retrieved configuration from the store')
-   
+ 
+         # Don't attempt to restart/reconfig anything if the config
+         # retrieval was forced
+         if force == True:
+           return(True)
+
          # Have the store tell us which subsystems to restart/reconfig
          try:
             result = node_obj.whatChanged(running_version, version)
@@ -617,7 +618,7 @@ class Service:
                daemon = daemon.strip()
                if daemon != '':
                   daemon_list += [daemon.lower()]
-   
+
          # Process the subsystem lists and act upon them.  Start by processing
          # the daemons to restart, and if master is listed then don't process
          # anything else because restarting the master will take care of
@@ -631,8 +632,8 @@ class Service:
             # Send a reconfig to the master daemon so all subsystems are
             # running with the current config values
             return(self.send_condor_command('condor_reconfig', 'master') and success)
-   
-   
+
+
    def act_upon_subsys_list(self, command, list, running_daemons):
       nondc_daemons = ['ll_daemon', 'configd']
       all_success = True

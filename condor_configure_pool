@@ -58,7 +58,7 @@ module Mrg
             end
             current << c
           end
-          items.push(current)
+          items.push(current) if current and (not current.empty?)
           items
         end
 

@@ -30,6 +30,10 @@ module Mrg
             @action ||= self.class.opname.split("-")[1].to_sym
           end
 
+          def ws_bool(value)
+            value ? "yes" : "no"
+          end
+
           def run_wscmds
             @cmds.compact!
             @cmds.each do |cmdset|
@@ -572,10 +576,9 @@ module Mrg
           end
 
           def update_feature_cmds(name, obj)
-            cmds = []
             params = []
             obj.params.each_pair {|k, v| params.push("#{k}=#{v}")}
-            cmds.push([Mrg::Grid::Config::Shell.const_get("ReplaceFeatureParam"), [name] + params])
+            cmds = [Mrg::Grid::Config::Shell.const_get("ReplaceFeatureParam"), [name] + params]
             cmds.push([Mrg::Grid::Config::Shell.const_get("ReplaceFeatureInclude"), [name] + obj.included])
             cmds.push([Mrg::Grid::Config::Shell.const_get("ReplaceFeatureConflict"), [name] + obj.conflicts])
             cmds.push([Mrg::Grid::Config::Shell.const_get("ReplaceFeatureDepend"), [name] + obj.depends])
@@ -584,12 +587,12 @@ module Mrg
 
           def update_parameter_cmds(name, obj)
             args = []
-            args.push("--kind #{obj.kind}")
-            args.push("--default-val \"#{obj.default_val}\"")
-            args.push("--description \"#{obj.description}\"")
-            args.push("--must-change #{obj.must_change}")
-            args.push("--level #{obj.level}")
-            args.push("--needs-restart #{obj.needs_restart}")
+            args << ["--kind", "#{obj.kind}"] if not obj.kind.empty?
+            args << ["--default-val", "#{obj.default_val}"] if not obj.default_val.empty?
+            args << ["--description", "#{obj.description}"] if not obj.description.empty?
+            args << ["--must-change", "#{ws_bool(obj.must_change)}"]
+            args << ["--level", "#{obj.level}"]
+            args << ["--needs-restart", "#{ws_bool(obj.needs_restart)}"]
             cmds = [Mrg::Grid::Config::Shell.const_get("ModifyParam"), [name] + args]
             cmds.push([Mrg::Grid::Config::Shell.const_get("ReplaceParamConflict"), [name] + obj.conflicts])
             cmds.push([Mrg::Grid::Config::Shell.const_get("ReplaceParamDepend"), [name] + obj.depends])

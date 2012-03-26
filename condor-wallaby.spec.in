@@ -172,6 +172,15 @@ rm -rf %{buildroot}
 /%{ruby_install_dir}/condor_wallaby_tools/commands/cmd_ccsp.rb
 
 %changelog
+* Mon Mar 26 2012  <rrati@redhat> - 5.0.0-2
+- Correct changelog
+- Condor_configure_pool|store now use wallaby shell for their core (BZ802510)
+- Added support for the skeleton group (BZ749569)
+- EC2Enhanced configuration more flexible (BZ801503)
+
+* Mon Mar 26 2012  <rrati@redhat> - 5.0.0-1
+- Build w/o changelog
+
 * Fri Jan 11 2012  <rrati@redhat> - 4.1.2-3
 - Fixed dependency issue on python-wallabyclient
 

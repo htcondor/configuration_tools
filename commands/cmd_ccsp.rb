@@ -336,13 +336,13 @@ module Mrg
             end
 
             # Prompt the user if there are still parameters that need to be set
-            uparams = get_unique_mustchange_params(add_features)
-            if (uparams - add_parameters.keys).size > 0
+            missing = get_unique_mustchange_params(add_features) - add_parameters.keys
+            if missing.size > 0
               puts "The following parameters need to be set for this configuration to be valid:"
-              uparams.sort.each {|p| puts p if not add_parameters.keys.include?(p)}
+              missing.sort.each {|p| puts p}
               print "Set these parameters now ? [y/N] "
               if gets.strip.downcase == 'y'
-                uparams.sort.each do |param|
+                missing.sort.each do |param|
                   if not add_parameters.include?(p)
                     print "#{param}: "
                     value = gets.strip
@@ -572,35 +572,38 @@ module Mrg
           end
 
           def update_node_cmds(name, obj)
-            [Mrg::Grid::Config::Shell.const_get("ReplaceNodeMembership"), [name] + obj.membership]
+            [[Mrg::Grid::Config::Shell.const_get("ReplaceNodeMembership"), [name] + obj.membership]]
           end
 
           def update_feature_cmds(name, obj)
             params = []
-            obj.params.each_pair {|k, v| params.push("#{k}=#{v}")}
-            cmds = [Mrg::Grid::Config::Shell.const_get("ReplaceFeatureParam"), [name] + params]
-            cmds.push([Mrg::Grid::Config::Shell.const_get("ReplaceFeatureInclude"), [name] + obj.included])
-            cmds.push([Mrg::Grid::Config::Shell.const_get("ReplaceFeatureConflict"), [name] + obj.conflicts])
-            cmds.push([Mrg::Grid::Config::Shell.const_get("ReplaceFeatureDepend"), [name] + obj.depends])
+            obj.params.each_pair do |k, v|
+              params.push("#{k}=#{v}") if v
+              params.push("#{k}") if not v
+            end
+            cmds = [[Mrg::Grid::Config::Shell.const_get("ReplaceFeatureParam"), [name] + params]]
+            cmds << [Mrg::Grid::Config::Shell.const_get("ReplaceFeatureInclude"), [name] + obj.included]
+            cmds << [Mrg::Grid::Config::Shell.const_get("ReplaceFeatureConflict"), [name] + obj.conflicts]
+            cmds << [Mrg::Grid::Config::Shell.const_get("ReplaceFeatureDepend"), [name] + obj.depends]
             cmds
           end
 
           def update_parameter_cmds(name, obj)
             args = []
-            args << ["--kind", "#{obj.kind}"] if not obj.kind.empty?
-            args << ["--default-val", "#{obj.default_val}"] if not obj.default_val.empty?
-            args << ["--description", "#{obj.description}"] if not obj.description.empty?
-            args << ["--must-change", "#{ws_bool(obj.must_change)}"]
-            args << ["--level", "#{obj.level}"]
-            args << ["--needs-restart", "#{ws_bool(obj.needs_restart)}"]
-            cmds = [Mrg::Grid::Config::Shell.const_get("ModifyParam"), [name] + args]
-            cmds.push([Mrg::Grid::Config::Shell.const_get("ReplaceParamConflict"), [name] + obj.conflicts])
-            cmds.push([Mrg::Grid::Config::Shell.const_get("ReplaceParamDepend"), [name] + obj.depends])
+            args += ["--kind", "#{obj.kind}"] if not obj.kind.empty?
+            args += ["--default-val", "#{obj.default_val}"] if not obj.default_val.empty?
+            args += ["--description", "#{obj.description}"] if not obj.description.empty?
+            args += ["--must-change", "#{ws_bool(obj.must_change)}"]
+            args += ["--level", "#{obj.level}"]
+            args += ["--needs-restart", "#{ws_bool(obj.needs_restart)}"]
+            cmds = [[Mrg::Grid::Config::Shell.const_get("ModifyParam"), [name] + args]]
+            cmds << [Mrg::Grid::Config::Shell.const_get("ReplaceParamConflict"), [name] + obj.conflicts]
+            cmds << [Mrg::Grid::Config::Shell.const_get("ReplaceParamDepend"), [name] + obj.depends]
             cmds
           end
 
           def update_subsystem_cmds(name, obj)
-            [Mrg::Grid::Config::Shell.const_get("ReplaceSubsysParam"), [name] + obj.params]
+            [[Mrg::Grid::Config::Shell.const_get("ReplaceSubsysParam"), [name] + obj.params]]
           end
 
           def update_group_cmds(name, obj)
@@ -783,7 +786,7 @@ module Mrg
                 ask_defaults[obj].each do |p|
                   print "Use the default value for parameter '#{p}' in feature '#{obj.name}'? [Y/n] "
                   answer = gets.strip
-                  obj.params[p] = 0 if answer.downcase != "n"
+                  obj.params[p] = nil if answer.downcase != "n"
                 end
               end
             end
@@ -819,7 +822,7 @@ module Mrg
 
             @entities.each_key do |t|
               @entities[t].each_key do |n|
-                @cmds.push(self.send("update_#{t.to_s.downcase}_cmds", n, @entities[t][n]))
+                @cmds += self.send("update_#{t.to_s.downcase}_cmds", n, @entities[t][n])
               end
             end
 
@@ -851,7 +854,9 @@ module Mrg
             edit_objs
 
             @entities.each_key do |t|
-              @entities[t].each_key {|n| @cmds.push(self.send("update_#{t.to_s.downcase}_cmds", n, @entities[t][n])).compact!}
+              @entities[t].each_key do |n|
+                 @cmds += self.send("update_#{t.to_s.downcase}_cmds", n, @entities[t][n])
+              end
             end
 
             run_wscmds
@@ -1061,9 +1066,9 @@ module Mrg
 
             edited = run_editor
             p = edited.params.select{|k, v| (not target_obj.params.keys.include?(k)) || ([k, v] != [k, target_obj.params[k]])}
-            add_parameters.replace((p.empty? ? {} : Hash[p]))
+            add_parameters.replace((p.empty? ? {} : Hash[*p.flatten]))
             p = target_obj.params.select{|k, v| (not edited.params.keys.include?(k))}
-            remove_parameters.replace(p.empty? ? {} : Hash[p])
+            remove_parameters.replace(p.empty? ? {} : Hash[*p.flatten])
             add_features.replace(edited.features.select{|n| (not target_obj.features.include?(n))})
             remove_features.replace(target_obj.features.select{|n| (not edited.features.include?(n))})
             edit_parameters.replace(edited.params)

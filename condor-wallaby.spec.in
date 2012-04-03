@@ -32,6 +32,7 @@ BuildRoot: %(mktemp -ud %{_tmppath}/%{name}-%{version}-XXXXXX)
 %endif
 BuildRequires: python >= 2.3
 BuildRequires: ruby
+BuildRequires: ruby-devel
 BuildArch: noarch
 
 %description
@@ -64,7 +65,7 @@ Summary: Wallaby configuration tools for configuring condor
 Group: Applications/System
 Requires: ruby(abi) = %{?ruby_abi}
 Requires: ruby-%{name}-tools = %{version}-%{release}
-Requires: wallaby-utils >= 0.13.1
+Requires: wallaby-utils > 0.13.1
 Requires: vim-minimal
 %if 0%{?fedora} == 0
 Obsoletes: condor-remote-configuration-server

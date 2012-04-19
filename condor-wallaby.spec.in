@@ -173,6 +173,9 @@ rm -rf %{buildroot}
 /%{ruby_install_dir}/condor_wallaby_tools/commands/cmd_ccsp.rb
 
 %changelog
+* Tue Apr  3 2012  <rrati@redhat> - 5.0.1-2
+- Fxed formatting issue in manpage
+
 * Tue Apr  3 2012  <rrati@redhat> - 5.0.1-1
 - Fixed issue setting a parameter using default value
 - Other bug fixes

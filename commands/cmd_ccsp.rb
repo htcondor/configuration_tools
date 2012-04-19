@@ -524,51 +524,39 @@ module Mrg
             end
           end
         
-          def create_node_obj(name, obj=nil)
-            node = Mrg::Grid::SerializedConfigs::Node.new
-            node.name = name
-            node.membership = (obj ? obj.memberships : [])
-            node
-          end
-
-          def create_parameter_obj(name, obj=nil)
-            param = Mrg::Grid::SerializedConfigs::Parameter.new
-            param.name = name
-            if obj != nil
-              param.kind = obj.kind
-              param.default_val = obj.default
-              param.description = obj.description
-              param.must_change = obj.must_change
-              param.level = obj.visibility_level
-              param.needs_restart = obj.requires_restart
+          def create_obj(name, type, qmf_obj=nil)
+            if type == "Group"
+              type = "GroupMembership"
             end
-            param.conflicts = (obj ? obj.conflicts : [])
-            param.depends = (obj ? obj.depends : [])
-            param
-          end
-
-          def create_feature_obj(name, obj=nil)
-            feature = Mrg::Grid::SerializedConfigs::Feature.new
-            feature.name = name
-            feature.params = (obj ? obj.params : {})
-            feature.conflicts = (obj ? obj.conflicts : [])
-            feature.depends = (obj ? obj.depends : [])
-            feature.included = (obj ? obj.included_features : [])
-            feature
-          end
-
-          def create_group_obj(name, obj=nil)
-            group = Mrg::Grid::SerializedConfigs::GroupMembership.new
-            group.name = name
-            group.members = (obj ? obj.membership : [])
-            group
-          end
-
-          def create_subsystem_obj(name, obj=nil)
-            subsystem = Mrg::Grid::SerializedConfigs::Subsystem.new
-            subsystem.name = name
-            subsystem.params = (obj ? obj.params : [])
-            subsystem
+            obj = Mrg::Grid::SerializedConfigs.const_get(type).new
+            obj.name = name
+            if qmf_obj != nil
+              qmf_m = ""
+              attrs = Mrg::Grid::SerializedConfigs.const_get(type).new.public_methods(false).map {|ms| ms.to_s}.select {|m| m.index("=") != nil}.collect {|m| m.to_sym}
+              attrs.each do |m|
+                sp = m.to_s.chop.split('_')
+                qmf_m = nil
+                klass = type.gsub(/Membership/, '')
+                begin
+                  qmf_m = Mrg::Grid::MethodUtils.find_property(sp[0], klass)[0].to_sym
+                rescue
+                  if sp.count > 1
+                    qmf_m = Mrg::Grid::MethodUtils.find_property(sp[1], klass)[0].to_sym
+                  end
+                end
+                qmf_m = Mrg::Grid::MethodUtils.find_method(sp[0], klass)[0].to_sym if qmf_m == nil
+                obj.send(m, qmf_obj.send(qmf_m))
+              end
+            else
+              # sanitize by doing things like converting sets into arrays
+              attrs = Mrg::Grid::SerializedConfigs.const_get(type).new.public_methods(false).map {|ms| ms.to_s}.select {|m| m.index("=") == nil}.collect {|m| m.to_sym}
+              attrs.each do |m|
+                if obj.send(m).instance_of?(Set)
+                  obj.send("#{m}=", [])
+                end
+              end
+            end
+            obj
           end
 
           def update_node_cmds(name, obj)
@@ -770,7 +758,7 @@ module Mrg
                   @invalids.each_pair do |key, value|
                     c = Mrg::Grid::Config::Shell.constants.grep(/Add#{key.to_s[0,4].capitalize}[a-z]*$/).to_s
                     value.each do |n|
-                      @entities[key][n] = self.send("create_#{key.to_s.downcase}_obj", n)
+                      @entities[key][n] = create_obj(n, key.to_s)
                       @cmds.push([Mrg::Grid::Config::Shell.const_get(c), [n]])
                     end
                   end
@@ -812,7 +800,7 @@ module Mrg
             @entities.each_key do |t|
               c = Mrg::Grid::Config::Shell.constants.grep(/Add#{t.to_s[0,4].capitalize}[a-z]*$/).to_s
               @entities[t].each_key do |n|
-                @entities[t][n] = self.send("create_#{t.to_s.downcase}_obj", n)
+                @entities[t][n] = create_obj(n, t.to_s)
                 @cmds.push([Mrg::Grid::Config::Shell.const_get(c), [n]])
               end
             end
@@ -846,7 +834,7 @@ module Mrg
           def act
             @entities.each_key do |t|
               m = Mrg::Grid::MethodUtils.find_store_method("get#{t.to_s.slice(0,4)}")
-              @entities[t].each_key {|n| @entities[t][n] = self.send("create_#{t.to_s.downcase}_obj", n, store.send(m, n)) }
+              @entities[t].each_key {|n| @entities[t][n] = create_obj(n, t.to_s, store.send(m, n)) }
               
             end
             @ogroups = @entities.has_key?(:Group) ? deep_copy(@entities[:Group]) : {}

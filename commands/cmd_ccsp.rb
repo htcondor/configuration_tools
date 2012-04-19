@@ -611,18 +611,18 @@ module Mrg
             obj.members.each do |node|
               if @ogroups.has_key?(name) && (not @ogroups[name].members.include?(node))
                 # Node was added
-                cmds.push(Mrg::Grid::Config::Shell.const_get("AddNodeMembership"), [node, name])
+                cmds << [Mrg::Grid::Config::Shell.const_get("AddNodeMembership"), [node, name]]
               end
             end
             if @ogroups.has_key?(name)
               @ogroups[name].members.each do |node|
                 if not obj.members.include?(node)
                   # Node was removed
-                  cmds.push(Mrg::Grid::Config::Shell.const_get("RemoveNodeMembership"), [node, name])
+                  cmds << [Mrg::Grid::Config::Shell.const_get("RemoveNodeMembership"), [node, name]]
                 end
               end
             end
-            cmds if not cmds.empty?
+            cmds
           end
 
           def compare_objs(obj1, obj2)

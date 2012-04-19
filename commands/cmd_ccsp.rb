@@ -15,17 +15,13 @@ require 'tempfile'
 
 module Mrg
   module Grid
-    module SerializedConfigs
-      class GroupMembership
-        include DefaultStruct
-        field :name, String
-        field :members, Set
-      end
-    end
-
     module Config
       module Shell
         module CommonOps
+          def self.remove_fields
+            [:idgroup, :last_updated_version, :provisioned, :is_identity_group]
+          end
+
           def action
             @action ||= self.class.opname.split("-")[1].to_sym
           end
@@ -72,6 +68,10 @@ module Mrg
         end
 
         module CCPOps
+          def remove_fields(klass)
+            CommonOps.remove_fields + [:annotation]
+          end
+
           def valid_actions
             [action]
           end
@@ -488,6 +488,15 @@ module Mrg
         end
 
         module CCSOps
+          def remove_fields(klass)
+            return CommonOps.remove_fields + [:params, :features] if klass == "Group"
+            CommonOps.remove_fields
+          end
+
+          def add_group_fields
+            {:members=>Set}
+          end
+
           def init_option_parser
             OptionParser.new do |opts|
               opts.banner = "Usage:  wallaby #{self.class.opname} FILENAME [COMPARE_FILENAME]\n#{self.class.description}"
@@ -525,14 +534,23 @@ module Mrg
           end
         
           def create_obj(name, type, qmf_obj=nil)
-            if type == "Group"
-              type = "GroupMembership"
+            klass = Mrg::Grid::SerializedConfigs.const_get(type)
+            remove_fields(type).each do |f|
+              klass.saved_fields.delete(f)
             end
-            obj = Mrg::Grid::SerializedConfigs.const_get(type).new
+            if self.respond_to?("add_#{type.downcase}_fields")
+              self.send("add_#{type.downcase}_fields").each_pair do |n, t|
+                klass.field n, t
+              end
+            end
+
+            obj = klass.new
             obj.name = name
             if qmf_obj != nil
               qmf_m = ""
-              attrs = Mrg::Grid::SerializedConfigs.const_get(type).new.public_methods(false).map {|ms| ms.to_s}.select {|m| m.index("=") != nil}.collect {|m| m.to_sym}
+              # Retrieve the list of getters, but remove any fields not to
+              # be displayed/modified
+              attrs = Mrg::Grid::SerializedConfigs.const_get(type).new.public_methods(false).map {|ms| ms.to_s}.select {|m| m.index("=") != nil}.collect {|m| m.to_sym} - remove_fields(type).collect {|n| "#{n}=".to_sym}
               attrs.each do |m|
                 sp = m.to_s.chop.split('_')
                 qmf_m = nil
@@ -548,8 +566,11 @@ module Mrg
                 obj.send(m, qmf_obj.send(qmf_m))
               end
             else
+              # Retrieve the list of getters, but remove any fields not to
+              # be displayed/modified
+              attrs = Mrg::Grid::SerializedConfigs.const_get(type).new.public_methods(false).map {|ms| ms.to_s}.select {|m| m.index("=") == nil}.collect {|m| m.to_sym} - remove_fields(type)
+
               # sanitize by doing things like converting sets into arrays
-              attrs = Mrg::Grid::SerializedConfigs.const_get(type).new.public_methods(false).map {|ms| ms.to_s}.select {|m| m.index("=") == nil}.collect {|m| m.to_sym}
               attrs.each do |m|
                 if obj.send(m).instance_of?(Set)
                   obj.send("#{m}=", [])
@@ -649,10 +670,10 @@ module Mrg
             names = {}
 
             # Generate the list of entity names the obj uses
-            names[:Parameter] = obj.respond_to?(:params) ? (obj.params.instance_of?(Hash) ? obj.params.keys : obj.params) : []
+            names[:Parameter] = obj.respond_to?(:params) && (obj.params != nil) ? (obj.params.instance_of?(Hash) ? obj.params.keys : obj.params) : []
             names[:Group] = obj.respond_to?(:membership) ? obj.membership : []
             names[:Node] = obj.respond_to?(:members) ? obj.members : []
-            names[:Feature] = obj.respond_to?(:features) ? obj.features : []
+            names[:Feature] = obj.respond_to?(:features) && (obj.features != nil) ? obj.features : []
             names[:Feature] += obj.respond_to?(:included) ? obj.included : []
             if obj.respond_to?(:conflicts)
               names[:Feature] += obj.conflicts if obj.instance_of?(Mrg::Grid::SerializedConfigs::Feature)
@@ -1011,7 +1032,11 @@ module Mrg
           end
 
           def group_obj
-            group = Mrg::Grid::SerializedConfigs::Group.new
+            klass = Mrg::Grid::SerializedConfigs::Group
+            remove_fields("Group").each do |f|
+              klass.saved_fields.delete(f)
+            end
+            group = klass.new
             group.name = @target.values.to_s
             group.features = target_obj.features
             group.params = target_obj.params

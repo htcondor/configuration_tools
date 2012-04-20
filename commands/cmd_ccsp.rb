@@ -19,7 +19,7 @@ module Mrg
       module Shell
         module CommonOps
           def self.remove_fields
-            [:idgroup, :last_updated_version, :provisioned, :is_identity_group]
+            [:idgroup, :last_updated_version, :provisioned, :is_identity_group, :annotation]
           end
 
           def action
@@ -69,7 +69,7 @@ module Mrg
 
         module CCPOps
           def remove_fields(klass)
-            CommonOps.remove_fields + [:annotation]
+            CommonOps.remove_fields
           end
 
           def valid_actions
@@ -489,8 +489,9 @@ module Mrg
 
         module CCSOps
           def remove_fields(klass)
-            return CommonOps.remove_fields + [:params, :features] if klass == "Group"
-            CommonOps.remove_fields
+            f = CommonOps.remove_fields
+            f += [:params, :features] if klass == "Group"
+            f
           end
 
           def add_group_fields

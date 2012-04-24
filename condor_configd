@@ -155,6 +155,7 @@ class Service:
 
    def config(self, filename, user='', password=''):
       global stop_running 
+      default_methods = 'ANONYMOUS'
 
       if self.session == None:
          return(False)
@@ -195,10 +196,10 @@ class Service:
          broker_auth_methods = str(val['qmf_broker_auth_mechanism']).replace(',', ' ')
       except ConfigError, error:
          log(logging.DEBUG, self.logger_name, '%s. Using defaults' % error.msg)
-         broker_auth_methods = 'ANONYMOUS PLAIN GSSAPI'
+         broker_auth_methods = default_methods
       except Exception, e:
          log(logging.DEBUG, self.logger_name, '%s. Using defaults' % e)
-         broker_auth_methods = 'ANONYMOUS PLAIN GSSAPI'
+         broker_auth_methods = default_methods
 
       try:
          val = read_condor_config('CONFIGD', ['CHECK_INTERVAL'], permit_param_only = False)

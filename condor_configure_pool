@@ -227,10 +227,15 @@ module Mrg
           opts.push("#{options[:target]}=#{options[:target_name]}") if options.has_key?(:target)
           options.each_key do |type|
             next if not store_types.include?(type)
-            parse_option_args(options[type]).each do |name|
-              opts.push("#{type}=#{name}")
+            if options[type].empty?
+              opts.push(type.to_s)
+            else
+              parse_option_args(options[type]).each do |name|
+                opts.push("#{type}=#{name}")
+              end
             end
           end
+
           cmd = "ccp-#{options[:action]}"
           if options[:action] == :snapshot
             cmd = "#{options[:snapshot][:type]}-#{options[:action]}"

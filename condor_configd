@@ -156,6 +156,9 @@ class Service:
    def config(self, filename, user='', password=''):
       global stop_running 
       default_methods = 'ANONYMOUS'
+      broker_ip = None
+      port = None
+      broker_auth_methods = None
 
       if self.session == None:
          return(False)
@@ -167,38 +170,41 @@ class Service:
       try:
          broker_ip = read_condor_config('CONFIGD', ['QMF_BROKER_HOST'])['qmf_broker_host']
       except ConfigError, error:
-         # Broker host not defined, so exit
          log(logging.WARNING, self.logger_name, '%s' % error.msg)
-         log(logging.WARNING, self.logger_name, 'Using default (127.0.0.1)')
-         broker_ip = '127.0.0.1'
       except Exception, e:
          log(logging.WARNING, self.logger_name, '%s' % e)
+
+      if not broker_ip:
          log(logging.WARNING, self.logger_name, 'Using default (127.0.0.1)')
          broker_ip = '127.0.0.1'
 
       try:
          port = read_condor_config('CONFIGD', ['QMF_BROKER_PORT'])['qmf_broker_port']
       except ConfigError, error:
-         log(logging.DEBUG, self.logger_name, '%s. Using default (5672)' % error.msg)
-         port = 5672
+         log(logging.DEBUG, self.logger_name, error.msg)
       except Exception, e:
-         log(logging.DEBUG, self.logger_name, '%s. Using default (5672)' % e)
-         port = 5672
+         log(logging.DEBUG, self.logger_name, e)
 
       try:
          broker_port = int(port)
       except:
-         log(logging.DEBUG, self.logger_name, 'Invalid broker port.  Using default (5672)')
+         log(logging.DEBUG, self.logger_name, 'Invalid or undefined broker port.  Using default (5672)')
          broker_port = 5672
 
-      try:
-         val = read_condor_config('CONFIGD', ['QMF_BROKER_AUTH_MECHANISM'])
-         broker_auth_methods = str(val['qmf_broker_auth_mechanism']).replace(',', ' ')
-      except ConfigError, error:
-         log(logging.DEBUG, self.logger_name, '%s. Using defaults' % error.msg)
-         broker_auth_methods = default_methods
-      except Exception, e:
-         log(logging.DEBUG, self.logger_name, '%s. Using defaults' % e)
+      for attr in ['QMF_BROKER_AUTH_MECHANISM', 'QMF_BROKER_AUTH_MECH']:
+         if not broker_auth_methods:
+            try:
+               broker_auth_methods = str(read_condor_config('CONFIGD', [attr])[attr.lower()]).replace(',', ' ')
+            except ConfigError, error:
+               log(logging.DEBUG, self.logger_name, error.msg)
+            except Exception, e:
+               log(logging.DEBUG, self.logger_name, e)
+
+         if not broker_auth_methods:
+            log(logging.DEBUG, self.logger_name, "Looking for other methods")
+
+      if not broker_auth_methods:
+         log(logging.DEBUG, self.logger_name, 'No QMF authentication method found.  Using defaults of "%s"' % default_methods)
          broker_auth_methods = default_methods
 
       try:

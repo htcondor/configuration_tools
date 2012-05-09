@@ -15,51 +15,20 @@
 require 'rbconfig'
 require 'optparse'
 require 'mrg/grid/config/shell'
+require 'condor_wallaby_tools/CmdLineUtils'
 
 module Mrg
   module Grid
     module Config
       class CCP
+        include CmdLineUtils
+
         def store_types
           [:Feature, :Group, :Node, :Parameter, :Snapshot]
         end
 
         def entities
           [:Feature, :Parameter]
-        end
-
-        def actions
-          [[:add, "Append to the group/node with lowest priority"],
-           [:delete, "Remove from the group/node"],
-           [:edit, "Edit the group/node"],
-           [:insert, "Insert into the group/node with highest priority"],
-           [:list, "List detailed information"],
-           [:activate, "Attempt to activate the configuration in the store"]]
-        end
-
-        def parse_option_args(args)
-          items = []
-          quotes = false
-          current = ""
-          args.each_byte do |c|
-            c = c.chr
-            if (c == '"') || (c == "'"):
-              if quotes == false
-                quotes = true
-                next
-              else
-                quotes = false
-                next
-              end
-            elsif (c == ',') && (quotes == false)
-              items.push(current)
-              current = ""
-              next
-            end
-            current << c
-          end
-          items.push(current) if current and (not current.empty?)
-          items
         end
 
         def main(args)
@@ -134,6 +103,12 @@ module Mrg
             opts.separator ""
             opts.separator "Action: (Only 1 allowed per invocation)"
 
+            actions = [[:add, "Append to the group/node with lowest priority"],
+                       [:delete, "Remove from the group/node"],
+                       [:edit, "Edit the group/node"],
+                       [:insert, "Insert into the group/node with highest priority"],
+                       [:list, "List detailed information"],
+                       [:activate, "Attempt to activate the configuration in the store"]]
             actions.each do |name, desc|
               short = "-#{name.to_s[0,1]}" unless name == :activate
               opts.on(short, "--#{name}", desc) do

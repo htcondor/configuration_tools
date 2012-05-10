@@ -11,7 +11,6 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-require 'tempfile'
 require 'condor_wallaby_tools/CmdUtils'
 require 'condor_wallaby_tools/OpUtils'
 
@@ -34,12 +33,17 @@ module Mrg
           end
 
           def init_option_parser
+            @options = {}
             OptionParser.new do |opts|
               opts.banner = "Usage:  wallaby #{self.class.opname} FILENAME [COMPARE_FILENAME]\n#{self.class.description}"
         
               opts.on("-h", "--help", "displays this message") do
                 puts @oparser
                 exit
+              end
+
+              opts.on("-v", "--verbose", "Print more information, if available") do
+                @options[:verbose] = true
               end
             end
           end
@@ -421,13 +425,18 @@ module Mrg
           def act
             @entities.each_key do |type|
               c = Mrg::Grid::Config::Shell.constants.grep(/Show#{type.to_s[0,4].capitalize}[a-z]*$/).to_s
-              @cmds.push([Mrg::Grid::Config::Shell.const_get(c), @entities[type].keys])
+              cmd = Mrg::Grid::Config::Shell.const_get(c)
+              @entities[type].each_key do |name|
+                @cmds.push([cmd, [name]])
+                if type == :Node and @options.has_key?(:verbose)
+                  @cmds.push([Mrg::Grid::Config::Shell::ShowNodeConfig, [name]])
+                end
+              end
             end
 
             run_wscmds(@cmds)
             return 0
           end
-          Mrg::Grid::Config::Shell.register_command(self, "ccp-list")
         end
 
         class CCSListAll < ::Mrg::Grid::Config::Shell::Command

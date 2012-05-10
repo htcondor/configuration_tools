@@ -63,7 +63,7 @@ module Mrg
             end
 
             opts.on("-v", "--verbose", "Print more information, if available") do
-              verbose = true
+              options[:verbose] = true
             end
 
             opts.separator ""
@@ -152,8 +152,9 @@ module Mrg
           end
 
           opts = []
+          opts.push("--verbose") if options.has_key?(:verbose)
           options.each_key do |type|
-            next if (type == :action)
+            next if not store_types.include?(type)
             if options[type].empty?
               opts.push(type.to_s)
             else

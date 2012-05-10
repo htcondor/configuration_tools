@@ -11,7 +11,6 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-require 'tempfile'
 require 'condor_wallaby_tools/CmdUtils'
 require 'condor_wallaby_tools/OpUtils'
 
@@ -56,6 +55,10 @@ module Mrg
 
               opts.on("--qmf", "Prompt for QMF broker information") do
                 @options[:qmf] = true
+              end
+
+              opts.on("-v", "--verbose", "Print more information, if available") do
+                @options[:verbose] = true
               end
             end
           end
@@ -495,6 +498,35 @@ module Mrg
 
           def action
             :add
+          end
+        end
+
+        class CCPList < ::Mrg::Grid::Config::Shell::Command
+          include CCPOps
+
+          def self.opname
+            "ccp-list"
+          end
+        
+          def self.description
+            "List detailed information for a group or node in the store"
+          end
+
+          def entities_needed
+            false
+          end
+
+          def act
+            type, name = @target.shift
+            c = Mrg::Grid::Config::Shell.constants.grep(/Show#{type.to_s[0,4].capitalize}[a-z]*$/).to_s
+            @cmds.push([Mrg::Grid::Config::Shell.const_get(c), [name]])
+
+            if @options.has_key?(:verbose) && type == :Node
+              @cmds.push([Mrg::Grid::Config::Shell::ShowNodeConfig, [name]])
+            end
+
+            run_wscmds(@cmds)
+            return 0
           end
         end
 

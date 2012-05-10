@@ -14,6 +14,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+require 'tempfile'
 require 'condor_wallaby_tools/OpUtils'
 
 module Mrg

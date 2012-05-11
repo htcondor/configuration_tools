@@ -32,6 +32,10 @@ module Mrg
             {:members=>Set}
           end
 
+          def ws_bool(value)
+            value ? "yes" : "no"
+          end
+
           def init_option_parser
             @options = {}
             OptionParser.new do |opts|

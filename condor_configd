@@ -31,10 +31,6 @@ from condorutils.log import *
 from condorutils.readconfig import *
 from wallabyclient import WallabyHelpers
 from wallabyclient.exceptions import WallabyUnsupportedAPI
-try:
-   import pwd
-except:
-   pass
 
 
 class Timer (threading.Thread):
@@ -798,13 +794,6 @@ def main(argv=None):
          # These aren't available on windows
          signal.signal(signal.SIGQUIT, exit_signal_handler)
          signal.signal(signal.SIGHUP, exit_signal_handler)
-
-         # Run as the user condor if running as root
-         if os.geteuid() == 0:
-            # Get the uid and gid for the condor user
-            pw_data = pwd.getpwnam('condor')
-            os.setregid(pw_data[3], pw_data[3])
-            os.setreuid(pw_data[2], pw_data[2])
 
       try:
          opts, args = getopt.gnu_getopt(argv[1:], 'dh:l:m:rP:U:', long_opts)

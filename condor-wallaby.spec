@@ -1,6 +1,6 @@
 %{!?python_sitelib: %define python_sitelib %(%{__python} -c "from distutils.sysconfig import get_python_lib; print get_python_lib()")}
 %define rel 1
-%define ver 4.1.2
+%define ver 4.1.3
 
 Name: condor-wallaby
 Summary: Condor configuration using wallaby
@@ -119,6 +119,9 @@ rm -f %{buildroot}/%{python_sitelib}/wallabyclient/WallabyTypes.py
 %{python_sitelib}/wallabyclient/exceptions.py*
 
 %changelog
+* Wed Aug  1 2012  <rrati@redhat> - 4.1.3-1
+- The configd won't drop privileges if run as root (BZ841173)
+
 * Thu Oct 27 2011  <rrati@redhat> - 4.1.2-1
 - Fixed issues in condor_configure_pool manpage
 

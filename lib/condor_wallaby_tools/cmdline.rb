@@ -1,4 +1,4 @@
-# CmdLineUtils: command line parsing utilities
+# cmdline: command line parsing utilities
 #
 # Copyright (c) 2012 Red Hat, Inc.
 #

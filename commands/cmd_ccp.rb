@@ -1,4 +1,4 @@
-# cmd_ccs.rb:  
+# cmd_ccp.rb: apply condor configurations to nodes/groups
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -11,32 +11,22 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-require 'condor_wallaby_tools/CmdUtils'
-require 'condor_wallaby_tools/OpUtils'
+require 'condor_wallaby_tools/utils'
+require 'mrg/grid/config/shell'
 
 module Mrg
   module Grid
     module Config
       module Shell
         module CCPOps
-          include OpUtils
-          include CmdUtils
+          include ToolUtils
 
           def remove_fields(klass)
-            OpUtils.remove_fields
+            ToolUtils.remove_fields
           end
 
           def valid_actions
             [action]
-          end
-
-          def params_as_array(phash)
-            list = []
-            phash.each_pair do |k, v|
-              list.push("#{k}=#{v}") if v
-              list.push(k) if not v
-            end
-            list
           end
 
           def init_option_parser
@@ -72,18 +62,19 @@ module Mrg
 
             # Retrieve the target
             has_target = false
-            args.each {|a| has_target = has_target || a.include?("Group=") || a.include?("Node=")}
+            args.each {|a| has_target = has_target || a.downcase.include?("group=") || a.downcase.include?("node=")}
             exit!(1, "No target specified.  Exiting") if not has_target
-            @target = {}
             t = args.shift.split('=', 2)
-            if store.send("check#{t[0].capitalize}Validity", [t[1]]) != []
+            if store.send("check#{t[0].downcase.capitalize}Validity", [t[1]]) != []
               exit!(1, "failed to find #{t[0].downcase} \"#{t[1]}\"")
             end
-            @target[t[0].to_sym] = t[1]
+            @target = {t[0].downcase.capitalize.to_sym => t[1]}
 
             exit!(1, "No configuration entities specified.  Exiting") if entities_needed && args.size < 1
             args.each do |arg|
               as = arg.split('=', 2)
+
+              # Retrieve the set of this type of entity and add to it
               ent_list = self.send("#{action}_#{as[0].downcase}s")
               ent_list[as[1]] = nil if ent_list.instance_of?(Hash)
               ent_list.push(as[1]) if ent_list.instance_of?(Array)
@@ -153,7 +144,7 @@ module Mrg
           def get_param_values
             add_parameters.keys.each do |pname|
               print "Value for \"#{pname}\": "
-              add_parameters[pname] = gets.strip
+              add_parameters[pname] = STDIN.gets.strip
             end
           end
 
@@ -164,9 +155,9 @@ module Mrg
               remove_parameters["SCHEDD_HOST"] = nil
             else
               print "Enter the name of the default scheduler: "
-              name = gets.strip
+              name = STDIN.gets.strip
               print "Is this a High Available Scheduler [y/N] ? "
-              if gets.downcase.strip == 'y'
+              if STDIN.gets.downcase.strip == 'y'
                 add_parameters["SCHEDD_NAME"] = name
                 remove_parameters["SCHEDD_HOST"] = nil
               else
@@ -183,12 +174,12 @@ module Mrg
               remove_parameters["QMF_BROKER_PORT"] = nil
             else
               print "Enter the hostname of the AMQP broker this group will use to communicate with the Management Console: "
-              add_parameters["QMF_BROKER_HOST"] = gets.strip
+              add_parameters["QMF_BROKER_HOST"] = STDIN.gets.strip
 
               valid = false
               while not valid
                 print "Enter the port the AMQP broker listens on: "
-                num = gets.strip
+                num = STDIN.gets.strip
                 break if num.empty?
                 valid = Integer(num) rescue false
                 if valid
@@ -203,7 +194,7 @@ module Mrg
           def apply?
             puts
             print "Apply these changes [Y/n] ? "
-            gets.downcase.strip != 'n'
+            STDIN.gets.downcase.strip != 'n'
           end
 
           def check_add_params_needed
@@ -213,30 +204,30 @@ module Mrg
 
             # EC2 Enhanced
             if (p_on_target.keys.include?("NEED_SET_EC2E_ROUTES") && p_on_target["NEED_SET_EC2E_ROUTES"].downcase == "true") || (add_features.include?("EC2Enhanced")) || (add_parameters.keys.include?("NEED_SET_EC2E_ROUTES") && add_parameters["NEED_SET_EC2E_ROUTES"].downcase == "true")
-              route_data = [["Name of the route", "Name"],
-                            ["Route requirements", "requirements"],
-                            ["Amazon Instance Type", "set_amazoninstancetype"],
-                            ["Filename containing an AWS Public Key for this route", "set_amazonpublickey"],
-                            ["Filename containing an AWS Private Key for this route", "set_amazonprivatekey"],
-                            ["Filename containing an AWS Access Key for this route", "set_amazonaccesskey"],
-                            ["Filename containing an AWS Secret Key for this route", "set_amazonsecretkey"],
-                            ["Filename containing an RSA Public Key for this route", "set_rsapublickey"],
-                            ["S3 Storage Bucket name for this route", "set_amazons3bucketname"],
-                            ["SQS Queue name for this route", "set_amazonsqsqueuename"],
-                            ["AMI ID for use with this route", "set_amazonamiid"]
+              route_data = [["Name of the route", :Name],
+                            ["Route requirements", :requirements],
+                            ["Amazon Instance Type", :set_amazoninstancetype],
+                            ["Filename containing an AWS Public Key for this route", :set_amazonpublickey],
+                            ["Filename containing an AWS Private Key for this route", :set_amazonprivatekey],
+                            ["Filename containing an AWS Access Key for this route", :set_amazonaccesskey],
+                            ["Filename containing an AWS Secret Key for this route", :set_amazonsecretkey],
+                            ["Filename containing an RSA Public Key for this route", :set_rsapublickey],
+                            ["S3 Storage Bucket name for this route", :set_amazons3bucketname],
+                            ["SQS Queue name for this route", :set_amazonsqsqueuename],
+                            ["AMI ID for use with this route", :set_amazonamiid]
                            ]
               base_route = "$(JOB_ROUTER_ENTRIES)"
               routes = ""
               continue = false
               begin
                 print "Configure #{continue ? "another" : "an"} EC2Enhanced Route [y/N] ? "
-                continue = (gets.strip == 'y')
+                continue = (STDIN.gets.strip == 'y')
                 if continue
                   routes += " [ GridResource = \"condor localhost $(COLLECTOR_HOST)\";"
                   route_data.each do |prompt, name|
                     print "#{prompt}: "
-                    quote = '"' unless name == "requirements"
-                    routes += " #{name} = #{quote}#{gets.strip}#{quote};"
+                    quote = '"' unless name == :requirements
+                    routes += " #{name} = #{quote}#{STDIN.gets.strip}#{quote};"
                   end
                   routes += " set_remote_jobuniverse = 5; ]"
                 end
@@ -250,7 +241,7 @@ module Mrg
               vm_types = ["xen", "kvm"]
               begin
                 print "Type of Virtual Machines to run on this node (xen or kvm): "
-                type = gets.strip
+                type = STDIN.gets.strip
                 puts "Error: \"#{type}\" is not a valid Virtual Machine type.  Please try again" if not vm_types.include?(type)
               end while not vm_types.include?(type)
               add_parameters["VM_TYPE"] = type
@@ -259,28 +250,28 @@ module Mrg
 
               # Networking params
               print "Enable networking in the VM universe [y/N] ? "
-              enabled = (gets.strip.downcase == 'y')
+              enabled = (STDIN.gets.strip.downcase == 'y')
               add_parameters["VM_NETWORKING"] = (enabled ? "TRUE" : "FALSE")
               if enabled
                 vm_net_types = {:nat=>"nat", :bridge=>"bridge", :both=>"nat, bridge"}
                 type = ""
                 begin
                   print "Supported VM networking type (#{vm_net_types.keys.join(', ')}): "
-                  type = gets.strip.to_sym
+                  type = STDIN.gets.strip.to_sym
                   puts "Invalid VM networking type \"#{type}\"" if not vm_net_types.keys.include?(type)
                 end while not vm_net_types.keys.include?(type)
                 add_parameters["VM_NETWORKING_TYPE"] = vm_net_types[type]
                 remove_parameters["VM_NETWORKING_DEFAULT_TYPE"] = nil if type != :both
                 if type != :nat
                   print "Networking interface for bridge networking: "
-                  add_parameters["VM_NETWORKING_BRIDGE_INTERFACE"] = gets.strip
+                  add_parameters["VM_NETWORKING_BRIDGE_INTERFACE"] = STDIN.gets.strip
                 end
 
                 if type == :both
                   vm_net_types.delete(:both)
                   begin
                     print "Default VM networking type (#{vm_net_types.keys.join(', ')}): "
-                    type = gets.strip
+                    type = STDIN.gets.strip
                     type = type.to_sym if not type.empty?
                     puts "\"#{type}\" is an invalid default VM networking type" if not vm_net_types.keys.include?(type)
                   end while not vm_net_types.keys.include?(type)
@@ -299,14 +290,14 @@ module Mrg
               puts "The following parameters need to be set for this configuration to be valid:"
               missing.sort.each {|p| puts p}
               print "Set these parameters now ? [y/N] "
-              if gets.strip.downcase == 'y'
+              if STDIN.gets.strip.downcase == 'y'
                 missing.sort.each do |param|
                   if not add_parameters.include?(p)
                     print "#{param}: "
-                    value = gets.strip
+                    value = STDIN.gets.strip
                     if value.empty?
                       print "Use a value for \"#{param}\" defined elsewhere in the pool configuration? [Y/n] "
-                      if gets.strip.downcase != 'n'
+                      if STDIN.gets.strip.downcase != 'n'
                         puts "Adding a parameter that uses a default value is not permitted.  This parameter change will be discarded"
                         next
                       end
@@ -326,9 +317,8 @@ module Mrg
           end
 
           def vmuniverse_params
-            ["VM_TYPE", "XEN_BOOTLOADER", "VM_NETWORKING",
-             "VM_NETWORKING_TYPE", "VM_NETWORKING_DEFAULT_TYPE",
-             "VM_NETWORKING_BRIDGE_INTERFACE"]
+            ["XEN_BOOTLOADER", "VM_NETWORKING_TYPE",
+             "VM_NETWORKING_DEFAULT_TYPE", "VM_NETWORKING_BRIDGE_INTERFACE"]
           end
 
           def check_remove_params_needed
@@ -349,7 +339,7 @@ module Mrg
             mustchange = store.getMustChangeParams
 
             # Iterate over the provided list of features and check each
-            # to see they include parameters that are using default values.
+            # to see if they include parameters that are using default values.
             list.each do |f|
               params_on_feature = store.getFeature(f).explain
 
@@ -363,9 +353,9 @@ module Mrg
             end
 
             # Retrieve all the features already configured on the target
-            # and see if those features contain must change parameteres that
+            # and see if those features contain must change parameters that
             # need explicitly set values.  These are must change params that
-            # are still needed.
+            # need values provided by the user.
             mc_wo_values = []
             target_obj.features.each do |f|
               if not list.include?(f)
@@ -375,7 +365,8 @@ module Mrg
             end
 
             # Look through the candidate parameters and compare them against
-            # the must change parameters set by the features on the target.
+            # the must change parameters set by the features already configured
+            # on the target.
             # If a candidate parameter isn't given a value by another feature
             # on the target, then add it to the unique must change parameter
             # set
@@ -393,7 +384,7 @@ module Mrg
               puts "         feature to more than node (or a group of nodes) in the"
               puts "         pool can cause dupliate information in the console."
               print "Continue adding the ConsoleCollector feature? [y/N] "
-              features.delete("ConsoleCollector") if gets.strip.downcase != 'y'
+              add_features.delete("ConsoleCollector") if STDIN.gets.strip.downcase != 'y'
             end
 
             get_param_values
@@ -423,10 +414,10 @@ module Mrg
 
             begin
               print "Create a named snapshot of this configuration [y/N] ? "
-              continue = (gets.strip.downcase == 'y')
+              continue = (STDIN.gets.strip.downcase == 'y')
               if continue
                 print "  Snapshot Name: "
-                name = gets.strip
+                name = STDIN.gets.strip
                 puts "Invalid snapshot name" if name.empty?
               end
             end while continue && name.empty?
@@ -435,7 +426,7 @@ module Mrg
             end
 
             print "Activate the changes [y/N] ? "
-            if gets.strip.downcase == 'y'
+            if STDIN.gets.strip.downcase == 'y'
               @cmds.push(activate_cmds)
               @cmds.push(save_snapshot_cmds) if (not name) || name.empty?
             end

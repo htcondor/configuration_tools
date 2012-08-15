@@ -1,4 +1,4 @@
-# cmd_ccs.rb:  
+# cmd_ccs.rb: edit entities in wallaby
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -11,19 +11,17 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-require 'condor_wallaby_tools/CmdUtils'
-require 'condor_wallaby_tools/OpUtils'
+require 'condor_wallaby_tools/utils'
 
 module Mrg
   module Grid
     module Config
       module Shell
         module CCSOps
-          include OpUtils
-          include CmdUtils
+          include ToolUtils
 
-          def remove_fields(klass)
-            f = OpUtils.remove_fields
+          def self.remove_fields(klass)
+            f = ToolUtils.remove_fields
             f += [:params, :features] if klass == "Group"
             f
           end
@@ -77,9 +75,10 @@ module Mrg
             end
           end
         
-          def create_obj(name, type, qmf_obj=nil)
+          def create_obj(name, sctype, qmf_obj=nil)
+            type = sctype.to_s
             klass = Mrg::Grid::SerializedConfigs.const_get(type)
-            remove_fields(type).each do |f|
+            CCSOps.remove_fields(type).each do |f|
               klass.saved_fields.delete(f)
             end
             if self.respond_to?("add_#{type.downcase}_fields")
@@ -90,31 +89,29 @@ module Mrg
 
             obj = klass.new
             obj.name = name
+
+            # The list of getters without fields disallowed to be 
+            # displayed/modified
+            attrs = obj.instance_variables.collect{|n| n.delete("@")}
+
             if qmf_obj != nil
-              qmf_m = ""
-              # Retrieve the list of getters, but remove any fields not to
-              # be displayed/modified
-              attrs = Mrg::Grid::SerializedConfigs.const_get(type).new.public_methods(false).map {|ms| ms.to_s}.select {|m| m.index("=") != nil}.collect {|m| m.to_sym} - remove_fields(type).collect {|n| "#{n}=".to_sym}
               attrs.each do |m|
-                sp = m.to_s.chop.split('_')
-                qmf_m = nil
-                klass = type.gsub(/Membership/, '')
-                begin
-                  qmf_m = Mrg::Grid::MethodUtils.find_property(sp[0], klass)[0].to_sym
-                rescue
-                  if sp.count > 1
-                    qmf_m = Mrg::Grid::MethodUtils.find_property(sp[1], klass)[0].to_sym
-                  end
-                end
-                qmf_m = Mrg::Grid::MethodUtils.find_method(sp[0], klass)[0].to_sym if qmf_m == nil
-                obj.send(m, qmf_obj.send(qmf_m))
+#                sp = m.split('_')
+#                qmf_m = nil
+#                klass = type.gsub(/Membership/, '')
+#                begin
+#                  qmf_m = Mrg::Grid::MethodUtils.find_property(sp[0], klass)[0].to_sym
+#                rescue
+#                  if sp.count > 1
+#                    qmf_m = Mrg::Grid::MethodUtils.find_property(sp[1], klass)[0].to_sym
+#                  end
+#                end
+#                qmf_m = Mrg::Grid::MethodUtils.find_method(sp[0], klass)[0].to_sym if qmf_m == nil
+#puts m.inspect
+                obj.send("#{m}=", qmf_obj.send(Mrg::Grid::Config::Shell::QmfConversion.find_getter(m, type.gsub(/Membership/, ''))))
               end
             else
-              # Retrieve the list of getters, but remove any fields not to
-              # be displayed/modified
-              attrs = Mrg::Grid::SerializedConfigs.const_get(type).new.public_methods(false).map {|ms| ms.to_s}.select {|m| m.index("=") == nil}.collect {|m| m.to_sym} - remove_fields(type)
-
-              # sanitize by doing things like converting sets into arrays
+              # sanitize by converting sets into arrays
               attrs.each do |m|
                 if obj.send(m).instance_of?(Set)
                   obj.send("#{m}=", [])
@@ -129,12 +126,7 @@ module Mrg
           end
 
           def update_feature_cmds(name, obj)
-            params = []
-            obj.params.each_pair do |k, v|
-              params.push("#{k}=#{v}") if v
-              params.push("#{k}") if not v
-            end
-            cmds = [[Mrg::Grid::Config::Shell.const_get("ReplaceFeatureParam"), [name] + params]]
+            cmds = [[Mrg::Grid::Config::Shell.const_get("ReplaceFeatureParam"), [name] + params_as_array(obj.params)]]
             cmds << [Mrg::Grid::Config::Shell.const_get("ReplaceFeatureInclude"), [name] + obj.included]
             cmds << [Mrg::Grid::Config::Shell.const_get("ReplaceFeatureConflict"), [name] + obj.conflicts]
             cmds << [Mrg::Grid::Config::Shell.const_get("ReplaceFeatureDepend"), [name] + obj.depends]
@@ -162,16 +154,16 @@ module Mrg
           def update_group_cmds(name, obj)
             cmds = []
             obj.members.each do |node|
-              if @ogroups.has_key?(name) && (not @ogroups[name].members.include?(node))
+              if @orig_grps.has_key?(name) && (not @orig_grps[name].members.include?(node))
                 # Node was added
-                cmds << [Mrg::Grid::Config::Shell.const_get("AddNodeMembership"), [node, name]]
+                cmds << [Mrg::Grid::Config::Shell::AddNodeMembership, [node, name]]
               end
             end
-            if @ogroups.has_key?(name)
-              @ogroups[name].members.each do |node|
+            if @orig_grps.has_key?(name)
+              @orig_grps[name].members.each do |node|
                 if not obj.members.include?(node)
                   # Node was removed
-                  cmds << [Mrg::Grid::Config::Shell.const_get("RemoveNodeMembership"), [node, name]]
+                  cmds << [Mrg::Grid::Config::Shell::RemoveNodeMembership, [node, name]]
                 end
               end
             end
@@ -183,9 +175,9 @@ module Mrg
           end
 
           def remove_invalid_entries(obj)
-            # Generate the list of entity names the obj uses\
+            # Generate the list of entity names the obj uses
             if @invalids.has_key?(:Parameter)
-              (obj.params.instance_of?(Hash) ? @invalids[:Parameter].each{|i| obj.params.delete(i)} : obj.params - @invalids[:Parameter]) if obj.respond_to?(:params)
+              (obj.params.instance_of?(Hash) ? @invalids[:Parameter].each{|i| obj.params.delete(i)} : obj.params -= @invalids[:Parameter]) if obj.respond_to?(:params)
               if obj.instance_of?(Mrg::Grid::SerializedConfigs::Parameter)
                 obj.conflicts -= @invalids[:Parameter]
                 obj.depends -= @invalids[:Parameter]
@@ -205,8 +197,6 @@ module Mrg
                 obj.depends -= @invalids[:Feature]
               end
             end
-
-            obj
           end
 
           def verify_obj(obj)
@@ -229,22 +219,14 @@ module Mrg
             end
 
             names.each_key do |t|
-              list = []
+              bad = []
               list = names[t]
               list -= @entities[t].keys if @entities.has_key?(t)
-              bad = store.send("check#{t}Validity", list)
+              bad = store.send("check#{t}Validity", list) if not list.empty?
               bad_names[t] = bad if not bad.empty?
             end
 
             bad_names
-          end
-
-          def serialize
-            list = []
-            @entities.each_key do |type|
-              list.push(@entities[type].values).flatten!
-            end
-            list
           end
 
           def sync_memberships
@@ -262,7 +244,7 @@ module Mrg
           end
 
           def get_type(klass_name)
-            return "Group".to_sym if klass_name.to_s.split('::').last == "GroupMembership"
+            return :Group if klass_name.to_s.split('::').last == "GroupMembership"
             klass_name.to_s.split('::').last.to_sym
           end
 
@@ -272,6 +254,7 @@ module Mrg
 
           def edit_objs
             retry_loop = true
+            @orig_grps = @entities.has_key?(:Group) ? deep_copy(@entities[:Group]) : {}
 
             # Dump the data into a file and open an editor
             while retry_loop == true
@@ -287,7 +270,7 @@ module Mrg
                 old_obj = @entities[get_type(obj.class)][obj.name]
                 unless compare_objs(obj, old_obj) == true
                   print "Error: Corrupted object list.  Press <Enter> to re-edit the objects from scratch"
-                  gets
+                  $stdin.gets
                   retry_loop = true
                   break
                 end
@@ -310,9 +293,10 @@ module Mrg
                   puts "#{k}: #{@invalids[k].join(" ")}"
                 end
                 print "Should the above be added to the store [Y/n]? "
-                answer = gets.strip
+                answer = $stdin.gets.strip
                 if answer.downcase == "n"
-                  # Remove all invalid parameters that might ask for default values
+                  # Remove all invalid parameters that might ask for default
+                  # values
                   ask_defaults.each_key{|k| ask_defaults[k] -= @invalids[:Parameter]} if @invalids.has_key?(:Parameter)
   
                   # Remove all invalid entries for all objects
@@ -323,7 +307,7 @@ module Mrg
                   @invalids.each_pair do |key, value|
                     c = Mrg::Grid::Config::Shell.constants.grep(/Add#{key.to_s[0,4].capitalize}[a-z]*$/).to_s
                     value.each do |n|
-                      @entities[key][n] = create_obj(n, key.to_s)
+                      @entities[key][n] = create_obj(n, key)
                       @cmds.push([Mrg::Grid::Config::Shell.const_get(c), [n]])
                     end
                   end
@@ -338,7 +322,7 @@ module Mrg
               ask_defaults.each_key do |obj|
                 ask_defaults[obj].each do |p|
                   print "Use the default value for parameter '#{p}' in feature '#{obj.name}'? [Y/n] "
-                  answer = gets.strip
+                  answer = $stdin.gets.strip
                   obj.params[p] = nil if answer.downcase != "n"
                 end
               end
@@ -346,6 +330,14 @@ module Mrg
 
             # Synchronize any new group/node memberships
             sync_memberships
+          end
+
+          def gen_update_cmds
+            @entities.each_key do |t|
+              @entities[t].each_pair do |n, o|
+                @cmds += self.send("update_#{t.to_s.downcase}_cmds", n, o)
+              end
+            end
           end
         end
 
@@ -364,19 +356,20 @@ module Mrg
             @entities.each_key do |t|
               c = Mrg::Grid::Config::Shell.constants.grep(/Add#{t.to_s[0,4].capitalize}[a-z]*$/).to_s
               @entities[t].each_key do |n|
-                @entities[t][n] = create_obj(n, t.to_s)
+                @entities[t][n] = create_obj(n, t)
                 @cmds.push([Mrg::Grid::Config::Shell.const_get(c), [n]])
               end
             end
-            @ogroups = @entities.has_key?(:Group) ? deep_copy(@entities[:Group]) : {}
+#            @orig_grps = @entities.has_key?(:Group) ? deep_copy(@entities[:Group]) : {}
 
             edit_objs
+            gen_update_cmds
 
-            @entities.each_key do |t|
-              @entities[t].each_key do |n|
-                @cmds += self.send("update_#{t.to_s.downcase}_cmds", n, @entities[t][n])
-              end
-            end
+#            @entities.each_key do |t|
+#              @entities[t].each_key do |n|
+#                @cmds += self.send("update_#{t.to_s.downcase}_cmds", n, @entities[t][n])
+#              end
+#            end
 
             run_wscmds(@cmds)
             return 0
@@ -397,18 +390,19 @@ module Mrg
           def act
             @entities.each_key do |t|
               m = Mrg::Grid::MethodUtils.find_store_method("get#{t.to_s.slice(0,4)}")
-              @entities[t].each_key {|n| @entities[t][n] = create_obj(n, t.to_s, store.send(m, n)) }
+              @entities[t].each_key {|n| @entities[t][n] = create_obj(n, t, store.send(m, n)) }
               
             end
-            @ogroups = @entities.has_key?(:Group) ? deep_copy(@entities[:Group]) : {}
+#            @orig_grps = @entities.has_key?(:Group) ? deep_copy(@entities[:Group]) : {}
 
             edit_objs
+            gen_update_cmds
 
-            @entities.each_key do |t|
-              @entities[t].each_key do |n|
-                 @cmds += self.send("update_#{t.to_s.downcase}_cmds", n, @entities[t][n])
-              end
-            end
+#            @entities.each_key do |t|
+#              @entities[t].each_key do |n|
+#                @cmds += self.send("update_#{t.to_s.downcase}_cmds", n, @entities[t][n])
+#              end
+#            end
 
             run_wscmds(@cmds)
             return 0
@@ -490,7 +484,7 @@ module Mrg
               puts "#{type}: #{@entities[type].keys.join(", ")}"
             end
             print "Proceed to delete the above entities from the store [y/N]? "
-            answer = gets.strip
+            answer = $stdin.gets.strip
             if answer.downcase != "y"
               return 0
             end

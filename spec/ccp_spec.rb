@@ -90,10 +90,10 @@ module Mrg
               end
             end
 
-#            it "should accept \"Internal Default Group\" as a target group name" do
-#              Mrg::Grid::Config::Shell.should_receive(:main).with(@ws_cmd + ["Group=+++DEFAULT", *@cmd_feat_args])
-#              Mrg::Grid::Config::CCP.new.main(["-g \"Internal Default Group\""] + @ccp_args)
-#            end
+            it "should accept \"Internal Default Group\" as a target group name" do
+              Mrg::Grid::Config::Shell.should_receive(:main).with(@ws_cmd + ["Group=+++DEFAULT", *@cmd_feat_args])
+              Mrg::Grid::Config::CCP.new.main(["-g \"Internal Default Group\""] + @ccp_args)
+            end
           end
 
           describe "for actions" do

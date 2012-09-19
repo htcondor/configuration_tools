@@ -6,7 +6,7 @@ require 'spec'
 require 'spec/mocks'
 require 'spec/autorun'
 
-require 'condor_wallaby_tools/utils'
+require 'condor_wallaby/utils'
 
 require 'cmd_ccp'
 require 'cmd_ccs'
@@ -213,4 +213,20 @@ end
 
 def add_entity(name, type)
   @store.send(Mrg::Grid::MethodUtils.find_store_method(/add\w*#{type.to_s[0,4].capitalize}/), name)
+end
+
+def verify_cmd_params(type, cmd_act)
+  CCPOpsTester.opname = "test-#{cmd_act}"
+  args = []
+  for num in 1..2
+    args.push("#{type}=#{type}#{num}")
+  end
+  @store.addNode(@name)
+  @tester.parse_args("Node=#{@name}", *args)
+  list = @tester.send("#{cmd_act}_#{type.to_s.downcase}s")
+  args.each do |a|
+    list.empty?.should_not == true
+    list.keys.should include a.split('=')[1] if list.instance_of?(Hash)
+    list.should include a.split('=')[1] if list.instance_of?(Array)
+  end
 end

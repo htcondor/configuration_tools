@@ -1,6 +1,6 @@
 require File.expand_path(File.dirname(__FILE__) + '/spec_helper')
 
-require 'condor_wallaby_tools/ccs'
+require 'condor_wallaby/ccs'
 
 module Mrg
   module Grid

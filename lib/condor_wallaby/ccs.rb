@@ -14,7 +14,7 @@
 # limitations under the License.
 require 'optparse'
 require 'mrg/grid/config/shell'
-require 'condor_wallaby_tools/CmdLineUtils'
+require 'condor_wallaby/cmdline'
 
 module Mrg
   module Grid

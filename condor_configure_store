@@ -13,7 +13,7 @@
 #   See the License for the specific language governing permissions and
 #   limitations under the License.
 require 'rbconfig'
-require 'condor_wallaby_tools/ccs'
+require 'condor_wallaby/ccs'
 
-ENV['WALLABY_COMMAND_DIR'] = "#{::Config::CONFIG["sitelibdir"]}/condor_wallaby_tools/commands" unless ENV['WALLABY_COMMAND_DIR']
+ENV['WALLABY_COMMAND_DIR'] = "#{::Config::CONFIG["sitelibdir"]}/condor_wallaby/commands" unless ENV['WALLABY_COMMAND_DIR']
 Mrg::Grid::Config::CCS.new.main(ARGV)

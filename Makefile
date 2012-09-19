@@ -78,7 +78,7 @@ else
 endif
 	git format-patch ${SIMPLE_NAMES} -o SOURCES ${ORIG_VER}
 
-spec: test_setup
+test: test_setup
 	@spec -b spec/*_spec.rb
 
 test_setup: wallaby_dir

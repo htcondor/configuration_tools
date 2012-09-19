@@ -48,22 +48,6 @@ module Mrg
           end
 
           describe "#parse_args" do
-            def verify_cmd_params(type, cmd_act)
-              CCPOpsTester.opname = "test-#{cmd_act}"
-              args = []
-              for num in 1..2
-                args.push("#{type}=#{type}#{num}")
-              end
-              @store.addNode(@name)
-              @tester.parse_args("Node=#{@name}", *args)
-              list = @tester.send("#{cmd_act}_#{type.to_s.downcase}s")
-              args.each do |a|
-                list.empty?.should_not == true
-                list.keys.should include a.split('=')[1] if list.instance_of?(Hash)
-                list.should include a.split('=')[1] if list.instance_of?(Array)
-              end
-            end
-
             it "should raise exception if no target specified" do
               lambda {@tester.parse_args("")}.should raise_error(ShellCommandFailure)
               lambda {@tester.parse_args("Feature=test")}.should raise_error(ShellCommandFailure)
@@ -78,8 +62,6 @@ module Mrg
                 CCPOpsTester.opname = "test-add"
                 name = "Name"
                 add_entity(name, ent)
-#                f = Mrg::Grid::MethodUtils.find_store_method(/add\w*#{ent}/)
-#                @store.send(f, name)
                 @tester.parse_args("#{ent}=#{name}", "Feature=test")
                 @tester.target[ent].should == "#{name}"
               end
@@ -135,8 +117,6 @@ module Mrg
             name = "Test"
             [:Node, :Group].each do |ent|
               it "should return the #{ent == :Node ? "identity group" : "group"} object if the target is a #{ent}" do
-#                f = Mrg::Grid::MethodUtils.find_store_method(/add\w*#{ent}/)
-#                @store.send(f, name)
                 add_entity(name, ent)
                 @tester.target = {ent=>name}
                 obj = @tester.target_obj

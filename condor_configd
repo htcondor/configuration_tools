@@ -34,7 +34,7 @@ from wallabyclient.exceptions import WallabyUnsupportedAPI
 
 
 class Timer (threading.Thread):
-   def __init__ (self, interval, function, name=None, args=[], kwargs={}):
+   def __init__(self, interval, function, name=None, args=[], kwargs={}):
       threading.Thread.__init__(self)
       if name != None:
          self.name = name
@@ -46,12 +46,12 @@ class Timer (threading.Thread):
       self.finished = threading.Event()
 
 
-   def stop (self):
+   def stop(self):
       self.finished.set()
       self.join()
 
 
-   def run (self):
+   def run(self):
       while not self.finished.isSet():
          self.finished.wait(self.interval)
          if not self.finished.isSet():
@@ -79,9 +79,15 @@ class EventConsole(Console):
    
 
    def newAgent(self, agent):
+      global stop_running
+
       if agent.label == 'com.redhat.grid.config:Store':
-         log(logging.DEBUG, self.logger_name, 'Established connection to the configuration store')
-         self.agent = agent
+         if self.agent != None:
+           log(logging.ERROR, self.logger_name, 'Multiple configuration stores detected.  Refusing to run against 2 or more configuration stores.')
+           stop_running = True
+         else:
+           log(logging.DEBUG, self.logger_name, 'Established connection to the configuration store')
+           self.agent = agent
 
 
    def delAgent(self, agent):
@@ -500,8 +506,8 @@ class Service:
             if self.override_dir != '':
                entries = os.listdir(self.override_dir)
                entries.sort()
-               for file in entries:
-                  fname = os.path.normpath('%s/%s' % (self.override_dir, file))
+               for name in entries:
+                  fname = os.path.normpath('%s/%s' % (self.override_dir, name))
                   if os.access(fname, os.R_OK) == True:
                      try:
                         hdl = open(fname, 'r')
@@ -770,10 +776,10 @@ def main(argv=None):
       argv = sys.argv
 
    try:
-      file = {}
       retrieve = False
       node_name = socket.gethostname()
       config_file = ''
+      log_file = ''
       username = ''
       passwd = ''
       log_level = logging.INFO
@@ -805,11 +811,11 @@ def main(argv=None):
          if option in ('-d', '--debug'):
             log_level = logging.DEBUG
          if option in ('-h', '--hostname'):
-            node_name = arg
+            node_name = arg.strip()
          if option in ('-l', '--logfile'):
-            file['log'] = arg
+            log_file = arg.strip()
          if option in ('-m', '--managedfile'):
-            config_file = arg
+            config_file = arg.strip()
          if option in ('-P', '--password'):
             passwd = arg
          if option in ('-r', '--retrieve'):
@@ -819,9 +825,9 @@ def main(argv=None):
 
 
       # Configure the logging system
-      if 'log' not in file.keys():
+      if log_file == '':
          try:
-            file = read_condor_config('CONFIGD', ['LOG'], permit_param_only = False)
+            log_file = read_condor_config('CONFIGD', ['LOG'], permit_param_only = False)
          except ConfigError, error:
             print 'Error: %s.  Exiting' % error.msg
             return(1)
@@ -852,7 +858,7 @@ def main(argv=None):
 
       # Create the log file
       try:
-         base_logger = create_file_logger(logger_name, file['log'], log_level, size=size)
+         base_logger = create_file_logger(logger_name, log_file, log_level, size=size)
       except Exception, e:
          print e
          print 'Failed to open log file.  Exiting'
@@ -885,9 +891,9 @@ def main(argv=None):
       # Remove all temp configuration files
       log(logging.INFO, logger_name, 'Cleaning up temporary configuration files')
       temp_dir = tempfile.gettempdir()
-      for file in os.listdir(temp_dir):
-         full_path = os.path.normpath('%s/%s' % (temp_dir, file))
-         if old_config_filename in file:
+      for fname in os.listdir(temp_dir):
+         full_path = os.path.normpath('%s/%s' % (temp_dir, fname))
+         if old_config_filename in fname:
             log(logging.DEBUG, logger_name, 'Deleting temporary configuration file %s' % full_path)
             try:
                os.remove(full_path)
@@ -911,6 +917,9 @@ def main(argv=None):
             log(logging.INFO, logger_name, 'Timed out looking for store agent')
             break
          time.sleep(1)
+
+      if stop_running == True:
+         return(stop(1))
 
       if service.console.get_store_agent() != None:
          log(logging.DEBUG, logger_name, 'Found the store agent')

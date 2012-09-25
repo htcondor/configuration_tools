@@ -22,6 +22,10 @@ module Mrg
                [@singleton]
             end
 
+#            def spqr_object_id
+#               1
+#            end
+
             qmf_property :apiVersionNumber, :uint32, :desc=>"The version of the API the store supports", :index=>false
             def apiVersionNumber
                20100804
@@ -50,18 +54,18 @@ module Mrg
                node
             end
 
-#            def addExplicitGroup(name)
-#               Group.create(:name=>name)
-#            end
-#
-#            expose :addExplicitGroup do |args|
-#               args.declare :obj, :objId, :out, "The object ID of the Group object corresponding to the newly-created group."
-#               args.declare :name, :sstr, :in, "The name of the newly-created group.  Names beginning with '+++' are reserved for internal use."
-#            end
-
             expose :getNode do |args|
-               args.declare :obj, :objId, :out, {}
-               args.declare :name, :sstr, :in, {}
+               args.declare :obj, :objId, :out, ""
+               args.declare :name, :sstr, :in, ""
+            end
+
+            def addExplicitGroup(name)
+               Group.create(:name=>name)
+            end
+
+            expose :addExplicitGroup do |args|
+               args.declare :obj, :objId, :out, "The object ID of the Group object corresponding to the newly-created group."
+               args.declare :name, :sstr, :in, "The name of the newly-created group.  Names beginning with '+++' are reserved for internal use."
             end
 
             def getGroup(query)
@@ -97,8 +101,8 @@ module Mrg
             end
 
             expose :checkNodeValidity do |args|
-               args.declare :names, :list, :in, {}
-               args.declare :invalidNodes, :list, :out, {}
+               args.declare :names, :list, :in, ""
+               args.declare :invalidNodes, :list, :out, ""
             end
 
             def raiseEvent(targets)
@@ -116,7 +120,7 @@ module Mrg
             end
 
             expose :raiseEvent do |args|
-               args.declare :targets, :list, :in, :desc=>"A map of targets:version"
+               args.declare :targets, :list, :in, "A map of targets:version"
             end
          end
 
@@ -172,7 +176,9 @@ module Mrg
             qmf_package_name 'com.redhat.grid.config'
             qmf_class_name 'Node'
 
-            declare_column :name, :string
+            declare_column :name, :text, :not_null
+            declare_index_on :name
+
             declare_column :last_checkin, :integer
             declare_column :last_updated_version, :integer
             declare_column :idgroup, :integer, references(Group)
@@ -189,7 +195,7 @@ module Mrg
               def_last_updated_version || 1
             end
 
-            qmf_property :name, :lstr, :index=>true
+            qmf_property :name, :sstr, :index=>true
             qmf_property :last_checkin, :uint64
             qmf_property :last_updated_version, :uint64
             qmf_property :identity_group, :objId, :desc=>"The object ID of this node's identity group"
@@ -241,8 +247,8 @@ module Mrg
             end
 
             expose :getConfig do |args|
-               args.declare :options, :map, :in, {}
-               args.declare :config, :map, :out, {}
+               args.declare :options, :map, :in, ""
+               args.declare :config, :map, :out, ""
             end
 
             def setLastUpdatedVersion(version)
@@ -250,7 +256,7 @@ module Mrg
             end
 
             expose :setLastUpdatedVersion do |args|
-               args.declare :version, :uint64, :in, {}
+               args.declare :version, :uint64, :in, ""
             end
 
             def checkin()
@@ -300,7 +306,7 @@ options[:password] = "guest"
 options[:host] = "127.0.0.1"
 options[:port] = 5672
 
-Rhubarb::Persistence::open(":memory:")
+Rhubarb::Persistence::open(":memory:", :default, false)
 Mrg::Grid::Config::Node.create_table
 Mrg::Grid::Config::Group.create_table
 

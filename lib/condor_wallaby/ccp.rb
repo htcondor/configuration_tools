@@ -93,6 +93,7 @@ module Mrg
                 options[:target] = t[0].capitalize.to_sym if t.length < 2
                 options[:target] = t[1].capitalize.to_sym if t.length > 1
                 options[:target_name] = n if n
+                options[:target_name] = "+++DEFAULT" if n && n.downcase.include?("internal default group")
                 options[:target_name] = "+++#{long.split("-").first.upcase}" unless n
               end
             end

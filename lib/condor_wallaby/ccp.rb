@@ -33,6 +33,8 @@ module Mrg
           ws_args = []
           options = {}
 
+          mechs = Mrg::Grid::Config::Shell::VALID_MECHANISMS
+
           @op = OptionParser.new do |opts|
             opts.banner = "Usage: #{File.basename($0)} [options] <action> <target> [config entities]"
 
@@ -59,7 +61,7 @@ module Mrg
               ws_args << ["-P", p]
             end
 
-            opts.on("-m", "--auth-mechanism PASS", %w{ANONYMOUS PLAIN GSSAPI}, "A comma separated list of authentication mechanisms (#{%w{ANONYMOUS PLAIN GSSAPI}.join(", ")}) for authenticating with the qpid broker") do |m|
+            opts.on("-m", "--auth-mechanism PASS", mechs, "Authentication mechanism (#{mechs.join(", ")}) for authenticating with the qpid broker") do |m|
               ws_args << ["-M", m]
             end
 

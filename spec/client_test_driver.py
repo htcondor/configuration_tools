@@ -32,6 +32,7 @@ config_file = './condor_config.configd'
 log_file = './configd.log'
 override_dir = './override'
 override_file = './override.param'
+config_dir = '../config'
 
 try:
    os.remove(config_file)
@@ -48,7 +49,7 @@ broker_pid = os.fork()
 if broker_pid == 0:
    cmd = shlex.split('qpidd --log-to-stdout no --log-to-stderr no --log-to-syslog yes')
    os.execvp(cmd[0], cmd)
-   print "about to exit broker"
+   print 'About to exit broker'
    sys.exit(0)
 
 time.sleep(5)
@@ -84,7 +85,7 @@ if configd_pid == 0:
    if 'PYTHONPATH' in os.environ.keys():
       env['PYTHONPATH'] = os.environ['PYTHONPATH']
    env['CONDOR_CONFIG'] = '/etc/condor/condor_config'
-   env['_CONDOR_LOCAL_CONFIG_DIR'] = '../config'
+   env['_CONDOR_LOCAL_CONFIG_DIR'] = config_dir
    env['_CONDOR_CONFIGD_CHECK_INTERVAL'] = str(checkin_time)
    env['_CONDOR_QMF_BROKER_HOST'] = '127.0.0.1'
    env['_CONDOR_QMF_BROKER_PORT'] = '5672'
@@ -134,7 +135,7 @@ if configd_pid == 0:
    if 'PYTHONPATH' in os.environ.keys():
       env['PYTHONPATH'] = os.environ['PYTHONPATH']
    env['CONDOR_CONFIG'] = '/etc/condor/condor_config'
-   env['_CONDOR_LOCAL_CONFIG_DIR'] = '../config'
+   env['_CONDOR_LOCAL_CONFIG_DIR'] = config_dir
    env['_CONDOR_CONFIGD_CHECK_INTERVAL'] = str(checkin_time)
    env['_CONDOR_QMF_BROKER_HOST'] = '127.0.0.1'
    env['_CONDOR_QMF_BROKER_PORT'] = '5672'
@@ -256,7 +257,7 @@ try:
       if 'PYTHONPATH' in os.environ.keys():
          env['PYTHONPATH'] = os.environ['PYTHONPATH']
       env['CONDOR_CONFIG'] = '/etc/condor/condor_config'
-      env['_CONDOR_LOCAL_CONFIG_DIR'] = '../config'
+      env['_CONDOR_LOCAL_CONFIG_DIR'] = config_dir
       env['_CONDOR_CONFIGD_CHECK_INTERVAL'] = '0'
       env['_CONDOR_QMF_BROKER_HOST'] = '127.0.0.1'
       env['_CONDOR_QMF_BROKER_PORT'] = '5672'

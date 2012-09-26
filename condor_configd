@@ -71,11 +71,11 @@ class EventConsole(Console):
 
 
    def brokerConnected(self, broker):
-      log(logging.DEBUG, self.logger_name, 'Connected to broker "%s"' % broker.getFullUrl())
+      log(logging.DEBUG, self.logger_name, 'Connected to broker "%s"' % broker.getUrl())
 
 
    def brokerDisconnected(self, broker):
-      log(logging.DEBUG, self.logger_name, 'Lost connection to broker "%s"' % broker.getFullUrl())
+      log(logging.DEBUG, self.logger_name, 'Lost connection to broker "%s"' % broker.getUrl())
    
 
    def newAgent(self, agent):
@@ -209,6 +209,35 @@ class Service:
          log(logging.DEBUG, self.logger_name, 'No QMF authentication method found.  Using defaults of "%s"' % default_methods)
          broker_auth_methods = default_methods
 
+      if user == '':
+         try:
+            user = str(read_condor_config('CONFIGD', ['QMF_BROKER_USERNAME'])['qmf_broker_username'])
+         except ConfigError, error:
+            log(logging.DEBUG, self.logger_name, error.msg)
+         except Exception, e:
+            log(logging.DEBUG, self.logger_name, e)
+
+      if user == '':
+         log(logging.INFO, self.logger_name, 'Authenticating to the broker as default user')
+      else:
+         log(logging.INFO, self.logger_name, 'Authenticating to the broker as user %s' % user)
+
+      if password == '':
+         try:
+            pwfile = str(read_condor_config('CONFIGD', ['QMF_BROKER_PASSWORD_FILE'])['qmf_broker_password_file'])
+            fobj = open(pwfile, 'r')
+            password = fobj.read().strip()
+            fobj.close()
+         except ConfigError, error:
+            log(logging.DEBUG, self.logger_name, error.msg)
+         except Exception, e:
+            log(logging.DEBUG, self.logger_name, e)
+
+      if password == '':
+        log(logging.INFO, self.logger_name, 'Will not supply a password for broker authentication')
+      else:
+        log(logging.INFO, self.logger_name, 'Will supply password for broker authentication')
+
       try:
          val = read_condor_config('CONFIGD', ['CHECK_INTERVAL'], permit_param_only = False)
          self.interval = int(val['check_interval'])
@@ -278,7 +307,7 @@ class Service:
             log(logging.CRITICAL, self.logger_name, 'Unable to connect to broker "%s"' % broker_str)
          return(False)
 
-      log(logging.DEBUG, self.logger_name, 'Connecting to broker "%s"' % broker_str)
+      log(logging.DEBUG, self.logger_name, 'Connecting to broker "%s:%s"' % (broker_ip, broker_port))
       return(True)
 
 
@@ -817,17 +846,17 @@ def main(argv=None):
          if option in ('-m', '--managedfile'):
             config_file = arg.strip()
          if option in ('-P', '--password'):
-            passwd = arg
+            passwd = arg.strip()
          if option in ('-r', '--retrieve'):
             retrieve = True
          if option in ('-U', '--user'):
-            username = arg
+            username = arg.strip()
 
 
       # Configure the logging system
       if log_file == '':
          try:
-            log_file = read_condor_config('CONFIGD', ['LOG'], permit_param_only = False)
+            log_file = read_condor_config('CONFIGD', ['LOG'], permit_param_only = False)['log']
          except ConfigError, error:
             print 'Error: %s.  Exiting' % error.msg
             return(1)

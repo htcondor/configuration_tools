@@ -298,11 +298,10 @@ module Mrg
    end
 end
 
-
 options = {}
 options[:appname] = "com.redhat.grid.config:Store"
-options[:user] = "guest"
-options[:password] = "guest"
+options[:user] = ENV['BROKER_USER'] if ENV['BROKER_USER']
+options[:password] = ENV['BROKER_PASSWORD'] if ENV['BROKER_PASSWORD']
 options[:host] = "127.0.0.1"
 options[:port] = 5672
 

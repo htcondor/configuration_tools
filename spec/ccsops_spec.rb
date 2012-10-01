@@ -325,6 +325,25 @@ module Mrg
             end
           end
 
+          describe "#edit_objs" do
+            it "should accept non-strings as parameter values" do
+              setup_rhubarb
+              @store.addFeature("Name")
+              @store.addParam("Integer")
+              obj1 = @tester.create_obj("Name", :Feature)
+              obj1.params = {"Integer"=>10}
+              @tester.entities[:Feature] = {"Name"=>obj1}
+              @tester.should_receive(:deep_copy).and_return({:Feature=>{:Name=>obj1}})
+              obj2 = @tester.create_obj("Name", :Feature)
+              obj2.params = {"Integer"=>20}
+              @tester.should_receive(:run_editor).and_return([obj2])
+              @tester.edit_objs
+              @tester.entities[:Feature]["Name"].should == obj2
+              @tester.invalids.empty?.should == true
+              teardown_rhubarb
+            end
+          end
+
         end
       end
     end

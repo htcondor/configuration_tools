@@ -96,18 +96,6 @@ module Mrg
 
             if qmf_obj != nil
               attrs.each do |m|
-#                sp = m.split('_')
-#                qmf_m = nil
-#                klass = type.gsub(/Membership/, '')
-#                begin
-#                  qmf_m = Mrg::Grid::MethodUtils.find_property(sp[0], klass)[0].to_sym
-#                rescue
-#                  if sp.count > 1
-#                    qmf_m = Mrg::Grid::MethodUtils.find_property(sp[1], klass)[0].to_sym
-#                  end
-#                end
-#                qmf_m = Mrg::Grid::MethodUtils.find_method(sp[0], klass)[0].to_sym if qmf_m == nil
-#puts m.inspect
                 obj.send("#{m}=", qmf_obj.send(Mrg::Grid::Config::Shell::QmfConversion.find_getter(m, type.gsub(/Membership/, ''))))
               end
             else
@@ -281,7 +269,7 @@ module Mrg
 
                 # Find params that might want default values
                 if obj.instance_of?(Mrg::Grid::SerializedConfigs::Feature)
-                  obj.params.keys.each {|k| (ask_defaults.has_key?(obj) ? ask_defaults[obj] = ask_defaults[obj].push(k).flatten.uniq : ask_defaults[obj] = [k]) if obj.params[k].empty?}
+                  obj.params.keys.each {|k| (ask_defaults.has_key?(obj) ? ask_defaults[obj] = ask_defaults[obj].push(k).flatten.uniq : ask_defaults[obj] = [k]) if obj.params[k].to_s.empty?}
                 end
 
                 @entities[get_type(obj.class)][obj.name] = obj

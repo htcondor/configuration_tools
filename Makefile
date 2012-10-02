@@ -21,7 +21,7 @@ bump_and_commit_version = \
   sed -i "s/${ORIG_VER}/${NEW_VER}/" VERSION; \
   git commit -m "bumping VERSION from ${ORIG_VER} to ${NEW_VER}" VERSION; \
   git tag ${NEW_VER}; \
-  git push origin master ${new_ver}
+  git push origin master ${NEW_VER}
 
 create_patch_lines = \
 Patch${PATCH_NUM}: ${file} \

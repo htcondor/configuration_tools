@@ -63,7 +63,7 @@ module Mrg
           end
 
           def self.remove_fields
-            [:idgroup, :last_updated_version, :provisioned, :is_identity_group, :annotation]
+            [:idgroup, :last_updated_version, :provisioned, :is_identity_group]
           end
 
           def action

@@ -22,7 +22,7 @@ module Mrg
           include ToolUtils
 
           def remove_fields(klass)
-            ToolUtils.remove_fields
+            ToolUtils.remove_fields + [:annotation]
           end
 
           def valid_actions

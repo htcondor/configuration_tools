@@ -110,14 +110,14 @@ module Mrg
           end
 
           def update_node_cmds(name, obj)
-            [[Mrg::Grid::Config::Shell.const_get("ReplaceNodeMembership"), [name] + obj.membership]]
+            [[Mrg::Grid::Config::Shell::ReplaceNodeMembership, [name] + obj.membership]]
           end
 
           def update_feature_cmds(name, obj)
-            cmds = [[Mrg::Grid::Config::Shell.const_get("ReplaceFeatureParam"), [name] + params_as_array(obj.params)]]
-            cmds << [Mrg::Grid::Config::Shell.const_get("ReplaceFeatureInclude"), [name] + obj.included]
-            cmds << [Mrg::Grid::Config::Shell.const_get("ReplaceFeatureConflict"), [name] + obj.conflicts]
-            cmds << [Mrg::Grid::Config::Shell.const_get("ReplaceFeatureDepend"), [name] + obj.depends]
+            cmds = [[Mrg::Grid::Config::Shell::ReplaceFeatureParam, [name] + params_as_array(obj.params)]]
+            cmds << [Mrg::Grid::Config::Shell::ReplaceFeatureInclude, [name] + obj.included]
+            cmds << [Mrg::Grid::Config::Shell::ReplaceFeatureConflict, [name] + obj.conflicts]
+            cmds << [Mrg::Grid::Config::Shell::ReplaceFeatureDepend, [name] + obj.depends]
             cmds
           end
 
@@ -129,14 +129,14 @@ module Mrg
             args += ["--must-change", "#{ws_bool(obj.must_change)}"]
             args += ["--level", "#{obj.level}"]
             args += ["--needs-restart", "#{ws_bool(obj.needs_restart)}"]
-            cmds = [[Mrg::Grid::Config::Shell.const_get("ModifyParam"), [name] + args]]
-            cmds << [Mrg::Grid::Config::Shell.const_get("ReplaceParamConflict"), [name] + obj.conflicts]
-            cmds << [Mrg::Grid::Config::Shell.const_get("ReplaceParamDepend"), [name] + obj.depends]
+            cmds = [[Mrg::Grid::Config::Shell::ModifyParam, [name] + args]]
+            cmds << [Mrg::Grid::Config::Shell::ReplaceParamConflict, [name] + obj.conflicts]
+            cmds << [Mrg::Grid::Config::Shell::ReplaceParamDepend, [name] + obj.depends]
             cmds
           end
 
           def update_subsystem_cmds(name, obj)
-            [[Mrg::Grid::Config::Shell.const_get("ReplaceSubsysParam"), [name] + obj.params]]
+            [[Mrg::Grid::Config::Shell::ReplaceSubsysParam, [name] + obj.params]]
           end
 
           def update_group_cmds(name, obj)
@@ -324,8 +324,17 @@ module Mrg
             @entities.each_key do |t|
               @entities[t].each_pair do |n, o|
                 @cmds += self.send("update_#{t.to_s.downcase}_cmds", n, o)
+                @cmds += update_annotation(t, o)
               end
             end
+          end
+
+          def update_annotation(type, obj)
+            wscmd = Mrg::Grid::Config::Shell.constants.grep(/Modify#{type.to_s.capitalize[0..4]}/).first
+            wscmd = Mrg::Grid::Config::Shell.const_get(wscmd) if wscmd
+            cmd = []
+            cmd << [wscmd, [obj.name, "--annotation", obj.annotation]] if obj.respond_to?(:annotation) && wscmd
+            cmd
           end
         end
 
@@ -348,16 +357,9 @@ module Mrg
                 @cmds.push([Mrg::Grid::Config::Shell.const_get(c), [n]])
               end
             end
-#            @orig_grps = @entities.has_key?(:Group) ? deep_copy(@entities[:Group]) : {}
 
             edit_objs
             gen_update_cmds
-
-#            @entities.each_key do |t|
-#              @entities[t].each_key do |n|
-#                @cmds += self.send("update_#{t.to_s.downcase}_cmds", n, @entities[t][n])
-#              end
-#            end
 
             run_wscmds(@cmds)
             return 0
@@ -381,16 +383,9 @@ module Mrg
               @entities[t].each_key {|n| @entities[t][n] = create_obj(n, t, store.send(m, n)) }
               
             end
-#            @orig_grps = @entities.has_key?(:Group) ? deep_copy(@entities[:Group]) : {}
 
             edit_objs
             gen_update_cmds
-
-#            @entities.each_key do |t|
-#              @entities[t].each_key do |n|
-#                @cmds += self.send("update_#{t.to_s.downcase}_cmds", n, @entities[t][n])
-#              end
-#            end
 
             run_wscmds(@cmds)
             return 0

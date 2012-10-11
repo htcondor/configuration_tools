@@ -26,8 +26,10 @@ import random
 import tempfile
 import shutil
 import stat
+import re
 from qmf.console import Session, Console
 from condorutils.log import *
+from condorutils.osutil import *
 from condorutils.readconfig import *
 from wallabyclient import WallabyHelpers
 from wallabyclient.exceptions import WallabyUnsupportedAPI
@@ -555,7 +557,7 @@ class Service:
 
                dlist = []
                if 'DAEMON_LIST' in config.keys():
-                  for d in config['DAEMON_LIST'].split(','):
+                  for d in self.split_list(config['DAEMON_LIST']):
                      d = d.strip()
                      if d != '':
                         dlist += [d.upper()]
@@ -652,7 +654,7 @@ class Service:
          (retval, daemons, err) = run_cmd('condor_config_val -master DAEMON_LIST')
          daemon_list = []
          if daemons != None:
-            for daemon in daemons.split(','):
+            for daemon in self.split_list(daemons):
                daemon = daemon.strip()
                if daemon != '':
                   daemon_list += [daemon.lower()]
@@ -672,11 +674,11 @@ class Service:
             return(self.send_condor_command('condor_reconfig', 'master') and success)
 
 
-   def act_upon_subsys_list(self, command, list, running_daemons):
+   def act_upon_subsys_list(self, command, alist, running_daemons):
       nondc_daemons = ['ll_daemon', 'configd']
       all_success = True
 
-      for subsys in list:
+      for subsys in alist:
          subsys = str(subsys.strip())
          if subsys.lower() not in running_daemons:
             log(logging.DEBUG, self.logger_name, 'Not sending "%s" to subsystem "%s" since it is not currently running' % (command, subsys))
@@ -704,6 +706,10 @@ class Service:
       else:
          log(logging.DEBUG, self.logger_name, 'Sent command "%s" to subsystem "%s"' % (command, subsystem))
          return(True)
+
+
+   def split_list(self, alist):
+      return re.split('[\s*,*]+', alist)
 
 
 def exit_signal_handler(signum, frame):

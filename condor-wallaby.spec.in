@@ -76,7 +76,8 @@ This package provides a means to quickly and easily configure machines
 running Condor by providing tools to define configurations in wallaby and
 apply them to nodes.
 
-This package provides tools to configure condor pools and wallaby
+This package provides tools to apply configurations to nodes/groups and
+to configure entities in wallaby
 %endif
 
 %package -n python-wallabyclient
@@ -179,6 +180,9 @@ rm -rf %{buildroot}
 /%{ruby_install_dir}/condor_wallaby/commands/cmd_ccs.rb
 
 %changelog
+* Thu Oct 11 2012  <rrati@redhat> - 5.0.3-2
+- Enable editing annotations in condor_configure_store
+
 * Fri Oct  5 2012  <rrati@redhat> - 5.0.3-1
 - The configd exits if it detects multiple stores (BZ851222)
 - Fixed "Internal Default Group" as allowed target (BZ823591)

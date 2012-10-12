@@ -109,19 +109,19 @@ module Mrg
             obj
           end
 
-          def update_node_cmds(name, obj)
-            [[Mrg::Grid::Config::Shell::ReplaceNodeMembership, [name] + obj.membership]]
+          def update_node_cmds(obj)
+            [[Mrg::Grid::Config::Shell::ReplaceNodeMembership, [obj.name] + obj.membership]]
           end
 
-          def update_feature_cmds(name, obj)
-            cmds = [[Mrg::Grid::Config::Shell::ReplaceFeatureParam, [name] + params_as_array(obj.params)]]
-            cmds << [Mrg::Grid::Config::Shell::ReplaceFeatureInclude, [name] + obj.included]
-            cmds << [Mrg::Grid::Config::Shell::ReplaceFeatureConflict, [name] + obj.conflicts]
-            cmds << [Mrg::Grid::Config::Shell::ReplaceFeatureDepend, [name] + obj.depends]
+          def update_feature_cmds(obj)
+            cmds = [[Mrg::Grid::Config::Shell::ReplaceFeatureParam, [obj.name] + params_as_array(obj.params)]]
+            cmds << [Mrg::Grid::Config::Shell::ReplaceFeatureInclude, [obj.name] + obj.included]
+            cmds << [Mrg::Grid::Config::Shell::ReplaceFeatureConflict, [obj.name] + obj.conflicts]
+            cmds << [Mrg::Grid::Config::Shell::ReplaceFeatureDepend, [obj.name] + obj.depends]
             cmds
           end
 
-          def update_parameter_cmds(name, obj)
+          def update_parameter_cmds(obj)
             args = []
             args += ["--kind", "#{obj.kind}"] if not obj.kind.empty?
             args += ["--default-val", "#{obj.default_val}"] if not obj.default_val.empty?
@@ -129,29 +129,29 @@ module Mrg
             args += ["--must-change", "#{ws_bool(obj.must_change)}"]
             args += ["--level", "#{obj.level}"]
             args += ["--needs-restart", "#{ws_bool(obj.needs_restart)}"]
-            cmds = [[Mrg::Grid::Config::Shell::ModifyParam, [name] + args]]
-            cmds << [Mrg::Grid::Config::Shell::ReplaceParamConflict, [name] + obj.conflicts]
-            cmds << [Mrg::Grid::Config::Shell::ReplaceParamDepend, [name] + obj.depends]
+            cmds = [[Mrg::Grid::Config::Shell::ModifyParam, [obj.name] + args]]
+            cmds << [Mrg::Grid::Config::Shell::ReplaceParamConflict, [obj.name] + obj.conflicts]
+            cmds << [Mrg::Grid::Config::Shell::ReplaceParamDepend, [obj.name] + obj.depends]
             cmds
           end
 
-          def update_subsystem_cmds(name, obj)
-            [[Mrg::Grid::Config::Shell::ReplaceSubsysParam, [name] + obj.params]]
+          def update_subsystem_cmds(obj)
+            [[Mrg::Grid::Config::Shell::ReplaceSubsysParam, [obj.name] + obj.params]]
           end
 
-          def update_group_cmds(name, obj)
+          def update_group_cmds(obj)
             cmds = []
             obj.members.each do |node|
-              if @orig_grps.has_key?(name) && (not @orig_grps[name].members.include?(node))
+              if @orig_grps.has_key?(obj.name) && (not @orig_grps[obj.name].members.include?(node))
                 # Node was added
-                cmds << [Mrg::Grid::Config::Shell::AddNodeMembership, [node, name]]
+                cmds << [Mrg::Grid::Config::Shell::AddNodeMembership, [node, obj.name]]
               end
             end
-            if @orig_grps.has_key?(name)
-              @orig_grps[name].members.each do |node|
+            if @orig_grps.has_key?(obj.name)
+              @orig_grps[obj.name].members.each do |node|
                 if not obj.members.include?(node)
                   # Node was removed
-                  cmds << [Mrg::Grid::Config::Shell::RemoveNodeMembership, [node, name]]
+                  cmds << [Mrg::Grid::Config::Shell::RemoveNodeMembership, [node, obj.name]]
                 end
               end
             end
@@ -322,8 +322,8 @@ module Mrg
 
           def gen_update_cmds
             @entities.each_key do |t|
-              @entities[t].each_pair do |n, o|
-                @cmds += self.send("update_#{t.to_s.downcase}_cmds", n, o)
+              @entities[t].each_value do |o|
+                @cmds += self.send("update_#{t.to_s.downcase}_cmds", o)
                 @cmds += update_annotation(t, o)
               end
             end

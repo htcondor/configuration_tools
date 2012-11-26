@@ -95,7 +95,7 @@ module Mrg
                 m.stub(:run_cmdline)
                 m.entities[ent] = {"A"=>nil}
                 o = @ccsops.create_obj("A", ent)
-                m.should_receive(:run_wscmds).with([[Mrg::Grid::Config::Shell.const_get(klass_name), ["A"]]] + @ccsops.send("update_#{ent.to_s.downcase}_cmds", o.name, o))
+                m.should_receive(:run_wscmds).with([[Mrg::Grid::Config::Shell.const_get(klass_name), ["A"]]] + @ccsops.send("update_#{ent.to_s.downcase}_cmds", o) + @ccsops.update_annotation(ent, o))
                 m.act
               end
             end
@@ -117,14 +117,18 @@ module Mrg
                 Object.const_set("CmdTester", Class.new(Mrg::Grid::Config::Shell::CCSEdit) { include CCSStubs })
                 klass_name = Mrg::Grid::Config::Shell.constants.grep(/Add#{ent.to_s[0,4].capitalize}[a-z]*$/).to_s
                 m = CmdTester.new
-                add_entity("A", ent)
+                # Wallaby seems to default annotations to nil instead of an
+                # empty string.  Get around this by explicity setting the
+                # annotation in the store
+                e = add_entity("A", ent)
+                e.setAnnotation("")
                 m.store = @store
                 m.stub(:run_cmdline)
                 m.entities[ent] = {"A"=>nil}
                 o = @ccsops.create_obj("A", ent)
                 o.kind = "string" if o.respond_to?(:kind)
                 o.membership = ["+++SKEL"] if ent == :Node
-                m.should_receive(:run_wscmds).with(@ccsops.send("update_#{ent.to_s.downcase}_cmds", o.name, o))
+                m.should_receive(:run_wscmds).with(@ccsops.send("update_#{ent.to_s.downcase}_cmds", o) + @ccsops.update_annotation(ent, o))
                 m.act
               end
             end

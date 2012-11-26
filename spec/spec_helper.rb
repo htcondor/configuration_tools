@@ -1,6 +1,5 @@
 $LOAD_PATH.unshift(File.dirname(__FILE__))
 $LOAD_PATH.unshift(File.join(File.dirname(__FILE__), '..', 'lib'))
-$LOAD_PATH.unshift(File.join(File.dirname(__FILE__), '..', 'commands'))
 
 require 'spec'
 require 'spec/mocks'
@@ -8,8 +7,8 @@ require 'spec/autorun'
 
 require 'condor_wallaby/utils'
 
-require 'cmd_ccp'
-require 'cmd_ccs'
+require 'condor_wallaby/commands/cmd_ccp'
+require 'condor_wallaby/commands/cmd_ccs'
 
 Spec::Runner.configure do |config|
 

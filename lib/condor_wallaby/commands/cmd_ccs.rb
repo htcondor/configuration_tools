@@ -388,7 +388,6 @@ module Mrg
             gen_update_cmds
 
             run_wscmds(@cmds)
-            return 0
           end
         end
 

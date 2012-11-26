@@ -74,12 +74,12 @@ module Mrg
                 teardown_rhubarb
               end
 
-              fields = get_fields(ent) - [:name]
+              fields = get_fields(ent) - [:name, :annotation]
               [true, false].each do |qmfo|
                 it "should generate replace commands for a #{ent} with #{qmfo ? "an empty" : "no"} object" do 
                   obj = qmfo ? @inito : nil
                   o = @tester.create_obj(@entn, ent, obj)
-                  cmds = @tester.send("update_#{ent.to_s.downcase}_cmds", o.name, o)
+                  cmds = @tester.send("update_#{ent.to_s.downcase}_cmds", o)
                   fields.each {|var| cmds.should include [get_klass("Replace#{ent.to_s[0,4]}.*#{var.to_s[0,4].capitalize}"), [@entn]]}
                 end
               end
@@ -91,7 +91,7 @@ module Mrg
                   args = {@fieldn=>@fieldv} if arg_type(ent, f.to_s) == Hash
                   @inito.send(Mrg::Grid::Config.const_get(ent).set_from_get(Mrg::Grid::Config::Shell::QmfConversion.find_getter(f.to_s, ent.to_s)), "ADD", args, {})
                   o = @tester.create_obj(@entn, ent, @inito)
-                  cmds = @tester.send("update_#{ent.to_s.downcase}_cmds", o.name, o)
+                  cmds = @tester.send("update_#{ent.to_s.downcase}_cmds", o)
                   cmd_arg = @inito.send(Mrg::Grid::Config::Shell::QmfConversion.find_getter(f.to_s, ent.to_s))
                   cmd_arg = [cmd_arg.to_a.join('=')] if arg_type(ent, f.to_s) == Hash
                   cmds.should include [get_klass("Replace#{ent.to_s[0,4]}.*#{f.to_s[0,4].capitalize}"), [@entn] + cmd_arg]
@@ -117,7 +117,7 @@ module Mrg
             it "should add a node to a group" do
               @tester.orig_grps[@targetg] = @tester.deep_copy(@o)
               @o.members = ["node1"]
-              cmds = @tester.update_group_cmds(@targetg, @o)
+              cmds = @tester.update_group_cmds(@o)
               cmds.should include [Mrg::Grid::Config::Shell::AddNodeMembership, ["node1", @targetg]]
             end
 
@@ -125,7 +125,7 @@ module Mrg
               @o.members = ["node1"]
               @tester.orig_grps[@targetg] = @tester.deep_copy(@o)
               @o.members = []
-              cmds = @tester.update_group_cmds(@targetg, @o)
+              cmds = @tester.update_group_cmds(@o)
               cmds.should include [Mrg::Grid::Config::Shell::RemoveNodeMembership, ["node1", @targetg]]
             end
 
@@ -135,7 +135,7 @@ module Mrg
               @o.members = [remove_target]
               @tester.orig_grps[@targetg] = @tester.deep_copy(@o)
               @o.members = [add_target]
-              cmds = @tester.update_group_cmds(@targetg, @o)
+              cmds = @tester.update_group_cmds(@o)
               cmds.should include [Mrg::Grid::Config::Shell::AddNodeMembership, [add_target, @targetg]]
               cmds.should include [Mrg::Grid::Config::Shell::RemoveNodeMembership, [remove_target, @targetg]]
             end
@@ -157,7 +157,7 @@ module Mrg
                 it "should generate replace commands for a Parameter with #{qmfo ? "an empty" : "no"} object" do 
                   obj = qmfo ? @inito : nil
                   o = @tester.create_obj(@entn, :Parameter, obj)
-                  cmds = @tester.update_parameter_cmds(o.name, o)
+                  cmds = @tester.update_parameter_cmds(o)
                   cmds.should include [get_klass("ReplaceParam#{attr.to_s[0,5].capitalize}"), [@entn]]
                 end
               end
@@ -167,7 +167,7 @@ module Mrg
                 list.each {|p| @store.addParam(p)}
                 @inito.send(Mrg::Grid::Config::Parameter.set_from_get(Mrg::Grid::Config::Shell::QmfConversion.find_getter(attr.to_s, "Parameter")), "ADD", list, {})
                 o = @tester.create_obj(@entn, :Parameter, @inito)
-                cmds = @tester.update_parameter_cmds(o.name, o)
+                cmds = @tester.update_parameter_cmds(o)
                 cmd = nil
                 cmds.each {|c| cmd = c if c[0] == get_klass("ReplaceParam#{attr.to_s[0,5].capitalize}")}
                 cmd.should_not == nil
@@ -176,7 +176,7 @@ module Mrg
               end
             end
 
-            fields = get_fields(:Parameter) - [:name] - arrays
+            fields = get_fields(:Parameter) - [:name, :annotation] - arrays
             fields.each do |attr|
               it "should create a command to set the parameter's #{attr}" do
                 bool_args = [:must_change, :needs_restart]
@@ -184,7 +184,7 @@ module Mrg
                 value = "1" if attr == :level
                 @inito.send(Mrg::Grid::Config::Parameter.set_from_get(Mrg::Grid::Config::Shell::QmfConversion.find_getter(attr.to_s, "Parameter")), value)
                 o = @tester.create_obj(@entn, :Parameter, @inito)
-                cmds = @tester.update_parameter_cmds(o.name, o)
+                cmds = @tester.update_parameter_cmds(o)
                 cmd = []
                 cmds.each {|c| cmd = c if c.first.to_s.include?("ModifyParam")}
                 cmd.last.first.should == @entn
@@ -320,7 +320,7 @@ module Mrg
                   @tester.entities[ent].merge!({o.name=>o})
                 end
                 @tester.gen_update_cmds 
-                objs.each {|o| @tester.cmds.should include @tester.send("update_#{ent.to_s.downcase}_cmds", o.name, o).last}
+                objs.each {|o| @tester.cmds.should include @tester.send("update_#{ent.to_s.downcase}_cmds", o).last}
               end
             end
           end
@@ -344,6 +344,26 @@ module Mrg
             end
           end
 
+          describe "#update_annotation" do
+            store_entities.each do |ent|
+              supports_annotation = Mrg::Grid::SerializedConfigs.const_get(ent).saved_fields.include?(:annotation) && (Mrg::Grid::Config::Shell.constants.grep(/Modify#{ent.to_s.capitalize[0..4]}/).first != nil)
+              value = "Test"
+              name = "EntName"
+              it "should #{supports_annotation ? "create" : "not create"} commands to update a #{ent} annotation" do
+                o = @tester.create_obj(name, ent)
+                o.annotation = value
+                cmd = @tester.update_annotation(ent, o)
+                if supports_annotation
+                  loc = cmd[0].last.index("--annotation")
+                  cmd[0].last.first.should == name
+                  loc.should_not == nil
+                  cmd[0].last[loc+1].should == value
+                else
+                  cmd.should == []
+                end
+              end
+            end
+          end
         end
       end
     end

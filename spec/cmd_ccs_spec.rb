@@ -95,7 +95,7 @@ module Mrg
                 m.stub(:run_cmdline)
                 m.entities[ent] = {"A"=>nil}
                 o = @ccsops.create_obj("A", ent)
-                m.should_receive(:run_wscmds).with([[Mrg::Grid::Config::Shell.const_get(klass_name), ["A"]]] + @ccsops.send("update_#{ent.to_s.downcase}_cmds", o.name, o))
+                m.should_receive(:run_wscmds).with([[Mrg::Grid::Config::Shell.const_get(klass_name), ["A"]]] + @ccsops.send("update_#{ent.to_s.downcase}_cmds", o) + @ccsops.update_annotation(ent, o))
                 m.act
               end
             end
@@ -124,7 +124,8 @@ module Mrg
                 o = @ccsops.create_obj("A", ent)
                 o.kind = "string" if o.respond_to?(:kind)
                 o.membership = ["+++SKEL"] if ent == :Node
-                m.should_receive(:run_wscmds).with(@ccsops.send("update_#{ent.to_s.downcase}_cmds", o.name, o))
+puts o.inspect
+                m.should_receive(:run_wscmds).with(@ccsops.send("update_#{ent.to_s.downcase}_cmds", o) + @ccsops.update_annotation(ent, o))
                 m.act
               end
             end

@@ -381,14 +381,16 @@ module Mrg
             @entities.each_key do |t|
               m = Mrg::Grid::MethodUtils.find_store_method("get#{t.to_s.slice(0,4)}")
               @entities[t].each_key {|n| @entities[t][n] = create_obj(n, t, store.send(m, n)) }
+puts store.send(m, "A").inspect
               
             end
 
+puts @entities.inspect
             edit_objs
             gen_update_cmds
+puts @cmds.inspect
 
             run_wscmds(@cmds)
-            return 0
           end
         end
 

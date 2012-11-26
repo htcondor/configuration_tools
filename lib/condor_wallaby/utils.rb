@@ -90,7 +90,7 @@ module Mrg
             begin
               m = Mrg::Grid::MethodUtils.find_property(a[0], klass)[0].to_sym
             rescue
-              if a.count > 1
+              if a.length > 1
                 m = Mrg::Grid::MethodUtils.find_property(a[1], klass)[0].to_sym
               end
             end

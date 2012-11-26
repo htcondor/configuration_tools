@@ -24,7 +24,7 @@ module Mrg
 
           def run_wscmds(cmd_list)
             cmd_list.compact.each do |cmdset|
-              exit!(1, "#{cmdset[0].to_s.split("::").last} returned non-zero") if cmdset[0].new(store, "").main(cmdset[1].flatten) != 0
+              puts "warning: #{cmdset[0].to_s.split("::").last} returned non-zero" if cmdset[0].new(store, "").main(cmdset[1].flatten) != 0
             end
           end
 

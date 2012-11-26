@@ -39,6 +39,15 @@ end
 class UtilsTester
   include Mrg::Grid::Config::Shell::ToolUtils
   include OpNameStub
+  include ExitStub
+
+  def store=(s)
+    @store=s
+  end
+
+  def store
+    @store
+  end
 end
 
 module CCSStubs

@@ -12,6 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 require 'condor_wallaby/utils'
+require 'set'
 
 module Mrg
   module Grid
@@ -159,7 +160,7 @@ module Mrg
           end
 
           def compare_objs(obj1, obj2)
-            (obj1.class == obj2.class) && (obj1.name == obj2.name)
+            (obj1.class == obj2.class) && (obj1.name == obj2.name) && (Set.new(obj1.instance_variables) == Set.new(obj2.instance_variables))
           end
 
           def remove_invalid_entries(obj)
@@ -255,7 +256,7 @@ module Mrg
               @invalids = {}
               ask_defaults = {}
               new_list.each do |obj|
-                old_obj = @entities[get_type(obj.class)][obj.name]
+                old_obj = obj.name ? @entities[get_type(obj.class)][obj.name] : nil
                 unless compare_objs(obj, old_obj) == true
                   print "Error: Corrupted object list.  Press <Enter> to re-edit the objects from scratch"
                   $stdin.gets
@@ -381,14 +382,11 @@ module Mrg
             @entities.each_key do |t|
               m = Mrg::Grid::MethodUtils.find_store_method("get#{t.to_s.slice(0,4)}")
               @entities[t].each_key {|n| @entities[t][n] = create_obj(n, t, store.send(m, n)) }
-puts store.send(m, "A").inspect
               
             end
 
-puts @entities.inspect
             edit_objs
             gen_update_cmds
-puts @cmds.inspect
 
             run_wscmds(@cmds)
           end

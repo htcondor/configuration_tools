@@ -214,6 +214,26 @@ module Mrg
               o2 = @tester.create_obj("Name", :Parameter)
               @tester.compare_objs(o1, o2).should == true
             end
+
+            it "should detect if edited obj is missing a field" do
+              type = :Parameter
+              klass = Mrg::Grid::SerializedConfigs.const_get(type)
+              o1 = @tester.create_obj("Name", type)
+              klass.saved_fields.delete(:level)
+              o2 = klass.new
+              o2.name = "Name"
+              @tester.compare_objs(o1, o2).should == false
+            end
+
+            it "should detect if edited obj has an extra field" do
+              type = :Parameter
+              klass = Mrg::Grid::SerializedConfigs.const_get(type)
+              o1 = @tester.create_obj("Name", type)
+              klass.field :extra, String
+              o2 = klass.new
+              o2.name = "Name"
+              @tester.compare_objs(o1, o2).should == false
+            end
           end
 
           describe "#remove_invalid_entries" do

@@ -31,7 +31,7 @@ module Mrg
           end
 
           def ws_bool(value)
-            value ? "yes" : "no"
+            value != false && value != 0 ? "yes" : "no"
           end
 
           def init_option_parser
@@ -123,9 +123,9 @@ module Mrg
 
           def update_parameter_cmds(obj)
             args = []
-            args += ["--kind", "#{obj.kind}"] if not obj.kind.empty?
-            args += ["--default-val", "#{obj.default_val}"] if not obj.default_val.empty?
-            args += ["--description", "#{obj.description}"] if not obj.description.empty?
+            args += ["--kind", "#{obj.kind}"]
+            args += ["--default-val", "#{obj.default_val}"]
+            args += ["--description", "#{obj.description}"]
             args += ["--must-change", "#{ws_bool(obj.must_change)}"]
             args += ["--level", "#{obj.level}"]
             args += ["--needs-restart", "#{ws_bool(obj.needs_restart)}"]
@@ -159,7 +159,9 @@ module Mrg
           end
 
           def compare_objs(obj1, obj2)
-            (obj1.class == obj2.class) && (obj1.name == obj2.name)
+            same_field_types = true
+            obj1.instance_variables.each {|f| same_field_types = obj1.instance_variable_get(f).class == obj2.instance_variable_get(f).class && same_field_types}
+            (obj1.class == obj2.class) && (obj1.name == obj2.name) && same_field_types
           end
 
           def remove_invalid_entries(obj)
@@ -388,6 +390,7 @@ module Mrg
             gen_update_cmds
 
             run_wscmds(@cmds)
+            return 0
           end
         end
 

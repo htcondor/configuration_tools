@@ -176,6 +176,7 @@ module Mrg
               end
             end
 
+            # Annotation is handled by update_annotation tests
             fields = get_fields(:Parameter) - [:name, :annotation] - arrays
             fields.each do |attr|
               it "should create a command to set the parameter's #{attr}" do
@@ -192,6 +193,21 @@ module Mrg
                 loc.should_not == nil
                 cmd.last[loc+1].should == value if not bool_args.include?(attr)
                 cmd.last[loc+1].should == @tester.ws_bool(value) if bool_args.include?(attr)
+              end
+            end
+
+            [:kind, :default_val, :description].each do |attr|
+              it "should properly handle non-string data in the #{attr} field" do
+                value = 0
+                o = @tester.create_obj(@entn, :Parameter)
+                o.send("#{attr}=", value)
+                cmds = @tester.update_parameter_cmds(o)
+                cmd = []
+                cmds.each {|c| cmd = c if c.first.to_s.include?("ModifyParam")}
+                cmd.last.first.should == @entn
+                loc = cmd.last.index("--#{attr.to_s.gsub(/_/, '-')}")
+                loc.should_not == nil
+                cmd.last[loc+1].should == value.to_s
               end
             end
           end

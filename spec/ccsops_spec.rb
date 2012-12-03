@@ -209,6 +209,19 @@ module Mrg
                 loc.should_not == nil
                 cmd.last[loc+1].should == value.to_s
               end
+
+              it "should properly handle nil data in the #{attr} field" do
+                value = nil
+                o = @tester.create_obj(@entn, :Parameter)
+                o.send("#{attr}=", value)
+                cmds = @tester.update_parameter_cmds(o)
+                cmd = []
+                cmds.each {|c| cmd = c if c.first.to_s.include?("ModifyParam")}
+                cmd.last.first.should == @entn
+                loc = cmd.last.index("--#{attr.to_s.gsub(/_/, '-')}")
+                loc.should_not == nil
+                cmd.last[loc+1].should == value.to_s
+              end
             end
           end
 
@@ -229,6 +242,28 @@ module Mrg
               o1 = @tester.create_obj("Name", :Parameter)
               o2 = @tester.create_obj("Name", :Parameter)
               @tester.compare_objs(o1, o2).should == true
+            end
+
+            store_entities.each do |type|
+              cant_change = [Hash, Array]
+              ref_obj = CCSOpsTester.new.create_obj("Name", type)
+              ref_obj.instance_variables.each do |var|
+                if cant_change.include?(ref_obj.instance_variable_get(var).class)
+                  it "should recognize 1st #{type} object #{var.gsub(/@/, '')} metadata change from #{ref_obj.instance_variable_get(var).class}" do
+                    o1 = @tester.create_obj("Name", type)
+                    o2 = @tester.create_obj("Name", type)
+                    o1.send("#{var.gsub(/@/, '')}=", "string")
+                    @tester.compare_objs(o1, o2).should == false
+                  end
+
+                  it "should recognize 2nd #{type} object #{var.gsub(/@/, '')} metadata change from #{ref_obj.instance_variable_get(var).class}" do
+                    o1 = @tester.create_obj("Name", type)
+                    o2 = @tester.create_obj("Name", type)
+                    o2.send("#{var.gsub(/@/, '')}=", "string")
+                    @tester.compare_objs(o1, o2).should == false
+                  end
+                end
+              end
             end
           end
 

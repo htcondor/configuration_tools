@@ -159,8 +159,15 @@ module Mrg
           end
 
           def compare_objs(obj1, obj2)
+            # These field types can't be changed.  All others end up as strings
+            static_types = [Hash, Array]
+            fields = []
+
             same_field_types = true
-            obj1.instance_variables.each {|f| same_field_types = obj1.instance_variable_get(f).class == obj2.instance_variable_get(f).class && same_field_types}
+
+            obj1.instance_variables.each {|f| fields += [f] if static_types.include?(obj1.instance_variable_get(f).class)}
+            obj2.instance_variables.each {|f| fields += [f] if static_types.include?(obj2.instance_variable_get(f).class) && (not fields.include?(f))}
+            fields.each {|f| (same_field_types = obj1.instance_variable_get(f).class == obj2.instance_variable_get(f).class && same_field_types)}
             (obj1.class == obj2.class) && (obj1.name == obj2.name) && same_field_types
           end
 

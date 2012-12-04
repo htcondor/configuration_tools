@@ -251,14 +251,21 @@ module Mrg
               @pre_edit = deep_copy(@entities)
               new_list = run_editor
 
+              if (not new_list) || new_list.empty?
+                puts "Error: Empty object list. Press <Enter> to re-edit the objects from scratch"
+                $stdin.gets
+                retry_loop = true
+                next
+              end
+
               # Perform validation on the input to ensure the user hasn't
               # changed the order of the objects or added/removed objects.
               @invalids = {}
               ask_defaults = {}
               new_list.each do |obj|
-                old_obj = obj.name ? @entities[get_type(obj.class)][obj.name] : nil
+                old_obj = obj.name && @entities[get_type(obj.class)].has_key?(obj.name) ? @entities[get_type(obj.class)][obj.name] : nil
                 unless compare_objs(obj, old_obj) == true
-                  print "Error: Corrupted object list.  Press <Enter> to re-edit the objects from scratch"
+                  print "Error: Corrupted object list.  Press <Enter> to re-edit the objects"
                   $stdin.gets
                   retry_loop = true
                   break
@@ -274,6 +281,27 @@ module Mrg
                 end
 
                 @entities[get_type(obj.class)][obj.name] = obj
+              end
+
+              next if retry_loop
+
+              # Do not allow objects to be removed
+              same_ents = true
+              @pre_edit.each_key do |t| 
+                @pre_edit[t].each_key do |name|
+                  found = false
+                  new_list.each do |obj|
+                    found = true if (get_type(obj.class) == t) && (obj.name == name)
+                  end
+                  same_ents = false if not found
+                end
+              end
+
+              unless same_ents
+                print "Error: Found objects removed from the list.  Press <Enter> to re-edit the objects"
+                $stdin.gets
+                retry_loop = true
+                next
               end
 
               if not @invalids.empty?

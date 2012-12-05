@@ -179,6 +179,13 @@ rm -rf %{buildroot}
 /%{ruby_install_dir}/condor_wallaby/commands/cmd_ccs.rb
 
 %changelog
+* Wed Dec  5 2012  <rrati@redhat> - 5.0.4-1
+- Fixed issues passing broker connection options to wallaby shell (BZ881082)
+- Fixed issues handling invalid data from the editor (BZ879276 & BZ880973)
+- Fixed issue with editing objects on ruby 1.8.5
+- ccs/ccp will continue with batched commands even if one fails
+- Updated for branding change to HTCondor
+
 * Thu Oct 11 2012  <rrati@redhat> - 5.0.3-2
 - Enable editing annotations in condor_configure_store
 

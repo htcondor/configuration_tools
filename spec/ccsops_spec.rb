@@ -427,7 +427,7 @@ module Mrg
               @tester.should_receive(:run_editor).exactly(2).times.and_return([o2], [o1])
               klass.field :name, orig_fields[:name]
               @tester.edit_objs
-              @tester.entities[:Parameter].keys.count.should == 1
+              @tester.entities[:Parameter].keys.length.should == 1
             end
 
             it "should reject the user adding an entity to the list" do
@@ -437,7 +437,7 @@ module Mrg
               STDIN.should_receive(:gets).exactly(1).times.and_return("")
               @tester.should_receive(:run_editor).exactly(2).times.and_return([o1, o2], [o1])
               @tester.edit_objs
-              @tester.entities[:Parameter].keys.count.should == 1
+              @tester.entities[:Parameter].keys.length.should == 1
             end
 
             it "should reject the user removing an entity from the list" do
@@ -448,7 +448,7 @@ module Mrg
               STDIN.should_receive(:gets).exactly(1).times.and_return("")
               @tester.should_receive(:run_editor).exactly(2).times.and_return([o1], [o1,o2])
               @tester.edit_objs
-              @tester.entities[:Parameter].keys.count.should == 2
+              @tester.entities[:Parameter].keys.length.should == 2
             end
 
             it "should notify and re-edit if empty list" do

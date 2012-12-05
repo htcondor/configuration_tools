@@ -45,13 +45,13 @@ module CCSStubs
 
   def initialize
     @orig_grps = {}
-    @entities = {}
+    @entities = Hash.new {|h,k| h[k] = Hash.new {|h1,k1| h1[k1] = {}}}
     @cmds = []
     @options = {}
   end
 
   def entities
-    @entities ||= {}
+    @entities
   end
 
   def pre_edit

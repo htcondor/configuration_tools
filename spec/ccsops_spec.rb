@@ -214,6 +214,29 @@ module Mrg
               o2 = @tester.create_obj("Name", :Parameter)
               @tester.compare_objs(o1, o2).should == true
             end
+
+            it "should detect if edited obj is missing a field" do
+              type = :Parameter
+              klass = Mrg::Grid::SerializedConfigs.const_get(type)
+              o1 = @tester.create_obj("Name", type)
+              orig_fields = klass.saved_fields.clone
+              klass.saved_fields.delete(:level)
+              o2 = klass.new
+              o2.name = "Name"
+              klass.field :level, orig_fields[:level]
+              @tester.compare_objs(o1, o2).should == false
+            end
+
+            it "should detect if edited obj has an extra field" do
+              type = :Parameter
+              klass = Mrg::Grid::SerializedConfigs.const_get(type)
+              o1 = @tester.create_obj("Name", type)
+              klass.field :extra, String
+              o2 = klass.new
+              o2.name = "Name"
+              klass.saved_fields.delete(:extra)
+              @tester.compare_objs(o1, o2).should == false
+            end
           end
 
           describe "#remove_invalid_entries" do
@@ -326,21 +349,63 @@ module Mrg
           end
 
           describe "#edit_objs" do
-            it "should accept non-strings as parameter values" do
+            it "should accept non-string parameter values on features" do
               setup_rhubarb
               @store.addFeature("Name")
               @store.addParam("Integer")
               obj1 = @tester.create_obj("Name", :Feature)
               obj1.params = {"Integer"=>10}
               @tester.entities[:Feature] = {"Name"=>obj1}
-              @tester.should_receive(:deep_copy).and_return({:Feature=>{:Name=>obj1}})
-              obj2 = @tester.create_obj("Name", :Feature)
-              obj2.params = {"Integer"=>20}
-              @tester.should_receive(:run_editor).and_return([obj2])
+              obj1.params = {"Integer"=>20}
+              @tester.should_receive(:run_editor).and_return([obj1])
               @tester.edit_objs
-              @tester.entities[:Feature]["Name"].should == obj2
-              @tester.invalids.empty?.should == true
+              @tester.entities[:Feature]["Name"].should == obj1
+              @tester.entities[:Feature]["Name"].params["Integer"].should == 20
+              @tester.entities[:Feature]["Name"].params["Integer"].instance_of?(String).should == false
               teardown_rhubarb
+            end
+
+            it "should not create an empty entity if name field is deleted" do
+              o1 = @tester.create_obj("Name", :Parameter)
+              klass = Mrg::Grid::SerializedConfigs::Parameter
+              orig_fields = klass.saved_fields.clone
+              klass.saved_fields.delete(:name)
+              o2 = klass.new
+              @tester.entities[:Parameter]["Name"] = o1
+              STDIN.should_receive(:gets).exactly(1).times.and_return("")
+              @tester.should_receive(:run_editor).exactly(2).times.and_return([o2], [o1])
+              klass.field :name, orig_fields[:name]
+              @tester.edit_objs
+              @tester.entities[:Parameter].keys.count.should == 1
+            end
+
+            it "should reject the user adding an entity to the list" do
+              o1 = @tester.create_obj("Name", :Parameter)
+              o2 = @tester.create_obj("Bad", :Parameter)
+              @tester.entities[:Parameter]["Name"] = o1
+              STDIN.should_receive(:gets).exactly(1).times.and_return("")
+              @tester.should_receive(:run_editor).exactly(2).times.and_return([o1, o2], [o1])
+              @tester.edit_objs
+              @tester.entities[:Parameter].keys.count.should == 1
+            end
+
+            it "should reject the user removing an entity from the list" do
+              o1 = @tester.create_obj("Name", :Parameter)
+              o2 = @tester.create_obj("Name2", :Parameter)
+              @tester.entities[:Parameter]["Name"] = o1
+              @tester.entities[:Parameter]["Name2"] = o2
+              STDIN.should_receive(:gets).exactly(1).times.and_return("")
+              @tester.should_receive(:run_editor).exactly(2).times.and_return([o1], [o1,o2])
+              @tester.edit_objs
+              @tester.entities[:Parameter].keys.count.should == 2
+            end
+
+            it "should notify and re-edit if empty list" do
+              o1 = @tester.create_obj("Name", :Parameter)
+              @tester.entities[:Parameter]["Name"] = o1
+              STDIN.should_receive(:gets).exactly(1).times.and_return("")
+              @tester.should_receive(:run_editor).exactly(2).times.and_return([], [o1])
+              @tester.edit_objs
             end
           end
 

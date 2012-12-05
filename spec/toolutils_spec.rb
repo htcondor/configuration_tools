@@ -13,6 +13,11 @@ module Mrg
             @action = :add
             @prefix = :tester
             UtilsTester.opname = "#{@prefix}-#{@action}"
+            hide_output
+          end
+
+          after :each do
+            show_output
           end
 
           it "should return the action" do

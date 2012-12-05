@@ -21,7 +21,7 @@ bump_and_commit_version = \
   sed -i "s/${ORIG_VER}/${NEW_VER}/" VERSION; \
   git commit -m "bumping VERSION from ${ORIG_VER} to ${NEW_VER}" VERSION; \
   git tag ${NEW_VER}; \
-  git push origin master ${NEW_VER}
+#  git push origin master ${NEW_VER}
 
 create_patch_lines = \
 Patch${PATCH_NUM}: ${file} \
@@ -44,6 +44,8 @@ bump_minor: VERSION
 bump_patch: VERSION
 	$(eval PATCH := $(shell expr ${ORIG_PATCH} + 1))
 	$(call bump_and_commit_version,${ORIG_MAJOR},${ORIG_MINOR},${PATCH})
+push:
+	git push origin master ${VER}
 
 SPECS/${SPEC}: rpmdirs ${SPEC}.in
 	sed "s/#VERSION#/${ORIG_VER}/" ${SPEC}.in > ${SPEC}

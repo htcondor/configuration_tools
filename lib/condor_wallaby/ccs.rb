@@ -44,23 +44,23 @@ module Mrg
             end
 
             opts.on("-b", "--broker HOSTNAME", "The qpid broker hostname used by the configuration store") do |h|
-              ws_args << ["-H", h]
+              ws_args += ["-H", h]
             end
 
             opts.on("-o", "--port NUM", Integer, "The qpid broker port used by the configuration store") do |p|
-              ws_args << ["-p", p]
+              ws_args += ["-p", p]
             end
 
             opts.on("-U", "--user NAME", "The username used to authenticate with the qpid broker") do |n|
-              ws_args << ["-U", n]
+              ws_args += ["-U", n]
             end
 
             opts.on("-P", "--password PASS", "The password used to authenticate with the qpid broker") do |p|
-              ws_args << ["-P", p]
+              ws_args += ["-P", p]
             end
 
             opts.on("-m", "--auth-mechanism PASS", mechs, "Authentication mechanisms (#{mechs.join(", ")}) for authenticating with the qpid broker") do |m|
-              ws_args << ["-M", m]
+              ws_args += ["-M", m]
             end
 
             opts.on("-v", "--verbose", "Print more information, if available") do

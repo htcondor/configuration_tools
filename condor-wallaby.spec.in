@@ -19,7 +19,7 @@
 %endif
 
 Name: condor-wallaby
-Summary: Condor configuration using wallaby
+Summary: HTCondor configuration using wallaby
 Version: #VERSION#
 Release: #RELEASE#%{?dist}
 Group: Applications/System
@@ -36,12 +36,12 @@ BuildRequires: ruby-devel
 BuildArch: noarch
 
 %description
-The condor wallaby package provides a means to quickly and easily
-configure machines running Condor by providing tools to define configurations
+The condor-wallaby package provides a means to quickly and easily
+configure machines running HTCondor by providing tools to define configurations
 and apply them to nodes using wallaby.
 
 %package client
-Summary: Wallaby configuration client for condor
+Summary: Wallaby configuration client for HTCondor
 Group: Applications/System
 Requires: condor >= 7.4.4-0.9
 Requires: python >= 2.3
@@ -54,14 +54,14 @@ Obsoletes: condor-remote-configuration
 
 %description client
 This package provides a means to quickly and easily configure machines
-running Condor by providing tools to define configurations in wallaby and
+running HTCondor by providing tools to define configurations in wallaby and
 apply them to nodes.
 
 This package provides the tools needed for managed clients
 
 %if 0%{?rhel} != 4
 %package tools
-Summary: Wallaby configuration tools for configuring condor
+Summary: Wallaby configuration tools for configuring HTCondor
 Group: Applications/System
 Requires: ruby(abi) = %{?ruby_abi}
 Requires: ruby-%{name} = %{version}-%{release}
@@ -73,7 +73,7 @@ Obsoletes: condor-remote-configuration-server
 
 %description tools
 This package provides a means to quickly and easily configure machines
-running Condor by providing tools to define configurations in wallaby and
+running HTCondor by providing tools to define configurations in wallaby and
 apply them to nodes.
 
 This package provides tools to apply configurations to nodes/groups and
@@ -97,7 +97,7 @@ Requires: ruby-wallaby
 Requires: ruby(abi) = %{?ruby_abi}
 
 %description -n ruby-%{name}
-Tools for executing condor specific commands in wallaby shell
+Tools for executing HTCondor specific commands in wallaby shell
 
 %prep
 %setup -q

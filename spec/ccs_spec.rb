@@ -36,14 +36,14 @@ module Mrg
               it "should pass -#{short} to wallaby shell as -#{ws_arg}" do
                 arg = "ANONYMOUS"
                 arg = 1 if short == :o
-                Mrg::Grid::Config::Shell.should_receive(:main).with([["-#{ws_arg}", arg], *@common_cmd_args])
+                Mrg::Grid::Config::Shell.should_receive(:main).with(["-#{ws_arg}", arg, *@common_cmd_args])
                 Mrg::Grid::Config::CCS.new.main(["-#{short}", arg.to_s] + @ccs_args)
               end
 
               it "should pass --#{long} to wallaby shell as -#{ws_arg}" do
                 arg = "ANONYMOUS"
                 arg = 1 if short == :o
-                Mrg::Grid::Config::Shell.should_receive(:main).with([["-#{ws_arg}", arg], *@common_cmd_args])
+                Mrg::Grid::Config::Shell.should_receive(:main).with(["-#{ws_arg}", arg, *@common_cmd_args])
                 Mrg::Grid::Config::CCS.new.main(["--#{long.to_s.gsub(/_/, '-')}", arg.to_s] + @ccs_args)
               end
             end

@@ -127,7 +127,7 @@ module Mrg
             args += ["--default-val", "#{obj.default_val}"]
             args += ["--description", "#{obj.description}"]
             args += ["--must-change", "#{ws_bool(obj.must_change)}"]
-            args += ["--level", "#{obj.level}"]
+            args += ["--level", "#{obj.level.to_i}"]
             args += ["--needs-restart", "#{ws_bool(obj.needs_restart)}"]
             cmds = [[Mrg::Grid::Config::Shell::ModifyParam, [obj.name] + args]]
             cmds << [Mrg::Grid::Config::Shell::ReplaceParamConflict, [obj.name] + obj.conflicts]

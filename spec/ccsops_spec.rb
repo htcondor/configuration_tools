@@ -223,6 +223,23 @@ module Mrg
                 cmd.last[loc+1].should == value.to_s
               end
             end
+
+            ref_obj = CCSOpsTester.new.create_obj("Name", :Parameter)
+            get_fields(:Parameter).each do |var|
+              if ref_obj.send(var).instance_of?(Fixnum)
+                it "should set empty values to 0 on FixNum attribute #{var} for Parameter" do
+                  o = @tester.create_obj(@entn, :Parameter)
+                  o.send("#{var}=", "")
+                  cmds = @tester.update_parameter_cmds(o)
+                  cmd = []
+                  cmds.each {|c| cmd = c if c.first.to_s.include?("ModifyParam")}
+                  cmd.last.first.should == @entn
+                  loc = cmd.last.index("--#{var.to_s.gsub(/_/, '-')}")
+                  loc.should_not == nil
+                  cmd.last[loc+1].should == "0"
+                end
+              end
+            end
           end
 
           describe "#compare_objs" do
@@ -393,6 +410,7 @@ module Mrg
               @tester.invalids.empty?.should == true
               teardown_rhubarb
             end
+
           end
 
           describe "#update_annotation" do
@@ -413,6 +431,26 @@ module Mrg
                   cmd.should == []
                 end
               end
+            end
+          end
+
+          describe "#ws_bool" do
+            [true, false].each do |val|
+              ws_val = val ? "yes" : "no"
+              it "should convert boolean value #{val} to #{ws_val}" do
+                @tester.ws_bool(val).should == ws_val
+              end
+            end
+
+            [0, 1, -1].each do |val|
+              ws_val = val != 0 ? "yes" : "no"
+              it "should convert numerical #{val} to #{ws_val}" do
+                @tester.ws_bool(val).should == ws_val
+              end
+            end
+
+            it "should convert string values to yes" do
+              @tester.ws_bool("string").should == "yes"
             end
           end
         end

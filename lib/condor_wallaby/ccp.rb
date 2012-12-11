@@ -50,7 +50,7 @@ module Mrg
             end
 
             opts.on("-o", "--port NUM", Integer, "The qpid broker port used by the configuration store") do |p|
-              ws_args += ["-p", p]
+              ws_args += ["-p", p.to_s]
             end
 
             opts.on("-U", "--user NAME", "The username used to authenticate with the qpid broker") do |n|

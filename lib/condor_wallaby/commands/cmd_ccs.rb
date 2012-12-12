@@ -389,6 +389,11 @@ module Mrg
 
           def act
             @entities.each_key do |t|
+              exist = @entities[t].keys - store.send("check#{t}Validity", @entities[t].keys)
+              unless exist.empty?
+                exit!(1, "#{t}(s) #{exist.join(',')} already exist")
+              end
+
               c = Mrg::Grid::Config::Shell.constants.grep(/Add#{t.to_s[0,4].capitalize}[a-z]*$/).to_s
               @entities[t].each_key do |n|
                 @entities[t][n] = create_obj(n, t)

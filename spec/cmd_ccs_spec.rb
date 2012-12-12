@@ -84,19 +84,34 @@ module Mrg
 
           describe CCSAdd do
             before(:each) do
+              @store = Store.new
               @ccsops = CCSOpsTester.new
+              setup_rhubarb
+              @name = "A"
+              Object.const_set("CmdTester", Class.new(Mrg::Grid::Config::Shell::CCSAdd) { include CCSStubs })
             end
 
             store_entities.each do |ent|
               it "should call wallaby shell commands to add then modify #{ent}s" do
-                Object.const_set("CmdTester", Class.new(Mrg::Grid::Config::Shell::CCSAdd) { include CCSStubs })
                 klass_name = Mrg::Grid::Config::Shell.constants.grep(/Add#{ent.to_s[0,4].capitalize}[a-z]*$/).to_s
                 m = CmdTester.new
+                m.store = @store
                 m.stub(:run_cmdline)
-                m.entities[ent] = {"A"=>nil}
-                o = @ccsops.create_obj("A", ent)
-                m.should_receive(:run_wscmds).with([[Mrg::Grid::Config::Shell.const_get(klass_name), ["A"]]] + @ccsops.send("update_#{ent.to_s.downcase}_cmds", o) + @ccsops.update_annotation(ent, o))
+                m.entities[ent] = {@name=>nil}
+                o = @ccsops.create_obj(@name, ent)
+                m.should_receive(:run_wscmds).with([[Mrg::Grid::Config::Shell.const_get(klass_name), [@name]]] + @ccsops.send("update_#{ent.to_s.downcase}_cmds", o) + @ccsops.update_annotation(ent, o))
                 m.act
+              end
+
+              it "should not add a #{ent} if it already exists in the store" do
+                addm = Mrg::Grid::MethodUtils.find_method("add.*#{ent.to_s[0,4].capitalize}.*").first.to_sym
+                @store.send(addm, @name)
+                m = CmdTester.new
+                m.store = @store
+                m.entities[ent] = {@name=>nil}
+                m.stub(:edit_objs)
+                m.should_not_receive(:edit_objs)
+                lambda {m.act}.should raise_error(ShellCommandFailure)
               end
             end
           end

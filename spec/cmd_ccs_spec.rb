@@ -121,6 +121,8 @@ module Mrg
               @store = Store.new
               @ccsops = CCSOpsTester.new
               setup_rhubarb
+              @name = "A"
+              Object.const_set("CmdTester", Class.new(Mrg::Grid::Config::Shell::CCSEdit) { include CCSStubs })
             end
 
             after(:each) do
@@ -129,22 +131,30 @@ module Mrg
 
             store_entities.each do |ent|
               it "should call wallaby shell commands to modify #{ent}s" do
-                Object.const_set("CmdTester", Class.new(Mrg::Grid::Config::Shell::CCSEdit) { include CCSStubs })
                 klass_name = Mrg::Grid::Config::Shell.constants.grep(/Add#{ent.to_s[0,4].capitalize}[a-z]*$/).to_s
                 m = CmdTester.new
                 # Wallaby seems to default annotations to nil instead of an
                 # empty string.  Get around this by explicity setting the
                 # annotation in the store
-                e = add_entity("A", ent)
+                e = add_entity(@name, ent)
                 e.setAnnotation("")
                 m.store = @store
                 m.stub(:run_cmdline)
-                m.entities[ent] = {"A"=>nil}
-                o = @ccsops.create_obj("A", ent)
+                m.entities[ent] = {@name=>nil}
+                o = @ccsops.create_obj(@name, ent)
                 o.kind = "string" if o.respond_to?(:kind)
                 o.membership = ["+++SKEL"] if ent == :Node
                 m.should_receive(:run_wscmds).with(@ccsops.send("update_#{ent.to_s.downcase}_cmds", o) + @ccsops.update_annotation(ent, o))
                 m.act
+              end
+
+              it "should not edit a #{ent} if it does not exist in the store" do
+                m = CmdTester.new
+                m.store = @store
+                m.entities[ent] = {@name=>nil}
+                m.stub(:edit_objs)
+                m.should_not_receive(:edit_objs)
+                lambda {m.act}.should raise_error(ShellCommandFailure)
               end
             end
           end

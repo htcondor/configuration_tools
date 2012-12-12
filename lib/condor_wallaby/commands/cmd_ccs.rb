@@ -422,6 +422,11 @@ module Mrg
 
           def act
             @entities.each_key do |t|
+              nonexist = store.send("check#{t}Validity", @entities[t].keys)
+              unless nonexist.empty?
+                exit!(1, "#{t}(s) #{nonexist.join(',')} do not exist")
+              end
+
               m = Mrg::Grid::MethodUtils.find_store_method("get#{t.to_s.slice(0,4)}")
               @entities[t].each_key {|n| @entities[t][n] = create_obj(n, t, store.send(m, n)) }
               

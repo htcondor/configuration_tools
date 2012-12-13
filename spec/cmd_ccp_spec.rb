@@ -135,6 +135,73 @@ module Mrg
               g.features.should_not include "ConsoleCollector" if resp == :n
             end
           end
+
+          describe CCPEdit do
+            before :each do
+              Object.const_set("CmdTester", Class.new(Mrg::Grid::Config::Shell::CCPEdit) { include CCPStubs })
+            end
+
+            [:Feature, :Parameter].each do |opt|
+              it "should ignore a list of #{opt}s provided on the command line when editing" do
+                m = CmdTester.new
+                m.store = @store
+                m.target = {:Group=>@group}
+                edits = m.send("edit_#{opt.to_s.downcase}s" )
+                edits.push(@feature) if opt == :Feature
+                edits[@parameter] = nil if opt == :Parameter
+                m.should_receive(:run_editor).and_return(m.group_obj)
+                STDIN.should_receive(:gets).exactly(3).times.and_return("y", "n", "n")
+                m.act
+                if opt == :Parameter
+                  @store.getGroupByName(@group).params.keys.should_not include @parameter
+                else
+                  @store.getGroupByName(@group).features.should_not include @feature
+                end
+              end
+            end
+
+            [:schedds, :qmf].each do |opt|
+              it "should ignore the #{opt} option when editing" do
+                m = CmdTester.new
+                m.store = @store
+                m.target = {:Group=>@group}
+                m.options[opt] = true
+                m.should_receive(:run_editor).and_return(m.group_obj)
+                STDIN.should_receive(:gets).exactly(3).times.and_return("y", "n", "n")
+                m.act
+              end
+            end
+
+            it "should not prompt for a value for parameters added in the editor" do
+              v = "value"
+              m = CmdTester.new
+              m.store = @store
+              m.target = {:Group=>@group}
+              o = m.group_obj
+              o.params[@parameter] = v
+              m.should_receive(:run_editor).and_return(o)
+              STDIN.should_receive(:gets).exactly(3).times.and_return("y", "n", "n")
+              m.act
+            end
+
+            it "should prompt for a value for parameters required by features added in the editor" do
+              v = "localhost"
+              f = "Master"
+              p = "CONDOR_HOST"
+              m = CmdTester.new
+              m.store = @store
+              m.target = {:Group=>@group}
+              o = m.group_obj
+              o.features.push("Master")
+              m.should_receive(:run_editor).and_return(o)
+              STDIN.should_receive(:gets).exactly(5).times.and_return("y", v, "y", "n", "n")
+              m.act
+              qmfo = @store.getGroupByName(@group)
+              qmfo.features.should include f
+              qmfo.params.keys.should include p
+              qmfo.params[p].should == v
+            end
+          end
         end
       end
     end

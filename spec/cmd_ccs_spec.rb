@@ -106,6 +106,7 @@ module Mrg
               @store = Store.new
               @ccsops = CCSOpsTester.new
               setup_rhubarb
+              Object.const_set("CmdTester", Class.new(Mrg::Grid::Config::Shell::CCSEdit) { include CCSStubs })
             end
 
             after(:each) do
@@ -114,7 +115,6 @@ module Mrg
 
             store_entities.each do |ent|
               it "should call wallaby shell commands to modify #{ent}s" do
-                Object.const_set("CmdTester", Class.new(Mrg::Grid::Config::Shell::CCSEdit) { include CCSStubs })
                 klass_name = Mrg::Grid::Config::Shell.constants.grep(/Add#{ent.to_s[0,4].capitalize}[a-z]*$/).to_s
                 m = CmdTester.new
                 # Wallaby seems to default annotations to nil instead of an

@@ -143,8 +143,10 @@ module Mrg
 
           def get_param_values
             add_parameters.keys.each do |pname|
-              print "Value for \"#{pname}\": "
-              add_parameters[pname] = STDIN.gets.strip
+              if not add_parameters[pname]
+                print "Value for \"#{pname}\": "
+                add_parameters[pname] = STDIN.gets.strip
+              end
             end
           end
 
@@ -579,16 +581,25 @@ module Mrg
               ents = self.send(f) if self.respond_to?(f)
               puts "Warning: Ignoring #{txt} in edit mode" if @options.has_key?(key) || (ents && (not ents.empty?))
               @options.delete(key)
-              ents.delete(key) if ents
+              ents.clear if ents
             end
 
             edited = run_editor
             p = edited.params.select{|k, v| (not target_obj.params.keys.include?(k)) || ([k, v] != [k, target_obj.params[k]])}
+
+            # Needed for check_add_params_needed
             add_parameters.replace((p.empty? ? {} : Hash[*p.flatten]))
             p = target_obj.params.select{|k, v| (not edited.params.keys.include?(k))}
+
+            # Needed check_remove_params_needed
             remove_parameters.replace(p.empty? ? {} : Hash[*p.flatten])
+ 
+            # Needed for check_add_params_needed
             add_features.replace(edited.features.select{|n| (not target_obj.features.include?(n))})
+
+            # Needed check_remove_params_needed
             remove_features.replace(target_obj.features.select{|n| (not edited.features.include?(n))})
+
             edit_parameters.replace(edited.params)
             edit_features.replace(edited.features)
           end

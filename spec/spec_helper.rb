@@ -98,12 +98,12 @@ class CCSOpsTester < UtilsTester
 end
 
 
-class CCPOpsTester < UtilsTester
-  include Mrg::Grid::Config::Shell::CCPOps
+module CCPStubs
   include ExitStub
 
   def initialize
     @options = {}
+    @cmds = []
   end
 
   def options
@@ -129,6 +129,19 @@ class CCPOpsTester < UtilsTester
   def target
     @target
   end
+
+  def edit_parameters
+    @eparams ||= {}
+  end
+
+  def edit_features
+    @efeatures ||= []
+  end
+end
+
+class CCPOpsTester < UtilsTester
+  include Mrg::Grid::Config::Shell::CCPOps
+  include CCPStubs
 end
 
 def target

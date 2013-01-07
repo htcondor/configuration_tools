@@ -251,3 +251,33 @@ def verify_cmd_params(type, cmd_act)
     list.should include a.split('=')[1] if list.instance_of?(Array)
   end
 end
+
+def make_obj(name, type)
+  obj = Mrg::Grid::SerializedConfigs.const_get(type).new
+  obj.name = name
+  obj.instance_variables.collect{|n| n.delete("@")}.each do |m|
+    if obj.send(m).instance_of?(Set)
+      obj.send("#{m}=", [])
+    end
+  end
+  obj
+end
+
+def save_all_meta
+  # Need to save metadata for SerializedConfigs objects because
+  # create_obj modifies them.
+  @saved_meta = {}
+  store_entities.each do |ent|
+    @saved_meta[ent] = Mrg::Grid::SerializedConfigs.const_get(ent).saved_fields.clone
+  end
+end
+
+def restore_all_meta
+  # Restore the saved metadata for SerializedConfigs objects
+  store_entities.each do |ent|
+  klass = Mrg::Grid::SerializedConfigs.const_get(ent)
+    @saved_meta[ent].each_pair do |key, value|
+      klass.field key, value
+    end
+  end
+end

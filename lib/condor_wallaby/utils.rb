@@ -81,6 +81,23 @@ module Mrg
             end
             list
           end
+
+          def deep_copy(obj)
+            YAML::parse(obj.to_yaml).transform
+          end
+
+          def compare_objs(obj1, obj2)
+            # These field types can't be changed.  All others end up as strings
+            static_types = [Hash, Array]
+            fields = []
+
+            same_field_types = true
+
+            obj1.instance_variables.each {|f| fields += [f] if static_types.include?(obj1.instance_variable_get(f).class)}
+            obj2.instance_variables.each {|f| fields += [f] if static_types.include?(obj2.instance_variable_get(f).class) && (not fields.include?(f))}
+            fields.each {|f| (same_field_types = obj1.instance_variable_get(f).class == obj2.instance_variable_get(f).class && same_field_types)}
+            (obj1.class == obj2.class) && (obj1.name == obj2.name) && same_field_types
+          end
         end
 
         module QmfConversion
@@ -97,12 +114,6 @@ module Mrg
             m = Mrg::Grid::MethodUtils.find_method(a[0], klass)[0].to_sym if m == nil
             m
           end
-
-#          def self.find_setter(name, klass)
-#            m = Mrg::Grid::MethodUtils.find_method("set.*#{name}.*", klass)
-#            m = Mrg::Grid::MethodUtils.find_method("modify.*#{name}.*", klass) if m.empty?
-#            m.first.to_sym
-#          end
         end
       end
     end

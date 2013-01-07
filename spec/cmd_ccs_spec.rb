@@ -7,6 +7,9 @@ module Mrg
     module Config
       module Shell
         describe "CmdCCS" do
+          before(:all) do
+            save_all_meta
+          end
 
           before(:each) do
             hide_output
@@ -14,6 +17,10 @@ module Mrg
 
           after(:each) do
             show_output
+          end
+
+          after(:all) do
+            restore_all_meta
           end
 
 

@@ -584,7 +584,14 @@ module Mrg
               ents.clear if ents
             end
 
-            edited = run_editor
+            before = deep_copy(group_obj)
+            begin
+              edited = run_editor
+            rescue
+              exit!(1, "Invalid input. No changes made")
+            end
+
+            exit!(1, "Corrupted object list.  No changes made") if not compare_objs(before, edited)
             p = edited.params.select{|k, v| (not target_obj.params.keys.include?(k)) || ([k, v] != [k, target_obj.params[k]])}
 
             # Needed for check_add_params_needed

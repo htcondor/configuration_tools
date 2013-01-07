@@ -159,19 +159,6 @@ module Mrg
             cmds
           end
 
-          def compare_objs(obj1, obj2)
-            # These field types can't be changed.  All others end up as strings
-            static_types = [Hash, Array]
-            fields = []
-
-            same_field_types = true
-
-            obj1.instance_variables.each {|f| fields += [f] if static_types.include?(obj1.instance_variable_get(f).class)}
-            obj2.instance_variables.each {|f| fields += [f] if static_types.include?(obj2.instance_variable_get(f).class) && (not fields.include?(f))}
-            fields.each {|f| (same_field_types = obj1.instance_variable_get(f).class == obj2.instance_variable_get(f).class && same_field_types)}
-            (obj1.class == obj2.class) && (obj1.name == obj2.name) && same_field_types
-          end
-
           def remove_invalid_entries(obj)
             # Generate the list of entity names the obj uses
             if @invalids.has_key?(:Parameter)
@@ -246,10 +233,6 @@ module Mrg
             klass_name.to_s.split('::').last.to_sym
           end
 
-          def deep_copy(obj)
-            YAML::parse(obj.to_yaml).transform
-          end
-
           def edit_objs
             retry_loop = true
             @orig_grps = @entities.has_key?(:Group) ? deep_copy(@entities[:Group]) : {}
@@ -258,10 +241,18 @@ module Mrg
             while retry_loop == true
               retry_loop = false
               @pre_edit = deep_copy(@entities)
-              new_list = run_editor
+              begin
+                new_list = run_editor
+              rescue
+                print "Error: Invalid formatting.  Press <Enter> to start over"
+                $stdin.gets
+                retry_loop = true
+                next
+              end
+
 
               if (not new_list) || new_list.empty?
-                puts "Error: Empty object list. Press <Enter> to re-edit the objects from scratch"
+                print "Error: Empty object list. Press <Enter> to re-edit the objects from scratch"
                 $stdin.gets
                 retry_loop = true
                 next

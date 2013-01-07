@@ -7,6 +7,10 @@ module Mrg
     module Config
       module Shell
         describe CCSOps do
+          before(:all) do
+            save_all_meta
+          end
+
           before(:each) do
             @tester = CCSOpsTester.new
             @store = Store.new
@@ -20,6 +24,10 @@ module Mrg
 
           after(:each) do
             show_output
+          end
+
+          after(:all) do
+            restore_all_meta
           end
 
           describe "#parse_args" do
@@ -237,71 +245,6 @@ module Mrg
                   loc = cmd.last.index("--#{var.to_s.gsub(/_/, '-')}")
                   loc.should_not == nil
                   cmd.last[loc+1].should == "0"
-                end
-              end
-            end
-          end
-
-          describe "#compare_objs" do
-            it "should fail if obj class is different" do
-              o1 = @tester.create_obj("Name", :Parameter)
-              o2 = @tester.create_obj("Name", :Group)
-              @tester.compare_objs(o1, o2).should == false
-            end
-
-            it "should fail if obj name is different" do
-              o1 = @tester.create_obj("Name1", :Parameter)
-              o2 = @tester.create_obj("Name2", :Parameter)
-              @tester.compare_objs(o1, o2).should == false
-            end
-
-            it "should succeed if obj name and class are the same" do
-              o1 = @tester.create_obj("Name", :Parameter)
-              o2 = @tester.create_obj("Name", :Parameter)
-              @tester.compare_objs(o1, o2).should == true
-            end
-
-            it "should detect if edited obj is missing a field" do
-              type = :Parameter
-              klass = Mrg::Grid::SerializedConfigs.const_get(type)
-              o1 = @tester.create_obj("Name", type)
-              orig_fields = klass.saved_fields.clone
-              klass.saved_fields.delete(:level)
-              o2 = klass.new
-              o2.name = "Name"
-              klass.field :level, orig_fields[:level]
-              @tester.compare_objs(o1, o2).should == false
-            end
-
-            it "should detect if edited obj has an extra field" do
-              type = :Parameter
-              klass = Mrg::Grid::SerializedConfigs.const_get(type)
-              o1 = @tester.create_obj("Name", type)
-              klass.field :extra, String
-              o2 = klass.new
-              o2.name = "Name"
-              klass.saved_fields.delete(:extra)
-              @tester.compare_objs(o1, o2).should == false
-            end
-
-            store_entities.each do |type|
-              cant_change = [Hash, Array]
-              ref_obj = CCSOpsTester.new.create_obj("Name", type)
-              ref_obj.instance_variables.each do |var|
-                if cant_change.include?(ref_obj.instance_variable_get(var).class)
-                  it "should recognize 1st #{type} object #{var.gsub(/@/, '')} metadata change from #{ref_obj.instance_variable_get(var).class}" do
-                    o1 = @tester.create_obj("Name", type)
-                    o2 = @tester.create_obj("Name", type)
-                    o1.send("#{var.gsub(/@/, '')}=", "string")
-                    @tester.compare_objs(o1, o2).should == false
-                  end
-
-                  it "should recognize 2nd #{type} object #{var.gsub(/@/, '')} metadata change from #{ref_obj.instance_variable_get(var).class}" do
-                    o1 = @tester.create_obj("Name", type)
-                    o2 = @tester.create_obj("Name", type)
-                    o2.send("#{var.gsub(/@/, '')}=", "string")
-                    @tester.compare_objs(o1, o2).should == false
-                  end
                 end
               end
             end

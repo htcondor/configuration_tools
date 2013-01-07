@@ -151,7 +151,7 @@ module Mrg
                 edits[@parameter] = nil if opt == :Parameter
                 m.should_receive(:run_editor).and_return(m.group_obj)
                 STDIN.should_receive(:gets).exactly(3).times.and_return("y", "n", "n")
-                m.act
+                m.act.should == 0
                 if opt == :Parameter
                   @store.getGroupByName(@group).params.keys.should_not include @parameter
                 else
@@ -168,7 +168,7 @@ module Mrg
                 m.options[opt] = true
                 m.should_receive(:run_editor).and_return(m.group_obj)
                 STDIN.should_receive(:gets).exactly(3).times.and_return("y", "n", "n")
-                m.act
+                m.act.should == 0
               end
             end
 
@@ -181,7 +181,7 @@ module Mrg
               o.params[@parameter] = v
               m.should_receive(:run_editor).and_return(o)
               STDIN.should_receive(:gets).exactly(3).times.and_return("y", "n", "n")
-              m.act
+              m.act.should == 0
             end
 
             it "should prompt for a value for parameters required by features added in the editor" do
@@ -195,7 +195,7 @@ module Mrg
               o.features.push("Master")
               m.should_receive(:run_editor).and_return(o)
               STDIN.should_receive(:gets).exactly(5).times.and_return("y", v, "y", "n", "n")
-              m.act
+              m.act.should == 0
               qmfo = @store.getGroupByName(@group)
               qmfo.features.should include f
               qmfo.params.keys.should include p

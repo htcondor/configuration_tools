@@ -4,6 +4,7 @@ $LOAD_PATH.unshift(File.join(File.dirname(__FILE__), '..', 'lib'))
 require 'spec'
 require 'spec/mocks'
 require 'spec/autorun'
+require 'spec/matchers'
 
 require 'condor_wallaby/utils'
 
@@ -13,6 +14,29 @@ require 'condor_wallaby/commands/cmd_ccs'
 Spec::Runner.configure do |config|
 
 end 
+
+Spec::Matchers.define :exit_with_code do |exp_code|
+  actual = nil
+  match do |block|
+    begin
+      block.call
+    rescue Mrg::Grid::Config::Shell::ShellCommandFailure => e
+      actual = e.status
+    end
+    actual and actual == exp_code
+  end
+  failure_message_for_should do |block|
+    "expected block to call exit(#{exp_code}) but exit" +
+      (actual.nil? ? " not called" : "(#{actual}) was called")
+  end
+  failure_message_for_should_not do |block|
+    "expected block not to call exit(#{exp_code})"
+  end
+  description do
+    "expect block to call exit(#{exp_code})"
+  end
+end
+
 module OpNameStub
   module OpStubs
     def opname=(name)
@@ -31,7 +55,10 @@ end
 
 module ExitStub
   def exit!(status, message=nil)
-    raise Mrg::Grid::Config::Shell::ShellCommandFailure.new
+    error = Mrg::Grid::Config::Shell::ShellCommandFailure.new
+    error.status = status
+    error.message = message
+    raise error
   end
 end
 

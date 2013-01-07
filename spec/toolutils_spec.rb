@@ -34,11 +34,13 @@ module Mrg
             it "should continue running commands after an error" do
               new = 10
               setup_rhubarb
+              ret = 0
               @store = Store.new
               @optester.store = @store
               @store.addParam("EXIST")
               cmds = [[Mrg::Grid::Config::Shell::ModifyParam, ["NOEXIST"]], [Mrg::Grid::Config::Shell::ModifyParam, ["EXIST", "--level", "10"]]]
-              lambda {@optester.run_wscmds(cmds)}.should_not raise_error(ShellCommandFailure)
+              lambda {ret = @optester.run_wscmds(cmds)}.should_not raise_error(ShellCommandFailure)
+              ret.should_not == 0
               @optester.store.getParam("EXIST").level.should == 10
               teardown_rhubarb
             end

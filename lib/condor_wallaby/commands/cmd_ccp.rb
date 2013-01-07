@@ -433,8 +433,7 @@ module Mrg
               @cmds.push(save_snapshot_cmds) if (not name) || name.empty?
             end
 
-            run_wscmds(@cmds)
-            return 0
+            return run_wscmds(@cmds)
           end
         end
 
@@ -518,8 +517,7 @@ module Mrg
               @cmds.push([Mrg::Grid::Config::Shell::ShowNodeConfig, [name]])
             end
 
-            run_wscmds(@cmds)
-            return 0
+            return run_wscmds(@cmds)
           end
         end
 

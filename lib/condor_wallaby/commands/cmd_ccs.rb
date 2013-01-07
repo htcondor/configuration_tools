@@ -395,8 +395,7 @@ module Mrg
             edit_objs
             gen_update_cmds
 
-            run_wscmds(@cmds)
-            return 0
+            return run_wscmds(@cmds)
           end
         end
 
@@ -426,8 +425,7 @@ module Mrg
             edit_objs
             gen_update_cmds
 
-            run_wscmds(@cmds)
-            return 0
+            return run_wscmds(@cmds)
           end
         end
 
@@ -454,8 +452,7 @@ module Mrg
               end
             end
 
-            run_wscmds(@cmds)
-            return 0
+            return run_wscmds(@cmds)
           end
         end
 
@@ -480,8 +477,7 @@ module Mrg
               @cmds.push([Mrg::Grid::Config::Shell.const_get(c), []])
             end
 
-            run_wscmds(@cmds)
-            return 0
+            return run_wscmds(@cmds)
           end
 
           Mrg::Grid::Config::Shell.register_command(self, "ccp-listall")
@@ -511,8 +507,7 @@ module Mrg
               return 0
             end
 
-            run_wscmds(@cmds)
-            return 0
+            return run_wscmds(@cmds)
           end
         end
       end

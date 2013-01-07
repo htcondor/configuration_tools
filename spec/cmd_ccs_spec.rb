@@ -118,7 +118,7 @@ module Mrg
                 m.entities[ent] = {@name=>nil}
                 m.stub(:edit_objs)
                 m.should_not_receive(:edit_objs)
-                lambda {m.act}.should raise_error(ShellCommandFailure)
+                lambda {m.act}.should raise_error(ShellCommandFailure) && exit_with_code(1)
               end
             end
           end
@@ -161,7 +161,7 @@ module Mrg
                 m.entities[ent] = {@name=>nil}
                 m.stub(:edit_objs)
                 m.should_not_receive(:edit_objs)
-                lambda {m.act}.should raise_error(ShellCommandFailure)
+                lambda {m.act}.should raise_error(ShellCommandFailure) and exit_with_code(1)
               end
             end
           end

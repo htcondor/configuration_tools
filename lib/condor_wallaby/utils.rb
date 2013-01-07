@@ -23,9 +23,13 @@ module Mrg
         module ToolUtils
 
           def run_wscmds(cmd_list)
+            ret = 0
             cmd_list.compact.each do |cmdset|
-              puts "warning: #{cmdset[0].to_s.split("::").last} returned non-zero" if cmdset[0].new(store, "").main(cmdset[1].flatten) != 0
+              cret = cmdset[0].new(store, "").main(cmdset[1].flatten)
+              puts "warning: #{cmdset[0].to_s.split("::").last} returned non-zero" if cret != 0
+              ret |= cret
             end
+            ret
           end
 
           def run_cmdline(cmd)

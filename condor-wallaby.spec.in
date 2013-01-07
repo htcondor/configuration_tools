@@ -179,6 +179,13 @@ rm -rf %{buildroot}
 /%{ruby_install_dir}/condor_wallaby/commands/cmd_ccs.rb
 
 %changelog
+* Mon Jan  7 2012  <rrati@redhat> - 5.0.5-1
+- Better handling of metadata munging in the editor (BZ885033 & BZ880973)
+- Tools exit with non-zero code for failures (BZ885157)
+- Fixed issue with ccp prompting for values for parameters added in editor (BZ884659)
+- Tools check for existence of entities before acting (BZ880231 & BZ884768)
+- Fixed issue with port argument (BZ885992)
+
 * Wed Dec  5 2012  <rrati@redhat> - 5.0.4-1
 - Fixed issues passing broker connection options to wallaby shell (BZ881082)
 - Fixed issues handling invalid data from the editor (BZ879276 & BZ880973)

@@ -179,7 +179,7 @@ rm -rf %{buildroot}
 /%{ruby_install_dir}/condor_wallaby/commands/cmd_ccs.rb
 
 %changelog
-* Mon Jan  7 2012  <rrati@redhat> - 5.0.5-1
+* Mon Jan  7 2013  <rrati@redhat> - 5.0.5-1
 - Better handling of metadata munging in the editor (BZ885033 & BZ880973)
 - Tools exit with non-zero code for failures (BZ885157)
 - Fixed issue with ccp prompting for values for parameters added in editor (BZ884659)

@@ -362,7 +362,7 @@ module Mrg
             wscmd = Mrg::Grid::Config::Shell.constants.grep(/Modify#{type.to_s.capitalize[0..4]}/).first
             wscmd = Mrg::Grid::Config::Shell.const_get(wscmd) if wscmd
             cmd = []
-            cmd << [wscmd, [obj.name, "--annotation", obj.annotation]] if obj.respond_to?(:annotation) && wscmd
+            cmd << [wscmd, [obj.name, "--annotation", obj.annotation.to_s]] if obj.respond_to?(:annotation) && wscmd
             cmd
           end
         end

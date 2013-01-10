@@ -123,7 +123,8 @@ cp -f condor_configure_store %{buildroot}/%_sbindir
 cp -f condor_configd %{buildroot}/%_sbindir
 cp -f config/99configd.config %{buildroot}/%_sysconfdir/condor/config.d
 cp -f lib/wallabyclient/*.py %{buildroot}/%{python_sitelib}/wallabyclient
-cp -rf lib/condor_wallaby/* %{buildroot}/%{ruby_install_dir}/condor_wallaby
+cp -f lib/condor_wallaby/*.rb %{buildroot}/%{ruby_install_dir}/condor_wallaby
+cp -f lib/condor_wallaby/commands/*.rb %{buildroot}/%{ruby_install_dir}/condor_wallaby/commands
 %if 0%{?rhel} != 4
 cp -f doc/*.1 %{buildroot}/%_mandir/man1
 %endif
@@ -179,6 +180,9 @@ rm -rf %{buildroot}
 /%{ruby_install_dir}/condor_wallaby/commands/cmd_ccs.rb
 
 %changelog
+* Thu Jan 10 2013  <rrati@redhat> - 5.0.5-2
+- Fixed issue with empty annotation field from the editor (BZ880973)
+
 * Mon Jan  7 2013  <rrati@redhat> - 5.0.5-1
 - Better handling of metadata munging in the editor (BZ885033 & BZ880973)
 - Tools exit with non-zero code for failures (BZ885157)

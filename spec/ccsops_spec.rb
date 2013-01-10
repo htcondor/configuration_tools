@@ -431,6 +431,17 @@ module Mrg
                   cmd.should == []
                 end
               end
+
+              if supports_annotation
+                it "should convert a nil annotation value to an empty string" do
+                  o = @tester.create_obj(name, ent)
+                  o.annotation = nil
+                  cmd = @tester.update_annotation(ent, o)
+                  loc = cmd[0].last.index("--annotation")
+                  loc.should_not == nil
+                  cmd[0].last[loc+1].should == ""
+                end
+              end
             end
           end
 

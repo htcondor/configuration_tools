@@ -366,7 +366,6 @@ class Configd:
       self.config_dir = read_condor_config("", ["LOCAL_CONFIG_DIR"])["local_config_dir"]
       if os.access(self.config_dir, os.F_OK) != True or os.access(self.config_dir, os.R_OK) != True:
         raise RuntimeError("\"%s\" either is not a directory or has incorrect permissions." % self.config_dir)
-      self.config_dir = dir
     except ConfigError, error:
       raise RuntimeError(error.msg + ". Unable to read configuration files")
     except Exception, e:
@@ -518,14 +517,14 @@ class Configd:
 
     # Check in with the store
     log(logging.DEBUG, self.log_name, "Performing a checkin with the store")
-#    try:
-#      node_obj.checkin()
-#    except Exception, error:
-#      if stop_running == False:
-#        log(logging.ERROR, self.log_name, error)
-#        log(logging.ERROR, self.log_name, "Failed to check in with the store")
-#      return(False)
-#    log(logging.DEBUG, self.log_name, "Checked in with the store")
+    try:
+      node_obj.checkin()
+    except Exception, error:
+      if self.stop_running == False:
+        log(logging.ERROR, self.log_name, error)
+        log(logging.ERROR, self.log_name, "Failed to check in with the store")
+      return(False)
+    log(logging.DEBUG, self.log_name, "Checked in with the store")
 
     # Get the current WALLABY_CONFIG_VERSION.  If the system is running the
     # version as what was received, then there's no need to do anything
@@ -643,7 +642,8 @@ class Configd:
             if name in dlist:
               os.write(file_hdl, "%s.SEC_ADMINISTRATOR_AUTHENTICATION_METHODS = $(%s.SEC_ADMINISTRATOR_AUTHENTICATION_METHODS), FS, NTLM, CLAIMTOBE\n" % (name, name))
       os.close(file_hdl)
-    except IOError:
+    except IOError, e:
+      log(logging.ERROR, self.log_name, e)
       try:
         os.close(file_hdl)
         os.remove(file_name)

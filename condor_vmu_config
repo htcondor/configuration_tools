@@ -34,11 +34,16 @@ class VMUFeature:
     self.bridge = None
     self.config = {}
 
+  def init(self):
+    for v in self.__dict__:
+      if "VMU_%s" % v in os.environ.keys():
+        setattr(self, v, os.environ["VMU_%s" % v])
+
   def parse_args(self):
     cargs = ["net", "net_type", "net_def", "bridge"]
 
-    parser = OptionParser("usage: %prog [options] ARG=VALUE ...\n" + "arg is one of %s" % cargs)
-    parser.add_option("-f", "--file", dest="infile", type="string", help="read feature data from INFILE", metavar="FILE")
+    parser = OptionParser("usage: %prog [options] ARG=VALUE ...\n" + "Where ARG is one of %s" % ', '.join(map(str, cargs)))
+    parser.add_option("-f", "--file", dest="infile", type="string", help="read feature data from INFILE.  If provided, arguments provided on the command line will be ignored", metavar="INFILE")
     parser.add_option("-o", "--outfile", dest="outfile", type="string", help="save configuration to OUTFILE", metavar="OUTFILE")
     parser.add_option("-n", "--name", dest="name", type="string", help="name of the feature")
     parser.add_option("-i", "--include", dest="include", type="string", help="name of the feature to include [default: %s]" % self.include)
@@ -54,13 +59,12 @@ class VMUFeature:
       parser.read(opts.infile)
       self.name = parser.sections().pop()
       for n, v in parser.items(self.name):
-        print n
         if hasattr(self, n) == False:
           raise RuntimeError("%s is an invalid argument" % n)
         setattr(self, n, v)
     else:
       # Minimally need to provide networking option
-      if len(args) < 1:
+      if len(args) < 1 and self.net == None:
         parser.print_help()
         raise RuntimeError("Incorrect number of arguments")
       else:
@@ -129,6 +133,7 @@ class VMUFeature:
       raise RuntimeError("There was a problem adding the feature to the store")
 
   def create(self):
+    self.init()
     self.parse_args()
     self.type_args()
     self.net_args()

@@ -76,11 +76,13 @@ class Configd:
     self.replacing_file = False
     self.stop_running = False
     self.retrieve = False
+    self.notifications = False
     self.periodic_timer = None
     self.shutdown_timer = None
     self.broker_connection = None
     self.session = None
     self.receiver = None
+    self.address = "mrg.grid.config.notifications"
     self.old_config_filename = "condor.old_config"
     self.periodic_thread = "Thread for Interval Timer"
     self.shutdown_thread = "Thread for Windows Shutdown Timer"
@@ -223,20 +225,19 @@ class Configd:
     user = ""
     password = ""
     port = 5672
-    notifications = False
 
     if self.broker_connection != None:
       self.broker_connection.close()
       self.broker_connection = None
 
     try:
-      notifications = (read_condor_config("CONFIGD", ["ENABLE_NOTIFICATIONS"], permit_param_only = False)["enable_notifications"].upper() == "TRUE")
+      self.notifications = (read_condor_config("CONFIGD", ["ENABLE_NOTIFICATIONS"], permit_param_only = False)["enable_notifications"].upper() == "TRUE")
     except ConfigError, error:
       log(logging.DEBUG, self.log_name, error.msg)
     except Exception, e:
       log(logging.DEBUG, self.log_name, e)
 
-    if notifications == False:
+    if self.notifications == False:
       log(logging.INFO, self.log_name, "Receiving configuration notifications disabled")
     else:
       try:
@@ -272,7 +273,6 @@ class Configd:
 
       try:
         user = str(read_condor_config("CONFIGD", ["BROKER_USERNAME"])["broker_username"])
-        log(logging.INFO, self.log_name, "Authenticating to broker as user %s" % user)
       except ConfigError, error:
         log(logging.DEBUG, self.log_name, error.msg)
       except Exception, e:
@@ -298,10 +298,17 @@ class Configd:
       else:
         log(logging.INFO, self.log_name, "Will supply a password for broker authentication")
 
+      try:
+        self.address = str(read_condor_config("CONFIGD", ["BROKER_ADDRESS"])["broker_address"])
+      except ConfigError, error:
+        log(logging.DEBUG, self.log_name, error.msg)
+      except Exception, e:
+        log(logging.DEBUG, self.log_name, e)
+      log(logging.DEBUG, self.log_name, "Listening for notifications from address %s" % self.address)
+
       self.broker_connection = Connection("%s:%s" % (host, port), username=user, password=password, sasl_mechanisms=methods, reconnect=True)
       self.broker_connection.open()
       self.session = self.broker_connection.session()
-      self.receiver = self.session.receiver("amq.fanout")
 
 
   def config(self):
@@ -408,6 +415,14 @@ class Configd:
     return(obj)
 
 
+  def connect_receiver(self):
+    try:
+      self.receiver = self.session.receiver(self.address)
+    except Exception, e:
+      log(logging.DEBUG, self.log_name, e)
+      self.receiver = None
+
+
   def get_node_obj(self):
     store = self.get_store_obj()
     if store == None:
@@ -448,7 +463,7 @@ class Configd:
       self.shutdown_timer.start()
 
 
-  def monitor_timers():
+  def monitor_timers(self):
     interval_found = False
     shutdown_found = False
 
@@ -777,13 +792,23 @@ class Configd:
 
 
   def check_for_notification(self):
+    from qpid.messaging import Empty
+
     msg = None
+
+    if self.receiver == None:
+      self.connect_receiver()
 
     if self.receiver != None:
       try:
-        msg = self.receiver.fetch()
-      except:
+        msg = self.receiver.fetch(timeout=0)
+      except Empty:
+        # No notification
         pass
+      except Exception, e:
+        # We lost our connection so force recreation
+        log(logging.WARNING, self.log_name, e)
+        self.receiver = None
 
     if msg != None:
       log(logging.DEBUG, self.log_name, "Received a configuration change notification")
@@ -794,7 +819,7 @@ class Configd:
           log(logging.ERROR, self.log_name, "Failed to install configuration version \"%s\"" % ver)
       else:
         log(logging.DEBUG, self.log_name, "The notification is not for this node")
-        
+      self.session.acknowledge()
 
 
   def main(self):
@@ -837,8 +862,8 @@ class Configd:
       while self.stop_running == False or self.replacing_file == True:
         try:
           time.sleep(1)
-
-          self.check_for_notification()
+          if self.notifications == True:
+            self.check_for_notification()
 
 #          # Check to see if there is a new configuration version to install
 #          if version_queue.qsize() > 0:
@@ -874,7 +899,8 @@ class Configd:
 
                # Verify timers are still running
           self.monitor_timers()
-        except:
+        except Exception, e:
+          log(logging.WARNING, self.log_name, e)
           pass
 
       self.shutdown()

@@ -45,9 +45,9 @@ Summary: Wallaby configuration client for HTCondor
 Group: Applications/System
 Requires: condor >= 7.4.4-0.9
 Requires: python >= 2.3
-Requires: python-qmf >= 0.9.1073306
+Requires: python-qpid
 Requires: python-condorutils >= 1.5-4
-Requires: python-wallabyclient = %{version}-%{release}
+Requires: python-wallaby
 %if 0%{?fedora} == 0
 Obsoletes: condor-remote-configuration
 %endif
@@ -58,37 +58,6 @@ running HTCondor by providing tools to define configurations in wallaby and
 apply them to nodes.
 
 This package provides the tools needed for managed clients
-
-%if 0%{?rhel} != 4
-%package tools
-Summary: Wallaby configuration tools for configuring HTCondor
-Group: Applications/System
-Requires: ruby(abi) = %{?ruby_abi}
-Requires: ruby-%{name} = %{version}-%{release}
-Requires: wallaby-utils > 0.14.2-2
-Requires: vim-minimal
-%if 0%{?fedora} == 0
-Obsoletes: condor-remote-configuration-server
-%endif
-
-%description tools
-This package provides a means to quickly and easily configure machines
-running HTCondor by providing tools to define configurations in wallaby and
-apply them to nodes.
-
-This package provides tools to apply configurations to nodes/groups and
-to configure entities in wallaby
-%endif
-
-%package -n python-wallabyclient
-Summary: Tools for interacting with wallaby
-Group: Applications/System
-BuildRequires: python-devel
-Requires: python >= 2.3
-Requires: python-condorutils >= 1.5-4
-
-%description -n python-wallabyclient
-Tools for interacting with wallaby
 
 %package -n ruby-%{name}
 Summary: Tools for use with wallaby shell
@@ -112,22 +81,12 @@ rm -rf %{buildroot}
 %endif
 mkdir -p %{buildroot}/%{ruby_install_dir}/condor_wallaby
 mkdir -p %{buildroot}/%{ruby_install_dir}/condor_wallaby/commands
-mkdir -p %{buildroot}/%{python_sitelib}/wallabyclient
 mkdir -p %{buildroot}/%_sbindir
 mkdir -p %{buildroot}/%_sysconfdir/condor/config.d
-mkdir -p %{buildroot}/%_mandir/man1
-%if 0%{?rhel} != 4
-cp -f condor_configure_pool %{buildroot}/%_sbindir
-cp -f condor_configure_store %{buildroot}/%_sbindir
-%endif
 cp -f condor_configd %{buildroot}/%_sbindir
 cp -f config/99configd.config %{buildroot}/%_sysconfdir/condor/config.d
-cp -f lib/wallabyclient/*.py %{buildroot}/%{python_sitelib}/wallabyclient
 cp -f lib/condor_wallaby/*.rb %{buildroot}/%{ruby_install_dir}/condor_wallaby
 cp -f lib/condor_wallaby/commands/*.rb %{buildroot}/%{ruby_install_dir}/condor_wallaby/commands
-%if 0%{?rhel} != 4
-cp -f doc/*.1 %{buildroot}/%_mandir/man1
-%endif
 
 %if %{building_for_el5}
 %clean
@@ -144,40 +103,15 @@ rm -rf %{buildroot}
 %defattr(0644,root,root,-)
 %_sysconfdir/condor/config.d/99configd.config
 
-%if 0%{?rhel} != 4
-%files tools
-%if %{building_for_el5}
-%defattr(-,root,root,-)
-%endif
-%doc LICENSE-2.0.txt README
-%doc %_mandir/man1/*
-%defattr(0755,root,root,-)
-%_sbindir/condor_configure_store
-%_sbindir/condor_configure_pool
-%endif
-
-%files -n python-wallabyclient
-%if %{building_for_el5}
-%defattr(-,root,root,-)
-%endif
-%doc LICENSE-2.0.txt
-%defattr(0644, root,root,-)
-%{python_sitelib}/wallabyclient/WallabyHelpers.py*
-%{python_sitelib}/wallabyclient/__init__.py*
-%{python_sitelib}/wallabyclient/exceptions.py*
-
 %files -n ruby-%{name}
 %if %{building_for_el5}
 %defattr(-,root,root,-)
 %endif
 %doc LICENSE-2.0.txt
 %defattr(0644, root,root,-)
-/%{ruby_install_dir}/condor_wallaby/ccp.rb
-/%{ruby_install_dir}/condor_wallaby/ccs.rb
-/%{ruby_install_dir}/condor_wallaby/cmdline.rb
-/%{ruby_install_dir}/condor_wallaby/utils.rb
-/%{ruby_install_dir}/condor_wallaby/commands/cmd_ccp.rb
-/%{ruby_install_dir}/condor_wallaby/commands/cmd_ccs.rb
+/%{ruby_install_dir}/condor_wallaby/configparser.rb
+/%{ruby_install_dir}/condor_wallaby/commands/cmd_condor_ec2e.rb
+/%{ruby_install_dir}/condor_wallaby/commands/cmd_condor_vmu.rb
 
 %changelog
 * Thu Jan 10 2013  <rrati@redhat> - 5.0.5-2

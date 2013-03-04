@@ -23,6 +23,7 @@ module Wallaroo
         data = Hash.new {|h,k| h[k] = {}}
         section = ""
         text.split(/\n/).each do |line|
+          nvp = nil
           if line =~ /\s*\[(.+)\]/
             section = $1 
             next
@@ -32,7 +33,7 @@ module Wallaroo
           end
           nvp = line.split('=', 2) if line.include?('=')
           nvp = line.split(':', 2) if line.include?(':') if not nvp
-          data[section][nvp[0].strip.to_sym] = nvp[1].strip
+          data[section][nvp[0].strip.to_sym] = nvp[1].strip if nvp
         end
         data
       end

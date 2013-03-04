@@ -1,4 +1,5 @@
-# cmd_condor_vmu.rb:  
+# cmd_condor_vmu.rb: Commands for configuring condor's
+#                    Vitual Machine  Universe
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -17,9 +18,9 @@ require 'condor_wallaby/configparser'
 
 module Wallaroo
   module Shell
-    class AddCondorVmuFeature < Command
+    class AddVmuFeature < Command
       def self.opname
-        "add-condor-vmu-feature"
+        "add-vmu-feature"
       end
     
       def self.description
@@ -32,7 +33,7 @@ module Wallaroo
       end
 
       def fdata(arg)
-        @fdata.keys.include?(name) ? fdata[name][arg] : nil
+        @fdata.keys.include?(name) ? @fdata[name][arg] : nil
       end
 
       def type

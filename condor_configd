@@ -1,5 +1,5 @@
 #!/usr/bin/python
-#   Copyright 2008 Red Hat, Inc.
+#   Copyright 2013 Red Hat, Inc.
 #
 #   Licensed under the Apache License, Version 2.0 (the "License");
 #   you may not use this file except in compliance with the License.
@@ -26,996 +26,894 @@ import random
 import tempfile
 import shutil
 import stat
-from qmf.console import Session, Console
+import wallaroo
 from condorutils.log import *
 from condorutils.readconfig import *
-from wallabyclient import WallabyHelpers
-from wallabyclient.exceptions import WallabyUnsupportedAPI
-
 
 class Timer (threading.Thread):
-   def __init__(self, interval, function, name=None, args=[], kwargs={}):
-      threading.Thread.__init__(self)
-      if name != None:
-         self.name = name
-      self.interval = interval
-      self.function = function
-      self.args = args
-      self.kwargs = kwargs
-      self.setDaemon(True)
-      self.finished = threading.Event()
+  def __init__(self, interval, function, name=None, args=[], kwargs={}):
+    threading.Thread.__init__(self)
+    if name != None:
+      self.name = name
+    self.interval = interval
+    self.function = function
+    self.args = args
+    self.kwargs = kwargs
+    self.setDaemon(True)
+    self.finished = threading.Event()
 
 
-   def stop(self):
-      self.finished.set()
-      self.join()
+  def stop(self):
+    self.finished.set()
+    self.join()
 
 
-   def run(self):
-      while not self.finished.isSet():
-         self.finished.wait(self.interval)
-         if not self.finished.isSet():
-            self.function(*self.args, **self.kwargs)
+  def run(self):
+    while not self.finished.isSet():
+      self.finished.wait(self.interval)
+      if not self.finished.isSet():
+        self.function(*self.args, **self.kwargs)
+
+class Configd:
+  def __init__(self):
+    self.connect_opts = {"tag":"current"}
+    self.checkin_interval = 0
+    self.shutdown_interval = 0
+#    self.backoff_factor = 2
+#    self.backoff_const = 9
+    self.log_name = os.path.basename(sys.argv[0])
+    self.node_name = socket.gethostname()
+    self.managedfile = ""
+    self.config_dir = ""
+    self.override_dir = ""
+    self.old_config = ""
+    self.opt_user = ""
+    self.opt_passwd = ""
+    self.opt_file = ""
+    self.log_file = ""
+    self.log_level = logging.INFO
+    self.pidfile = os.path.normpath(os.getcwd() + "/.pid" + str(os.getpid()))
+    self.replacing_file = False
+    self.stop_running = False
+    self.retrieve = False
+    self.notifications = False
+    self.periodic_timer = None
+    self.shutdown_timer = None
+    self.broker_connection = None
+    self.session = None
+    self.receiver = None
+    self.address = "mrg.grid.config.notifications"
+    self.old_config_filename = "condor.old_config"
+    self.periodic_thread = "Thread for Interval Timer"
+    self.shutdown_thread = "Thread for Windows Shutdown Timer"
 
 
-class EventConsole(Console):
-   def __init__(self):
-      self.logger_name = ''
-      self.node_name = ''
-      self.agent = None
+  def set_handlers(self):
+    # Set signal handlers
+    signal.signal(signal.SIGINT, self.start_shutdown)
+    signal.signal(signal.SIGTERM, self.start_shutdown)
+    signal.signal(signal.SIGABRT, self.start_shutdown)
+    signal.signal(signal.SIGILL, self.start_shutdown)
+    signal.signal(signal.SIGFPE, self.start_shutdown)
+    signal.signal(signal.SIGSEGV, self.start_shutdown)
+    if not self.is_windows():
+       # These aren't available on windows
+       signal.signal(signal.SIGQUIT, self.start_shutdown)
+       signal.signal(signal.SIGHUP, self.reconfig)
 
 
-   def config(self, node_name, log_name):
-      self.node_name = node_name
-      self.logger_name = log_name
+  def parse_args(self):
+    long_opts = ["debug", "hostname=", "logfile=", "managedfile=", 
+                 "password=", "retrieve", "user="]
+
+    try:
+      opts, args = getopt.gnu_getopt(sys.argv[1:], "dh:l:m:rP:U:", long_opts)
+    except getopt.GetoptError, error:
+      print str(error)
+      return(1)
+
+    for option, arg in opts:
+      if option in ("-d", "--debug"):
+        self.log_level = logging.DEBUG
+      if option in ("-h", "--hostname"):
+        self.node_name = arg.strip()
+      if option in ("-l", "--logfile"):
+        self.log_file = arg.strip()
+      if option in ("-m", "--managedfile"):
+        self.opt_file = arg.strip()
+      if option in ("-P", "--password"):
+        self.opt_passwd = arg.strip()
+      if option in ("-r", "--retrieve"):
+        self.retrieve = True
+      if option in ("-U", "--user"):
+        self.opt_user = arg.strip()
 
 
-   def brokerConnected(self, broker):
-      log(logging.DEBUG, self.logger_name, 'Connected to broker "%s"' % broker.getUrl())
+  def init(self):
+    self.set_handlers()
+    self.parse_args()
+
+    # Configure the logging system
+    if self.log_file == "":
+      try:
+        self.log_file = read_condor_config("CONFIGD", ["LOG"], permit_param_only = False)["log"]
+      except ConfigError, error:
+        print "Error: %s.  Exiting" % error.msg
+        return(1)
+
+    try:
+      size = int(read_condor_config("", ["MAX_CONFIGD_LOG"])["max_configd_log"])
+    except:
+      size = 1000000
+
+    # Create the log file
+    try:
+      create_file_logger(self.log_name, self.log_file, self.log_level, size=size)
+    except Exception, e:
+      print e
+      print "Failed to open log file.  Exiting"
+      return(1)
 
 
-   def brokerDisconnected(self, broker):
-      log(logging.DEBUG, self.logger_name, 'Lost connection to broker "%s"' % broker.getUrl())
+  def config_store(self):
+    user = self.opt_user
+    password = self.opt_passwd
+
+    try:
+      host = read_condor_config("CONFIGD", ["STORE_HOST"])["store_host"]
+    except ConfigError, error:
+      log(logging.WARNING, self.log_name, error.msg)
+    except Exception, e:
+      log(logging.WARNING, self.log_name, e)
+
+    try:
+      self.connect_opts["host"] = host
+    except:
+      log(logging.WARNING, self.log_name, "Using default (127.0.0.1)")
+      self.connect_opts["host"] = "127.0.0.1"
+
+    try:
+      port = read_condor_config("CONFIGD", ["STORE_PORT"])["store_port"]
+    except ConfigError, error:
+      log(logging.DEBUG, self.log_name, error.msg)
+    except Exception, e:
+      log(logging.DEBUG, self.log_name, e)
+
+    try:
+      self.connect_opts["port"] = int(port)
+    except:
+      log(logging.DEBUG, self.log_name, "Invalid or undefined port.  Using default (8000)")
+      self.connect_opts["port"] = 8000
+
+    if self.opt_user == "":
+      try:
+        user = str(read_condor_config("CONFIGD", ["STORE_USERNAME"])["store_username"])
+      except ConfigError, error:
+        log(logging.DEBUG, self.log_name, error.msg)
+      except Exception, e:
+        log(logging.DEBUG, self.log_name, e)
+
+    if user == "":
+      log(logging.INFO, self.log_name, "Authenticating to the store as default user")
+      user = None
+    else:
+      log(logging.INFO, self.log_name, "Authenticating to the store as user %s" % user)
+    self.connect_opts["username"] = user
+
+    if self.opt_passwd == "":
+      try:
+        pwfile = str(read_condor_config("CONFIGD", ["STORE_PASSWORD_FILE"])["store_password_file"])
+        fobj = open(pwfile, 'r')
+        password = fobj.read().strip()
+        fobj.close()
+      except ConfigError, error:
+        log(logging.DEBUG, self.log_name, error.msg)
+      except Exception, e:
+        log(logging.DEBUG, self.log_name, e)
+
+    if password == "":
+      log(logging.INFO, self.log_name, "Will not supply a password for store authentication")
+      password = None
+    else:
+      log(logging.INFO, self.log_name, "Will supply a password for store authentication")
+    self.connect_opts["pw"] = password
+
+
+  def config_broker(self):
+    methods = "ANONYMOUS"
+    host = "127.0.0.1"
+    user = ""
+    password = ""
+    port = 5672
+
+    if self.broker_connection != None:
+      self.broker_connection.close()
+      self.broker_connection = None
+
+    try:
+      self.notifications = (read_condor_config("CONFIGD", ["ENABLE_NOTIFICATIONS"], permit_param_only = False)["enable_notifications"].upper() == "TRUE")
+    except ConfigError, error:
+      log(logging.DEBUG, self.log_name, error.msg)
+    except Exception, e:
+      log(logging.DEBUG, self.log_name, e)
+
+    if self.notifications == False:
+      log(logging.INFO, self.log_name, "Receiving configuration notifications disabled")
+    else:
+      try:
+        from qpid.messaging import Connection
+      except:
+        log(logging.INFO, self.log_name, "Can't find notification support libraries.  This node will not receive configuration notifications")
+        return
+
+      log(logging.INFO, self.log_name, "Receiving configuration notifications enabled")
+      try:
+        host = read_condor_config("CONFIGD", ["BROKER_HOST"], permit_param_only = False)["broker_host"]
+      except ConfigError, error:
+        log(logging.DEBUG, self.log_name, error.msg)
+      except Exception, e:
+        log(logging.DEBUG, self.log_name, e)
+      log(logging.DEBUG, self.log_name, "Connecting to broker at %s" % host)
+
+      try:
+        port = int(read_condor_config("CONFIGD", ["BROKER_PORT"], permit_param_only = False)["broker_port"])
+      except ConfigError, error:
+        log(logging.DEBUG, self.log_name, error.msg)
+      except Exception, e:
+        log(logging.DEBUG, self.log_name, e)
+      log(logging.DEBUG, self.log_name, "Using port %d to connect to the broker" % port)
+
+      try:
+        methods = str(read_condor_config("CONFIGD", ["BROKER_AUTH_MECH"])["broker_auth_mech"]).replace(',', ' ')
+      except ConfigError, error:
+        log(logging.DEBUG, self.log_name, error.msg)
+      except Exception, e:
+        log(logging.DEBUG, self.log_name, e)
+      log(logging.DEBUG, self.log_name, "Connecting with authentication methods \"%s\"" % methods)
+
+      try:
+        user = str(read_condor_config("CONFIGD", ["BROKER_USERNAME"])["broker_username"])
+      except ConfigError, error:
+        log(logging.DEBUG, self.log_name, error.msg)
+      except Exception, e:
+        log(logging.DEBUG, self.log_name, e)
+
+      if user == "":
+        log(logging.INFO, self.log_name, "Authenticating to broker as default user")
+      else:
+        log(logging.INFO, self.log_name, "Authenticating to broker as user %s" % user)
+
+      try:
+        pwfile = str(read_condor_config("CONFIGD", ["BROKER_PASSWORD_FILE"])["broker_password_file"])
+        fobj = open(pwfile, 'r')
+        password = fobj.read().strip()
+        fobj.close()
+      except ConfigError, error:
+        log(logging.DEBUG, self.log_name, error.msg)
+      except Exception, e:
+        log(logging.DEBUG, self.log_name, e)
+
+      if password == "":
+        log(logging.INFO, self.log_name, "Will not supply a password for broker authentication")
+      else:
+        log(logging.INFO, self.log_name, "Will supply a password for broker authentication")
+
+      try:
+        self.address = str(read_condor_config("CONFIGD", ["BROKER_ADDRESS"])["broker_address"])
+      except ConfigError, error:
+        log(logging.DEBUG, self.log_name, error.msg)
+      except Exception, e:
+        log(logging.DEBUG, self.log_name, e)
+      log(logging.DEBUG, self.log_name, "Listening for notifications from address %s" % self.address)
+
+      self.broker_connection = Connection("%s:%s" % (host, port), username=user, password=password, sasl_mechanisms=methods, reconnect=True)
+      self.broker_connection.open()
+      self.session = self.broker_connection.session()
+
+
+  def config(self):
+    filename = self.opt_file
+
+#    try:
+#      val = int(read_condor_config("CONFIGD", ["BACKOFF_FACTOR"])["backoff_factor"])
+#      if val > 0:
+#         self.backoff_factor = val
+#    except:
+#      pass
+#
+#    try:
+#      val = int(read_condor_config("CONFIGD", ["BACKOFF_CONSTANT"])["backoff_constant"])
+#      if val > 0:
+#        self.backoff_const = val
+#    except:
+#      pass
+
+    # Store connection params
+    self.config_store()
+
+    # Broker params for notifications
+    self.config_broker()
+
+    try:
+      self.checkin_interval = int(read_condor_config("CONFIGD", ["CHECK_INTERVAL"], permit_param_only = False)["check_interval"])
+    except ConfigError, error:
+      log(logging.INFO, self.log_name, error.msg)
+    except Exception, e:
+      log(logging.INFO, self.log_name, e)
+
+    if self.checkin_interval <= 0:
+      log(logging.INFO, self.log_name, "Invalid CHECK_INTERVAL. Using default (3600)")
+      self.checkin_interval = 3600
+
+    if self.is_windows():
+      try:
+        self.shutdown_interval = int(read_condor_config("CONFIGD", ["WIN_INTERVAL"], permit_param_only = False)["win_interval"])
+      except ConfigError, error:
+        log(logging.WARNING, self.log_name, error.msg)
+      except:
+        log(logging.WARNING, self.log_name, "WIN_INTERVAL must be a valid integer value")
+
+      # Ensure there is a valid interval above 0 as this timer can not be
+      # disabled
+      if self.shutdown_interval <= 0:
+        log(logging.WARNING, self.log_name, "Using default WIN_INTERVAL (5)")
+        self.shutdown_interval = 5
+
+    if self.opt_file == "":
+      try:
+        filename = read_condor_config("", ["LOCAL_CONFIG_FILE"])["local_config_file"]
+      except ConfigError, error:
+        raise RuntimeError(error.msg + ". Unable to write to configuration file")
+      except Exception, e:
+        raise RuntimeError(e + ". Invalid value for LOCAL_CONFIG_FILE")
+    self.managedfile = os.path.normpath(filename)
+    log(logging.DEBUG, self.log_name, "Writing configuration to \"%s\"" % self.managedfile)
+
+    try:
+      self.config_dir = read_condor_config("", ["LOCAL_CONFIG_DIR"])["local_config_dir"]
+      if os.access(self.config_dir, os.F_OK) != True or os.access(self.config_dir, os.R_OK) != True:
+        raise RuntimeError("\"%s\" either is not a directory or has incorrect permissions." % self.config_dir)
+    except ConfigError, error:
+      raise RuntimeError(error.msg + ". Unable to read configuration files")
+    except Exception, e:
+      raise RuntimeError(e + ". Invalid value for LOCAL_CONFIG_DIR")
+
+    try:
+      self.override_dir = read_condor_config("CONFIGD", ["OVERRIDE_DIR"], permit_param_only = False)["override_dir"]
+      if os.access(self.override_dir, os.F_OK) != True or os.access(self.override_dir, os.R_OK) != True:
+        log(logging.WARNING, self.log_name, "\"%s\" either is not a directory or has incorrect permissions.  Configuration overrides will not take effect" % self.override_dir)
+        self.override_dir = ""
+    except:
+      pass
+
+
+  def reconfig(self, signum, frame):
+    log(logging.DEBUG, self.log_name, "Received SIGHUP.  Reconfiguring")
+    try:
+      self.config()
+    except Exception, e:
+      log(logging.ERROR, self.log_name, e)
+      self.start_shutdown(signal.SIGTERM, None)
+      return
+    self.clear_interval_timer()
+    self.clear_shutdown_timer()
+    self.setup_timers()
+
+
+  def is_windows(self):
+    return(os.name == "nt" or os.name == "ce")
+
+
+  def get_store_obj(self):
+    try:
+      obj = wallaroo.client.connect(**self.connect_opts)
+    except Exception, e:
+      if self.stop_running == False:
+        log(logging.ERROR, self.log_name, e)
+        log(logging.ERROR, self.log_name, "Failed to contact configuration store")
+      return(None)
+    return(obj)
+
+
+  def connect_receiver(self):
+    try:
+      self.receiver = self.session.receiver(self.address)
+    except Exception, e:
+      log(logging.DEBUG, self.log_name, e)
+      self.receiver = None
+
+
+  def get_node_obj(self):
+    store = self.get_store_obj()
+    if store == None:
+      return(None)
+
+    try:
+      obj = store.getNode(self.node_name)
+    except Exception, e:
+      if self.stop_running == False:
+        log(logging.ERROR, self.log_name, "Exception retrieving node object")
+      return(None)
+    return(obj)
+
+
+  def clear_interval_timer(self):
+    if self.periodic_timer != None:
+      self.periodic_timer.stop()
+      del self.periodic_timer
+    self.periodic_timer = None
+
+
+  def clear_shutdown_timer(self):
+    if self.shutdown_timer != None:
+      self.shutdown_timer.stop()
+      del self.shutdown_timer
+    self.shutdown_timer = None
+
+
+  def setup_timers(self):
+    # Setup the timer for checking configuration version
+    if self.periodic_timer == None:
+      self.periodic_timer = Timer(self.checkin_interval, self.check_config_ver, self.periodic_thread)
+      self.periodic_timer.start()
+
+    # Set a timer for shutdown on windows
+    if self.is_windows() and self.shutdown_timer == None:
+      self.shutdown_timer = Timer(self.shutdown_interval, self.test_for_shutdown, self.shutdown_thread)
+      self.shutdown_timer.start()
+
+
+  def monitor_timers(self):
+    interval_found = False
+    shutdown_found = False
+
+    for thread in threading.enumerate():
+      if thread.name == self.periodic_thread:
+        interval_found = True
+
+      if self.is_windows() and thread.name == self.shutdown_thread:
+        shutdown_found = True
+
+    # Start the timers that are expected to be running but aren't
+    if interval_found != True and self.checkin_interval > 0:
+      log(logging.DEBUG, self.log_name, "Restarting interval timer")
+      self.clear_interval_timer()
+
+    if self.is_windows() and shutdown_found != True:
+      log(logging.DEBUG, self.log_name, "Restarting windows shutdown timer")
+      self.clear_shutdown_timer()
+
+    self.setup_timers()
+
+
+  def test_for_shutdown(self):
+    log(logging.DEBUG, self.log_name, "Testing for shutdown file")
+    if os.path.isfile(self.pidfile):
+      log(logging.DEBUG, self.log_name, "Found shutdown file")
+      os.remove(self.pidfile)
+      start_shutdown(signal.SIGTERM, None)
+
+
+  def start_shutdown(self, signum, frame):
+    if self.stop_running != True:
+      log(logging.DEBUG, self.log_name, "Shutting down")
+      self.clear_interval_timer()
+      self.clear_shutdown_timer()
+      log(logging.DEBUG, self.log_name, "Setting stop flag")
+    self.stop_running = True
+
+
+  def shutdown(self):
+    self.start_shutdown(signal.SIGTERM, None)
+    log(logging.INFO, self.log_name, "Exiting")
+    logging.shutdown()
+
+
+  def check_config_ver(self, ver=0, force=False):
+    log(logging.DEBUG, self.log_name, "Checking version of configuration")
+    node_obj = self.get_node_obj()
+    if node_obj == None:
+      return(False)
+
+    # If the passed version is 0, look at the last_updated_version
+    if ver == 0:
+      ver = node_obj.last_updated_version
+
+    # Retrieve and install the node's configuration (if needed)
+    return(self.get_config(ver, force))
+
+
+  def get_config(self, version=0, force=False):
+    ignore_params = ["WALLABY_FORCE_CONFIG_PULL", "WALLABY_FORCE_RESTART"]
+
+    node_obj = self.get_node_obj()
+    if node_obj == None:
+      return(False)
+
+    # Check in with the store
+    log(logging.DEBUG, self.log_name, "Performing a checkin with the store")
+    try:
+      node_obj.checkin()
+    except Exception, error:
+      if self.stop_running == False:
+        log(logging.ERROR, self.log_name, error)
+        log(logging.ERROR, self.log_name, "Failed to check in with the store")
+      return(False)
+    log(logging.DEBUG, self.log_name, "Checked in with the store")
+
+    # Get the current WALLABY_CONFIG_VERSION.  If the system is running the
+    # version as what was received, then there's no need to do anything
+    (retval, running_version, err) = run_cmd("condor_config_val WALLABY_CONFIG_VERSION")
+    try:
+      running_version = running_version.strip()
+    except:
+      running_version = ""
+ 
+    if version == running_version and force == False:
+      log(logging.DEBUG, self.log_name, "The system is already running configuration version \"%s\"" % version)
+      return(True)
+
+    log(logging.INFO, self.log_name, "Retrieving configuration version \"%s\" from the store" % version)
    
+    # Save the current configuraton
+    (file_hdl, self.old_config) = tempfile.mkstemp(".tmp", self.old_config_filename, text=True)
+    (retval, config_dump, err) = run_cmd("condor_config_val -dump")
 
-   def newAgent(self, agent):
-      global stop_running
+    # Write the config from the dump
+    for line in config_dump.split('\n'):
+      if "local_config_file" not in line.lower() and \
+         "local_config_dir" not in line.lower():
+        os.write(file_hdl, "%s\n" % line)
+    os.close(file_hdl)
 
-      if agent.label == 'com.redhat.grid.config:Store':
-         if self.agent != None:
-           log(logging.ERROR, self.logger_name, 'Multiple configuration stores detected.  Refusing to run against 2 or more configuration stores.')
-           stop_running = True
-         else:
-           log(logging.DEBUG, self.logger_name, 'Established connection to the configuration store')
-           self.agent = agent
+    # Retrieve the node's configuration
+    try:
+      if version == "":
+        config = node_obj.getConfig(**{})
+      else:
+        config = node_obj.getConfig(**{"version":version})
+    except Exception, error:
+      # Something has gone away
+      if self.stop_running == False:
+        log(logging.ERROR, self.log_name, error)
+        log(logging.ERROR, self.log_name, "Exception when attempting to retrieve configuration version \"%s\" from the store" % version)
+      return(False)
 
+    try:
+      (file_hdl,file_name) = tempfile.mkstemp(".tmp", "condor_config.local", text=True)
+      # Write the config from the store into the file
+      for key in config.keys():
+        if key.strip().lower() in ignore_params:
+          continue
+        if key.strip().lower() == "dc_daemon_list":
+          os.write(file_hdl, "%s =+ %s\n" % (key, config[key]))
+        else:
+          os.write(file_hdl, "%s = %s\n" % (key, config[key]))
 
-   def delAgent(self, agent):
-      global stop_running
+      store = self.get_store_obj()
 
-      if agent.label == 'com.redhat.grid.config:Store':
-         if stop_running == False:
-            log(logging.DEBUG, self.logger_name, 'Lost connection to the configuration store')
-         self.agent = None
+      # Add the wallaby group/feature information
+      features = []
+      for name in [node_obj.identity_group.name] + node_obj.memberships + ["+++DEFAULT"]:
+        o = store.getGroupByName(name)
+        for f in o.features:
+          if f not in features:
+            features += [f]
 
+      print_str = ""
+      for feat in features:
+        print_str += "%s," % feat
+      os.write(file_hdl, "WALLABYFEATURES = \"%s\"\n" % print_str[:-1])
 
-   def event(self, broker, event):
-      global version_queue
+      print_str = ""
+      for group in node_obj.memberships:
+        print_str += "%s," % group
+      os.write(file_hdl, "WallabyGroups = \"%s\"\n" % print_str[:-1])
+      os.write(file_hdl, "MASTER_ATTRS = $(MASTER_ATTRS), WallabyFeatures, WallabyGroups\n")
+      os.write(file_hdl, "STARTD_ATTRS = $(STARTD_ATTRS), WallabyFeatures, WallabyGroups\n")
 
-      if event.getClassKey().getClassName() == 'NodeUpdatedNotice':
-         log(logging.DEBUG, self.logger_name, 'Received a NodeUpdatedNotice')
-         try:
-            args = event.getArguments()
-            nodes = args['nodes']
-         except:
-            log(logging.ERROR, self.logger_name, 'Unable to determine affected nodes.  Discarding')
-            return
-         
-         if self.node_name in nodes or '*' in nodes:
-            log(logging.DEBUG, self.logger_name, 'The event is for this node')
+      # Now append the configuration from the configd configuration file
+      cfg_name = os.path.normpath("%s/99configd.config" % self.config_dir)
+      cfg_file = open(cfg_name, 'r')
+      for line in cfg_file:
+        os.write(file_hdl, line)
+      cfg_file.close()
+
+      # Process any overriden parameters
+      if self.override_dir != "":
+        entries = os.listdir(self.override_dir)
+        entries.sort()
+        for name in entries:
+          fname = os.path.normpath("%s/%s" % (self.override_dir, name))
+          if os.access(fname, os.R_OK) == True:
             try:
-               event_ver = int(args['version'])
+              hdl = open(fname, 'r')
+              os.write(file_hdl, "# Override from \"%s\"\n" % fname)
+              for line in hdl:
+                os.write(file_hdl, line)
             except:
-               log(logging.INFO, self.logger_name, 'Unable to determine configuration version in event.  Discarding')
-               return
+              log(logging.ERROR, self.log_name, "Problem reading file \"%s\"" % fname)
+              hdl.close()
+          else:
+            log(logging.ERROR, self.log_name, "Unable to access \"%s\".  Ignoring override file" % fname)
 
-            try:
-               version_queue.put(event_ver, False)
-            except Queue.Full, error:
-               log(logging.INFO, self.logger_name, 'Configuration version queue full.  Discarding event for version "%d"' % event_ver)
-
-
-   def get_store_agent(self):
-      return self.agent
-
-
-class Service:
-   def __init__(self):
-      self.broker = None
-      self.console = None
-      self.session = None
-      self.interval = 0
-      self.logger_name = ''
-      self.filename = ''
-      self.node_name = ''
-      self.timer = None
-      self.managedfile = ''
-      self.config_dir = ''
-      self.override_dir = ''
-      self.old_config = ''
-
-
-   def init(self, node, name):
-      self.console = EventConsole()
-      self.session = Session(console=self.console, manageConnections=True, rcvObjects=True, rcvHeartbeats=False, rcvEvents=True, userBindings=True)
-      self.session.bindEvent('com.redhat.grid.config', 'NodeUpdatedNotice')
-      self.session.bindAgent(label='com.redhat.grid.config:Store')
-      self.logger_name = name
-      self.node_name = node
-      self.console.config(self.node_name, self.logger_name)
-
-
-   def config(self, filename, user='', password=''):
-      global stop_running 
-      default_methods = 'ANONYMOUS'
-      broker_ip = None
-      port = None
-      broker_auth_methods = None
-
-      if self.session == None:
-         return(False)
-
-      if self.broker != None and self.session != None:
-         self.session.delBroker(self.broker)
-         self.broker = None
-
+      # Ensure permissions for restart/reconfig
       try:
-         broker_ip = read_condor_config('CONFIGD', ['QMF_BROKER_HOST'])['qmf_broker_host']
-      except ConfigError, error:
-         log(logging.WARNING, self.logger_name, '%s' % error.msg)
-      except Exception, e:
-         log(logging.WARNING, self.logger_name, '%s' % e)
+        subs = store.subsystems
+      except Exception, error:
+        log(logging.WARNING, self.log_name, error)
+        log(logging.WARNING, self.log_name, "Failed to retrieve subsystem list.  Configuration could break restart/reconfig functionality")
+        subs = []
 
-      if not broker_ip:
-         log(logging.WARNING, self.logger_name, 'Using default (127.0.0.1)')
-         broker_ip = '127.0.0.1'
+      dlist = []
+      if "DAEMON_LIST" in config.keys():
+        for d in config["DAEMON_LIST"].split(','):
+          d = d.strip()
+          if d != "":
+            dlist += [d.upper()]
 
+        for sub in subs:
+          name = sub.upper()
+          if name in dlist:
+            os.write(file_hdl, "%s.SEC_ADMINISTRATOR_AUTHENTICATION_METHODS = $(%s.SEC_ADMINISTRATOR_AUTHENTICATION_METHODS), FS, NTLM, CLAIMTOBE\n" % (name, name))
+      os.close(file_hdl)
+    except IOError, e:
+      log(logging.ERROR, self.log_name, e)
       try:
-         port = read_condor_config('CONFIGD', ['QMF_BROKER_PORT'])['qmf_broker_port']
-      except ConfigError, error:
-         log(logging.DEBUG, self.logger_name, error.msg)
-      except Exception, e:
-         log(logging.DEBUG, self.logger_name, e)
-
-      try:
-         broker_port = int(port)
+        os.close(file_hdl)
+        os.remove(file_name)
       except:
-         log(logging.DEBUG, self.logger_name, 'Invalid or undefined broker port.  Using default (5672)')
-         broker_port = 5672
-
-      for attr in ['QMF_BROKER_AUTH_MECHANISM', 'QMF_BROKER_AUTH_MECH']:
-         if not broker_auth_methods:
-            try:
-               broker_auth_methods = str(read_condor_config('CONFIGD', [attr])[attr.lower()]).replace(',', ' ')
-            except ConfigError, error:
-               log(logging.DEBUG, self.logger_name, error.msg)
-            except Exception, e:
-               log(logging.DEBUG, self.logger_name, e)
-
-         if not broker_auth_methods:
-            log(logging.DEBUG, self.logger_name, "Looking for other methods")
-
-      if not broker_auth_methods:
-         log(logging.DEBUG, self.logger_name, 'No QMF authentication method found.  Using defaults of "%s"' % default_methods)
-         broker_auth_methods = default_methods
-
-      if user == '':
-         try:
-            user = str(read_condor_config('CONFIGD', ['QMF_BROKER_USERNAME'])['qmf_broker_username'])
-         except ConfigError, error:
-            log(logging.DEBUG, self.logger_name, error.msg)
-         except Exception, e:
-            log(logging.DEBUG, self.logger_name, e)
-
-      if user == '':
-         log(logging.INFO, self.logger_name, 'Authenticating to the broker as default user')
-      else:
-         log(logging.INFO, self.logger_name, 'Authenticating to the broker as user %s' % user)
-
-      if password == '':
-         try:
-            pwfile = str(read_condor_config('CONFIGD', ['QMF_BROKER_PASSWORD_FILE'])['qmf_broker_password_file'])
-            fobj = open(pwfile, 'r')
-            password = fobj.read().strip()
-            fobj.close()
-         except ConfigError, error:
-            log(logging.DEBUG, self.logger_name, error.msg)
-         except Exception, e:
-            log(logging.DEBUG, self.logger_name, e)
-
-      if password == '':
-        log(logging.INFO, self.logger_name, 'Will not supply a password for broker authentication')
-      else:
-        log(logging.INFO, self.logger_name, 'Will supply password for broker authentication')
-
+        pass
+      log(logging.ERROR, self.log_name, "Failed to read configd configuration/override file(s).  Not writing configuration file")
+      return(False)
+    except Exception, e:
+      log(logging.ERROR, self.log_name, e)
       try:
-         val = read_condor_config('CONFIGD', ['CHECK_INTERVAL'], permit_param_only = False)
-         self.interval = int(val['check_interval'])
-      except ConfigError, error:
-         log(logging.INFO, self.logger_name, error.msg)
-         self.interval = 0
+        os.close(file_hdl)
+        os.remove(file_name)
       except Exception, e:
-         log(logging.INFO, self.logger_name, e)
-         self.interval = 0
+        log(logging.ERROR, self.log_name, e)
+        pass
+      log(logging.ERROR, self.log_name, "Failed to write configuration to temp file")
+      return(False)
+   
+    # Verify the config file is valid
+    (retval, out, err) = run_cmd("condor_config_val -dump", environ={"CONDOR_CONFIG":"%s" % file_name})
+    if retval != 0:
+      log(logging.ERROR, self.log_name, "Configuration is invalid.  Discarding")
+      os.remove(file_name)
+      return(False)
+   
+    # Install the file for condor to use
+    self.replacing_file = True
+    if os.path.exists(self.managedfile):
+      os.remove(self.managedfile)
+    try:
+      shutil.move(file_name, self.managedfile)
+    except Exception, e:
+      log(logging.ERROR, self.log_name, e)
+      log(logging.ERROR, self.log_name, "Error installing new configuration file")
+      os.remove(file_name)
+      self.replacing_file = False
+      return(False)
 
-      if self.interval <= 0:
-         log(logging.INFO, self.logger_name, 'Invalid CHECK_INTERVAL. Periodic node check-in disabled')
-
-      if filename == '':
-         try:
-            self.managedfile = read_condor_config('', ['LOCAL_CONFIG_FILE'])['local_config_file']
-         except ConfigError, error:
-            log(logging.ERROR, self.logger_name, '%s.  Unable to write configuration file' % error.msg)
-            return(False)
-         except Exception, e:
-            log(logging.ERROR, self.logger_name, e)
-            log(logging.ERROR, self.logger_name, 'Invalid value for LOCAL_CONFIG_FILE')
-            return(False)
-      else:
-         self.managedfile = filename
-      self.managedfile = os.path.normpath(self.managedfile)
-      log(logging.DEBUG, self.logger_name, 'Writing configuration file to "%s"' % self.managedfile)
-
+    if self.is_windows():
       try:
-         self.config_dir = read_condor_config('', ['LOCAL_CONFIG_DIR'])['local_config_dir']
-         if os.access(self.config_dir, os.F_OK) != True or os.access(self.config_dir, os.R_OK) != True:
-            log(logging.ERROR, self.logger_name, '"%s" either is not a directory or has incorrect permissions.  Exiting' % self.config_dir)
-            return(False)
-      except ConfigError, error:
-         log(logging.ERROR, self.logger_name, '%s.  Unable to read configuration files.  Exiting' % error.msg)
-         return(False)
+        (retval, out, err) = run_cmd("icacls %s /grant Everyone:(R)" % self.managedfile)
+        if retval != 0:
+          log(logging.ERROR, self.log_name, "Failed to set read permissions on \"%s\" (stdout = %s, stderr = %s)" % (self.managedfile, out, err))
       except Exception, e:
-         log(logging.ERROR, self.logger_name, e)
-         log(logging.ERROR, self.logger_name, 'Unable to read configuration files.  Exiting')
-         return(False)
+        # The command exists, and is needed, on newer versions of
+        # windows that need to have the permissions changed.  If it
+        # fails or doesn't exist, log data and move on
+        log(logging.WARNING, self.log_name, e)
+        log(logging.WARNING, self.log_name, "Problem running icacls to set permissions")
+    else:
+      os.chmod(self.managedfile, stat.S_IRUSR|stat.S_IRGRP|stat.S_IROTH)
+    self.replacing_file = False
+    log(logging.INFO, self.log_name, "Retrieved configuration from the store")
+ 
+    # Don't attempt to restart/reconfig anything if the config
+    # retrieval was forced
+    if force == True:
+      return(True)
 
-      try:
-         self.override_dir = read_condor_config('CONFIGD', ['OVERRIDE_DIR'], permit_param_only = False)['override_dir']
-         if os.access(self.override_dir, os.F_OK) != True or os.access(self.override_dir, os.R_OK) != True:
-            log(logging.WARNING, self.logger_name, '"%s" either is not a directory or has incorrect permissions.  Configuration overrides will not take affect' % self.override_dir)
-            self.override_dir = ''
-      except:
-         self.override_dir = ''
+    # Have the store tell us which subsystems to restart/reconfig
+    try:
+      params, restart_list, reconfig_list = node_obj.whatChanged(running_version, version)
+    except Exception, e:
+      if self.stop_running == False:
+        log(logging.ERROR, self.log_name, e)
+        log(logging.ERROR, self.log_name, "Unable to retrieve configuration differences between \"%s\" and \"%s\".  The configuration will not take effect" % (running_version, version))
+      return(False)
 
-      if self.broker != None:
-         try:
-            self.session.delBroker(self.broker)
-         except:
-            self.broker = None
+    log(logging.DEBUG, self.log_name, "Daemons to restart: %s" % restart_list)
+    log(logging.DEBUG, self.log_name, "Daemons to reconfig: %s" % reconfig_list)
 
-      if user != '' and password != '':
-         broker_str = '%s/%s@%s:%d' % (user, password, broker_ip, broker_port)
-      elif user != '':
-         broker_str = '%s@%s:%d' % (user, broker_ip, broker_port)
+    # Determine the list of daemons the master is running, and only send
+    # events to these daemons.  Any new daemons that should be running (or
+    # any daemons that should be stopped) will be handled by commands sent
+    # to the master
+    (retval, daemons, err) = run_cmd("condor_config_val -master DAEMON_LIST")
+    daemon_list = []
+    if daemons != None:
+      for daemon in daemons.split(','):
+        daemon = daemon.strip()
+        if daemon != "":
+          daemon_list += [daemon.lower()]
+
+    # Process the subsystem lists and act upon them.  Start by processing
+    # the daemons to restart, and if master is listed then don't process
+    # anything else because restarting the master will take care of
+    # everything
+    cmd = "condor_restart"
+    if "master" in restart_list:
+      return(self.send_condor_command(cmd, "master"))
+    else:
+      success = self.act_upon_subsys_list(cmd, restart_list, daemon_list)
+   
+      # Send a reconfig to the master daemon so all subsystems are
+      # running with the current config values
+      return(self.send_condor_command("condor_reconfig", "master") and success)
+
+
+  def act_upon_subsys_list(self, command, slist, running_daemons):
+    nondc_daemons = ["ll_daemon", "configd"]
+    all_success = True
+
+    for subsys in slist:
+      subsys = str(subsys.strip())
+      if subsys.lower() not in running_daemons:
+        log(logging.DEBUG, self.log_name, "Not sending \"%s\" to subsystem \"%s\" since it is not currently running" % (command, subsys))
       else:
-         broker_str = '%s:%d' % (broker_ip, broker_port)
+        if subsys.lower() in nondc_daemons:
+          # Non-daemoncore daemon, so send an off first then an on
+          # command.  It's possible the daemon isn't running for some
+          # reason, and that is ok.  The important thing is to ensure
+          # it is started
+          self.send_condor_command("condor_off", subsys)
+          if self.send_condor_command("condor_on", subsys) == False:
+            all_success = False
+          else:
+            if self.send_condor_command(command, subsys) == False:
+              all_success = False
+    return(all_success)
 
-      try:
-         self.broker = self.session.addBroker('amqp://%s' % broker_str, mechanisms=broker_auth_methods)
-      except:
-         if stop_running == False:
-            log(logging.CRITICAL, self.logger_name, 'Unable to connect to broker "%s"' % broker_str)
-         return(False)
 
-      log(logging.DEBUG, self.logger_name, 'Connecting to broker "%s:%s"' % (broker_ip, broker_port))
+  def send_condor_command(self, command, subsystem):
+    log(logging.DEBUG, self.log_name, "Sending command \"%s\" to subsystem \"%s\"" % (command, subsystem))
+    (retval, out, err) = run_cmd("%s -subsystem %s" % (command, subsystem), environ={"CONDOR_CONFIG":"%s" % self.old_config})
+    if retval != 0:
+      log(logging.ERROR, self.log_name, "Failed to send command \"%s\" to subsystem \"%s\" (retval: %d, stdout: \"%s\", stderr: \"%s\")" % (command, subsystem, retval, out, err))
+      return(False)
+    else:
+      log(logging.DEBUG, self.log_name, "Sent command \"%s\" to subsystem \"%s\"" % (command, subsystem))
       return(True)
 
 
-   def get_store_obj(self):
-      global stop_running
+  def check_for_notification(self):
+    from qpid.messaging import Empty
 
-      if self.console == None:
-         return(None)
+    msg = None
 
-      agent = self.console.get_store_agent()
+    if self.receiver == None:
+      self.connect_receiver()
+
+    if self.receiver != None:
       try:
-         obj = agent.getObjects(_class='Store', _package='com.redhat.grid.config')
-      except:
-         if stop_running == False:
-            log(logging.ERROR, self.logger_name, 'Failed to contact configuration store')
-         return(None)
-      return(obj[0])
-
-
-   def get_node_obj(self):
-      global stop_running
-
-      store = self.get_store_obj()
-      if store == None:
-         return(None)
-
-      try:
-         result = store.getNode(self.node_name)
-      except:
-         if stop_running == False:
-            log(logging.ERROR, self.logger_name, 'Exception retrieving node object')
-         return(None)
-
-      if result.status != 0:
-         if stop_running == False:
-            log(logging.ERROR, self.logger_name, '(%d, %s): Store does not know about this node' % (result.status, result.text))
-         return(None)
-      else:
-         try:
-            agent = self.console.get_store_agent()
-            obj = agent.getObjects(_objectId=result.outArgs['obj'])
-         except:
-            if stop_running == False:
-               log(logging.ERROR, self.logger_name, 'Unable to get node information object')
-            return(None)
-         return(obj[0])
-
-
-   def clear_timers(self):
-      if self.timer != None:
-         del self.timer
-      self.timer = None
-
-   def setup_timers(self):
-      global interval_thread_name
-
-      # Setup the timer for checking configuration version
-      if self.timer == None:
-         if self.interval > 0:
-            self.timer = Timer(self.interval, self.check_config_ver, interval_thread_name)
-            self.timer.start()
-
-
-   def shutdown(self):
-      if self.timer != None:
-         self.timer.stop()
-         del self.timer
-         self.timer = None
-      if self.broker != None:
-         self.session.delBroker(self.broker)
-         self.broker = None
-
-
-   def get_interval(self):
-      return self.interval
-
-
-   def check_config_ver(self, ver=0, force=False):
-      log(logging.DEBUG, self.logger_name, 'Checking version of configuration')
-      node_obj = self.get_node_obj()
-      if node_obj == None:
-         return(False)
-
-      # If the passed version is 0, look at the last_updated_version
-      if ver == 0:
-         ver = int(node_obj.last_updated_version)
-
-      # Retrieve and install the node's configuration (if needed)
-      ret_val = self.get_config(ver, force)
-
-      return(ret_val)
-
-
-   def process_version_q(self):
-      global version_queue
-
-      # Pull all versions off the queue and only process the latest
-      version = -1
-      size = 0
-      while version_queue.empty() == False:
-         try:
-            version = version_queue.get(False)
-            size = version_queue.qsize()
-         except Queue.Empty:
-            size = 0
-            break
-
-      if version != -1:
-         # There was a new version in the queue
-         if self.check_config_ver(version) == False:
-            if version_queue.empty() == True:
-               # There hasn't been another version to look at, so put
-               # this one back as there was an error installing it
-               version_queue.put(version, False)
-               size += 1
-      return size
-
-
-   def get_config(self, version=0, force=False):
-      global replacing_file, stop_running, old_config_filename
-      ignore_params = ["WALLABY_FORCE_CONFIG_PULL", "WALLABY_FORCE_RESTART"]
-
-      # Check in with the store
-      log(logging.DEBUG, self.logger_name, 'Performing a checkin with the store')
-      node_obj = self.get_node_obj()
-      if node_obj == None:
-         return(False)
-
-      try:
-         node_obj.checkin(_timeout=20)
-      except Exception, error:
-         if stop_running == False:
-            log(logging.ERROR, self.logger_name, 'Failed to check in with the store')
-            log(logging.ERROR, self.logger_name, error)
-         return(False)
-      log(logging.DEBUG, self.logger_name, 'Checked in with the store')
-
-      # Get the current WALLABY_CONFIG_VERSION.  If the system is running the
-      # version as what was received, then there's no need to do anything
-      (retval, running_version, err) = run_cmd('condor_config_val WALLABY_CONFIG_VERSION')
-      try:
-         running_version = int(running_version.strip())
-      except:
-         running_version = 0
- 
-      if version == running_version and force == False:
-         log(logging.DEBUG, self.logger_name, 'The system is already running configuration version "%d"' % version)
-         return(True)
-      else:
-         log(logging.INFO, self.logger_name, 'Retrieving configuration version "%d" from the store' % version)
-   
-         # Save the current configuraton
-         (file_hdl,self.old_config) = tempfile.mkstemp('.tmp', old_config_filename, text=True)
-         (retval, config_dump, err) = run_cmd('condor_config_val -dump')
-
-         # Write the config from the dump
-         for line in config_dump.split('\n'):
-            if 'local_config_file' not in line.lower() and \
-               'local_config_dir' not in line.lower():
-               os.write(file_hdl, '%s\n' % line)
-         os.close(file_hdl)
-
-         # Retrieve the node's configuration
-         try:
-            if version <= 0:
-               result = node_obj.getConfig({})
-            else:
-               result = node_obj.getConfig({'version':version})
-         except Exception, error:
-            # Something has gone away
-            if stop_running == False:
-               log(logging.ERROR, self.logger_name, 'Exception when attempting to retrieve configuration version "%d" from the store' % version)
-               log(logging.ERROR, self.logger_name, error)
-            return(False)
-
-         if result.status != 0:
-            # Problem getting the configuration, so do nothing
-            if stop_running == False:
-               log(logging.ERROR, self.logger_name, 'Failed to retrieve configuration "%d" from the store (%d, %s)' % (version, result.status, result.text))
-            return(False)
-         else:
-            config = result.outArgs['config']
-
-         try:
-            (file_hdl,file_name) = tempfile.mkstemp('.tmp', 'condor_config.local', text=True)
-            # Write the config from the store into the file
-            for key in config.keys():
-               if key.strip().lower() in ignore_params:
-                  continue
-               if key.strip().lower() == 'dc_daemon_list':
-                  os.write(file_hdl, '%s =+ %s\n' % (key, config[key]))
-               else:
-                  os.write(file_hdl, '%s = %s\n' % (key, config[key]))
-
-            # Add the wallaby group/feature information
-            store = self.get_store_obj()
-            if store != None:
-               features = WallabyHelpers.get_node_features(node_obj, self.session, store)
-            else:
-               features = []
-
-            print_str = ''
-            for feat in features:
-               print_str += '%s,' % feat
-            print_str = print_str[:-1]
-            os.write(file_hdl, 'WallabyFeatures = "%s"\n' % print_str)
-
-            print_str = ''
-            for group in node_obj.memberships:
-               print_str += '%s,' % group
-            print_str = print_str[:-1]
-            os.write(file_hdl, 'WallabyGroups = "%s"\n' % print_str)
-            os.write(file_hdl, 'MASTER_ATTRS = $(MASTER_ATTRS), WallabyFeatures, WallabyGroups\n')
-            os.write(file_hdl, 'STARTD_ATTRS = $(STARTD_ATTRS), WallabyFeatures, WallabyGroups\n')
-
-            # Now append the configuration from the configd configuration
-            # file
-            cfg_name = os.path.normpath('%s/99configd.config' % self.config_dir)
-            cfg_file = open(cfg_name, 'r')
-            for line in cfg_file:
-               os.write(file_hdl, line)
-            cfg_file.close()
-
-            # Process any overriden parameters
-            if self.override_dir != '':
-               entries = os.listdir(self.override_dir)
-               entries.sort()
-               for name in entries:
-                  fname = os.path.normpath('%s/%s' % (self.override_dir, name))
-                  if os.access(fname, os.R_OK) == True:
-                     try:
-                        hdl = open(fname, 'r')
-                        os.write(file_hdl, '# Override from "%s"\n' % fname)
-                        for line in hdl:
-                           os.write(file_hdl, line)
-                     except:
-                        log(logging.ERROR, self.logger_name, 'Problem reading file "%s"' % fname)
-                     hdl.close()
-                  else:
-                     log(logging.ERROR, self.logger_name, 'Unable to access "%s".  Ignoring override file' % fname)
-
-            # Ensure permissions for restart/reconfig
-            try:
-               subs = self.console.get_store_agent().getObjects(_class='Subsystem', _package='com.redhat.grid.config')
-
-               dlist = []
-               if 'DAEMON_LIST' in config.keys():
-                  for d in config['DAEMON_LIST'].split(','):
-                     d = d.strip()
-                     if d != '':
-                        dlist += [d.upper()]
-
-               for sub in subs:
-                  name = sub.name.upper()
-                  if name in dlist:
-                     os.write(file_hdl, '%s.SEC_ADMINISTRATOR_AUTHENTICATION_METHODS = $(%s.SEC_ADMINISTRATOR_AUTHENTICATION_METHODS), FS, NTLM, CLAIMTOBE\n' % (name, name))
-            except Exception, error:
-               log(logging.ERROR, self.logger_name, 'Store: %s' % error)
-               log(logging.WARNING, self.logger_name, 'Failed to retrieve subsystem list.  Configuration could break restart/reconfig functionality')
-
-            os.close(file_hdl)
-         except IOError:
-            try:
-               os.close(file_hdl)
-               os.remove(file_name)
-            except:
-               pass
-            log(logging.ERROR, self.logger_name, 'Failed to read configd configuration/override file(s).  Not writing configuration file')
-            return(False)
-         except:
-            try:
-               os.close(file_hdl)
-               os.remove(file_name)
-            except:
-               pass
-            log(logging.ERROR, self.logger_name, 'Failed to write configuration to temp file')
-            return(False)
-   
-         # Verify the config file is valid
-         (retval, out, err) = run_cmd('condor_config_val -dump', environ={'CONDOR_CONFIG':'%s' % file_name})
-         if retval != 0:
-            log(logging.ERROR, self.logger_name, 'Configuration is invalid.  Discarding')
-            os.remove(file_name)
-            return(False)
-   
-         # Install the file for condor to use
-         replacing_file = True
-         if os.path.exists(self.managedfile):
-            os.remove(self.managedfile)
-         try:
-            shutil.move(file_name, self.managedfile)
-         except:
-            log(logging.ERROR, self.logger_name, 'Error installing new configuration file')
-            os.remove(file_name)
-            replacing_file = False
-            return(False)
-         if os.name == 'nt' or os.name == 'ce':
-            try:
-               (retval, out, err) = run_cmd('icacls %s /grant Everyone:(R)' % self.managedfile)
-               if retval != 0:
-                  log(logging.ERROR, self.logger_name, 'Failed to set read permissions on "%s" (stdout = %s, stderr = %s)' % (self.managedfile, out, err))
-            except Exception, e:
-               # The command exists, and is needed, on newer versions of
-               # windows that need to have the permissions changed.  If it
-               # fails or doesn't exist, log data and move on
-               log(logging.WARNING, self.logger_name, e)
-               log(logging.WARNING, self.logger_name, 'Problem running icacls to set permissions')
-         else:
-            os.chmod(self.managedfile, stat.S_IRUSR|stat.S_IRGRP|stat.S_IROTH)
-         replacing_file = False
-         log(logging.INFO, self.logger_name, 'Retrieved configuration from the store')
- 
-         # Don't attempt to restart/reconfig anything if the config
-         # retrieval was forced
-         if force == True:
-           return(True)
-
-         # Have the store tell us which subsystems to restart/reconfig
-         try:
-            result = node_obj.whatChanged(running_version, version)
-         except:
-            if stop_running == False:
-               log(logging.ERROR, self.logger_name, 'Unable to retrieve configuration differences.  The configuration will not take affect')
-            return(False)
-
-         if result.status != 0:
-            if stop_running == False:
-               log(logging.ERROR, self.logger_name, 'Store error: %d, %s' % (result.status, result.text))
-               log(logging.ERROR, self.logger_name, 'Failed to retrive differences between versions "%d" and "%d".  The configuration will not take affect' % (running_version, version))
-            return(False)
-         else:
-            restart_list = result.outArgs['restart']
-            reconfig_list = result.outArgs['affected']
-
-         log(logging.DEBUG, self.logger_name, 'Daemons to restart: %s' % restart_list)
-         log(logging.DEBUG, self.logger_name, 'Daemons to reconfig: %s' % reconfig_list)
-
-         # Determine the list of daemons the master is running, and only send
-         # events to these daemons.  Any new daemons that should be running (or
-         # any daemons that should be stopped) will be handled by commands sent
-         # to the master
-         (retval, daemons, err) = run_cmd('condor_config_val -master DAEMON_LIST')
-         daemon_list = []
-         if daemons != None:
-            for daemon in daemons.split(','):
-               daemon = daemon.strip()
-               if daemon != '':
-                  daemon_list += [daemon.lower()]
-
-         # Process the subsystem lists and act upon them.  Start by processing
-         # the daemons to restart, and if master is listed then don't process
-         # anything else because restarting the master will take care of
-         # everything
-         cmd = 'condor_restart'
-         if 'master' in restart_list:
-            return(self.send_condor_command(cmd, 'master'))
-         else:
-            success = self.act_upon_subsys_list(cmd, restart_list, daemon_list)
-   
-            # Send a reconfig to the master daemon so all subsystems are
-            # running with the current config values
-            return(self.send_condor_command('condor_reconfig', 'master') and success)
-
-
-   def act_upon_subsys_list(self, command, list, running_daemons):
-      nondc_daemons = ['ll_daemon', 'configd']
-      all_success = True
-
-      for subsys in list:
-         subsys = str(subsys.strip())
-         if subsys.lower() not in running_daemons:
-            log(logging.DEBUG, self.logger_name, 'Not sending "%s" to subsystem "%s" since it is not currently running' % (command, subsys))
-         else:
-            if subsys.lower() in nondc_daemons:
-               # Non-daemoncore daemon, so send an off first then an on
-               # command.  It's possible the daemon isn't running for some
-               # reason, and that is ok.  The important thing is to ensure
-               # it is started
-               self.send_condor_command('condor_off', subsys)
-               if self.send_condor_command('condor_on', subsys) == False:
-                  all_success = False
-            else:
-               if self.send_condor_command(command, subsys) == False:
-                  all_success = False
-      return(all_success)
-
-
-   def send_condor_command(self, command, subsystem):
-      log(logging.DEBUG, self.logger_name, 'Sending command "%s" to subsystem "%s"' % (command, subsystem))
-      (retval, out, err) = run_cmd('%s -subsystem %s' % (command, subsystem), environ={'CONDOR_CONFIG':'%s' % self.old_config})
-      if retval != 0:
-         log(logging.ERROR, self.logger_name, 'Failed to send command "%s" to subsystem "%s" (retval: %d, stdout: "%s", stderr: "%s")' % (command, subsystem, retval, out, err))
-         return(False)
-      else:
-         log(logging.DEBUG, self.logger_name, 'Sent command "%s" to subsystem "%s"' % (command, subsystem))
-         return(True)
-
-
-def exit_signal_handler(signum, frame):
-   global service, stop_running, logger_name
-
-   if service != None:
-      log(logging.DEBUG, logger_name, 'Shutting down')
-      log(logging.DEBUG, logger_name, 'Closing QMF connections')
-      service.shutdown()
-      del service
-      service = None
-      log(logging.DEBUG, logger_name, 'Closed QMF connections')
-
-   if stop_running != True:
-      log(logging.DEBUG, logger_name, 'Setting stop flag')
-      stop_running = True
-
-
-def test_for_shutdown():
-   global pidfile, logger_name
-
-   log(logging.DEBUG, logger_name, 'Testing for shutdown file')
-   if os.path.isfile(pidfile):
-      log(logging.DEBUG, logger_name, 'Found shutdown file')
-      os.remove(pidfile)
-      exit_signal_handler(signal.SIGTERM, None)
-
-
-def stop(code):
-   global logger_name
-
-   exit_signal_handler(signal.SIGTERM, None)
-   log(logging.INFO, logger_name, 'Exiting')
-   logging.shutdown()
-   return(code)
-
-
-def monitor_timers():
-   global interval_thread_name, service, logger_name
-   interval_found = False
-
-   if os.name == 'nt' or os.name == 'ce':
-      global windows_shutdown_timer_name
-      win_shutdown_found = False
-
-   for thread in threading.enumerate():
-      if thread.name == interval_thread_name:
-         interval_found = True
-
-      if (os.name == 'nt' or os.name == 'ce') and thread.name == windows_shutdown_timer_name:
-         win_shutdown_found = True
-
-   # Start the timers that are expected to be running but aren't
-   if interval_found != True and service.interval > 0:
-      log(logging.DEBUG, logger_name, 'Restarting interval timer')
-      service.clear_timers()
-      service.setup_timers()
-
-   if (os.name == 'nt' or os.name == 'ce') and win_shutdown_found != True:
-      log(logging.DEBUG, logger_name, 'Restarting windows shutdown timer')
-      clear_shutdown_timer()
-      start_shutdown_timer()
-
-
-def clear_shutdown_timer():
-   global shutdown_timer
-
-   if shutdown_timer != None:
-      del shutdown_timer
-   shutdown_timer = None
-
-
-def start_shutdown_timer():
-   global windows_shutdown_timer_name, shutdown_timer, shutdown_interval
-
-   if shutdown_timer == None:
-      shutdown_timer = Timer(shutdown_interval, test_for_shutdown, windows_shutdown_timer_name)
-      shutdown_timer.start()
-
-
-version_queue = Queue.Queue()
-service = Service()
-stop_running = False
-replacing_file = False
-pidfile = os.path.normpath(os.getcwd() + '/.pid' + str(os.getpid()))
-logger_name = os.path.basename(sys.argv[0])
-old_config_filename = 'condor.old_config'
-interval_thread_name = 'Thread for Interval Timer'
-if os.name == 'nt' or os.name == 'ce':
-   windows_shutdown_timer_name = 'Thread for Windows Shutdown Timer'
-   shutdown_timer = None
-   shutdown_interval = 0
-
-
-def main(argv=None):
-   global service, stop_running, replacing_file, version_queue, logger_name, old_config_filename, shutdown_interval
-
-   if argv is None:
-      argv = sys.argv
-
-   try:
-      retrieve = False
-      node_name = socket.gethostname()
-      config_file = ''
-      log_file = ''
-      username = ''
-      passwd = ''
-      log_level = logging.INFO
-      num_attempts = 0
-      last_attempt = 0
-
-      long_opts = ['debug', 'hostname=', 'logfile=', 'managedfile=', 
-                   'password=', 'retrieve', 'user=']
-
-      # Set signal handlers
-      signal.signal(signal.SIGINT, exit_signal_handler)
-      signal.signal(signal.SIGTERM, exit_signal_handler)
-      signal.signal(signal.SIGABRT, exit_signal_handler)
-      signal.signal(signal.SIGILL, exit_signal_handler)
-      signal.signal(signal.SIGFPE, exit_signal_handler)
-      signal.signal(signal.SIGSEGV, exit_signal_handler)
-      if os.name != 'nt' and os.name != 'ce':
-         # These aren't available on windows
-         signal.signal(signal.SIGQUIT, exit_signal_handler)
-         signal.signal(signal.SIGHUP, exit_signal_handler)
-
-      try:
-         opts, args = getopt.gnu_getopt(argv[1:], 'dh:l:m:rP:U:', long_opts)
-      except getopt.GetoptError, error:
-         print str(error)
-         return(1)
-
-      for option, arg in opts:
-         if option in ('-d', '--debug'):
-            log_level = logging.DEBUG
-         if option in ('-h', '--hostname'):
-            node_name = arg.strip()
-         if option in ('-l', '--logfile'):
-            log_file = arg.strip()
-         if option in ('-m', '--managedfile'):
-            config_file = arg.strip()
-         if option in ('-P', '--password'):
-            passwd = arg.strip()
-         if option in ('-r', '--retrieve'):
-            retrieve = True
-         if option in ('-U', '--user'):
-            username = arg.strip()
-
-
-      # Configure the logging system
-      if log_file == '':
-         try:
-            log_file = read_condor_config('CONFIGD', ['LOG'], permit_param_only = False)['log']
-         except ConfigError, error:
-            print 'Error: %s.  Exiting' % error.msg
-            return(1)
-
-      try:
-         size = int(read_condor_config('', ['MAX_CONFIGD_LOG'])['max_configd_log'])
-      except:
-         size = 1000000
-
-      try:
-         backoff_factor = int(read_condor_config('CONFIGD', ['BACKOFF_FACTOR'])['backoff_factor'])
-         if backoff_factor < 0:
-            backoff_factor = 2
-      except:
-         backoff_factor = 2
-
-      try:
-         backoff_const = int(read_condor_config('CONFIGD', ['BACKOFF_CONSTANT'])['backoff_constant'])
-         if backoff_const < 0:
-            backoff_const = 9
-      except:
-         backoff_const = 9
-
-      try:
-         connect_timeout = int(read_condor_config('CONFIGD', ['WALLABY_CONNECT_TIMEOUT'])['wallaby_connect_timeout'])
-      except:
-         connect_timeout = 60
-
-      # Create the log file
-      try:
-         base_logger = create_file_logger(logger_name, log_file, log_level, size=size)
+        msg = self.receiver.fetch(timeout=0)
+      except Empty:
+        # No notification
+        pass
       except Exception, e:
-         print e
-         print 'Failed to open log file.  Exiting'
-         return(1)
+        # We lost our connection so force recreation
+        log(logging.WARNING, self.log_name, e)
+        self.receiver = None
 
-      log(logging.INFO, logger_name, 'Starting Up')
-      log(logging.INFO, logger_name, 'Hostname is "%s"' % node_name)
+    if msg != None:
+      log(logging.DEBUG, self.log_name, "Received a configuration change notification")
+      if self.node_name in msg.content["nodes"] or '*' in msg.content["nodes"]:
+        log(logging.DEBUG, self.log_name, "The notification is for this node")
+        ver = msg.content["version"]
+        if self.check_config_ver(ver) == False:
+          log(logging.ERROR, self.log_name, "Failed to install configuration version \"%s\"" % ver)
+      else:
+        log(logging.DEBUG, self.log_name, "The notification is not for this node")
+      self.session.acknowledge()
 
-      if os.name == 'nt' or os.name == 'ce':
-         # Need to set a Timer for shutdown on windows
-         log(logging.INFO, logger_name, 'Setting windows shutdown Timer')
-         try:
-            shutdown_interval = int(read_condor_config('CONFIGD', ['WIN_INTERVAL'], permit_param_only = False)['win_interval'])
-         except ConfigError, error:
-            log(logging.WARNING, logger_name, '%s' % error.msg)
-            log(logging.WARNING, logger_name, 'Using default (5)')
-            shutdown_interval = 5
-         except:
-            log(logging.WARNING, logger_name, 'WIN_INTERVAL must have a valid value')
-            log(logging.WARNING, logger_name, 'Using default (5)')
-            shutdown_interval = 5
 
-         # Ensure there is a valid interval above 0 as this timer can not be
-         # disabled
-         if shutdown_interval <= 0:
-            log(logging.WARNING, logger_name, 'Invalid WIN_INTERVAL (%d).  Using default (5)' % shutdown_interval)
-            shutdown_interval = 5
-         start_shutdown_timer()
+  def main(self):
+    try:
+      self.init()
+
+      log(logging.INFO, self.log_name, "Starting Up")
+      log(logging.INFO, self.log_name, "Hostname is \"%s\"" % self.node_name)
+
+      self.config()
 
       # Remove all temp configuration files
-      log(logging.INFO, logger_name, 'Cleaning up temporary configuration files')
+      log(logging.INFO, self.log_name, "Cleaning up temporary configuration files")
       temp_dir = tempfile.gettempdir()
       for fname in os.listdir(temp_dir):
-         full_path = os.path.normpath('%s/%s' % (temp_dir, fname))
-         if old_config_filename in fname:
-            log(logging.DEBUG, logger_name, 'Deleting temporary configuration file %s' % full_path)
-            try:
-               os.remove(full_path)
-            except Exception, e:
-               log(logging.WARNING, logger_name, e)
+        full_path = os.path.normpath("%s/%s" % (temp_dir, fname))
+        if self.old_config_filename in fname:
+          log(logging.DEBUG, self.log_name, "Deleting temporary configuration file %s" % full_path)
+          try:
+            os.remove(full_path)
+          except Exception, e:
+            log(logging.WARNING, self.log_name, e)
 
-      # Retrieve the broker information from condor's configuration file
-      if service != None:
-         service.init(node_name, logger_name)
-      if service != None and service.config(config_file, username, passwd) != True:
-         if retrieve == True:
-            print 'Error: Unable to retrieve configuration'
-            log(logging.CRITICAL, logger_name, 'Unable to retrieve configuration')
-         return(stop(1))
+      if self.retrieve == True:
+        if self.check_config_ver(force=True) == False:
+          print "Error: Unable to retrieve configuration"
+          log(logging.CRITICAL, self.log_name, "Unable to retrieve configuration")
+          self.shutdown()
+          return(1)
+        self.shutdown()
+        return(0)
 
-      # Wait for connection to the store
-      log(logging.DEBUG, logger_name, 'Looking for the store agent')
-      start = time.time()
-      while service.console.get_store_agent() == None and stop_running == False:
-         if time.time() - start >= connect_timeout:
-            log(logging.INFO, logger_name, 'Timed out looking for store agent')
-            break
-         time.sleep(1)
-
-      if stop_running == True:
-         return(stop(1))
-
-      if service.console.get_store_agent() != None:
-         log(logging.DEBUG, logger_name, 'Found the store agent')
-
-      if service != None:
-         if retrieve == True:
-            if service.check_config_ver(force=True) == False:
-               print 'Error: Unable to retrieve configuration'
-               log(logging.CRITICAL, logger_name, 'Unable to retrieve configuration')
-            return(stop(0))
-
-         # Delay initial checkin after startup 
-         random.seed()
-         time.sleep(random.randint(0, 10))
-         service.check_config_ver()
-         service.setup_timers()
+      # Delay initial checkin after startup 
+      random.seed()
+      time.sleep(random.randint(0, 10))
+      self.check_config_ver()
+      self.setup_timers()
 
       # Loop forever until told to shutdown
-      while stop_running == False or replacing_file == True:
-         try:
-            time.sleep(1)
+      while self.stop_running == False or self.replacing_file == True:
+        try:
+          time.sleep(1)
+          if self.notifications == True:
+            self.check_for_notification()
 
-            # Check to see if there is a new configuration version to install
-            if version_queue.qsize() > 0:
-               # There is a new configuration version, so trying to install it.
-               # Record the time the last installation attempt was tried for
-               # exponential backoff.
-               if last_attempt == 0:
-                  last_attempt = time.time()
-               check_interval = service.get_interval()
-               if num_attempts == 0 or \
-                  (time.time() - last_attempt) >= next_attempt_interval:
+#          # Check to see if there is a new configuration version to install
+#          if version_queue.qsize() > 0:
+#            # There is a new configuration version, so trying to install it.
+#            # Record the time the last installation attempt was tried for
+#            # exponential backoff.
+#            if last_attempt == 0:
+#              last_attempt = time.time()
+#            check_interval = service.get_interval()
+#            if num_attempts == 0 or \
+#               (time.time() - last_attempt) >= next_attempt_interval:
+#
+#            if service.process_version_q() > 0:
+#              # There's still a version in the queue, so there was a
+#              # problem installing the configuruation.  This could be
+#              # an OS hiccup, a store communcation issue, or that the
+#              # configuration is just not valid.
+#
+#              # Subract a second to account to the sleep in the
+#              # main loop
+#              next_attempt_interval = (backoff_const + pow(backoff_factor, num_attempts))-1
+#
+#              # Maximum backoff time is the check_interval if defined
+#              if next_attempt_interval > check_interval and \
+#                 check_interval > 0:
+#                next_attempt_interval = check_interval
+#              num_attempts += 1
+#            else:
+#              # Installation was successful
+#              num_attempts = 0
+#            last_attempt = 0
 
-                  if service.process_version_q() > 0:
-                     # There's still a version in the queue, so there was a
-                     # problem installing the configuruation.  This could be
-                     # an OS hiccup, a store communcation issue, or that the
-                     # configuration is just not valid.
 
-                     # Subract a second to account to the sleep in the
-                     # main loop
-                     next_attempt_interval = (backoff_const + pow(backoff_factor, num_attempts))-1
+               # Verify timers are still running
+          self.monitor_timers()
+        except Exception, e:
+          log(logging.WARNING, self.log_name, e)
+          pass
 
-                     # Maximum backoff time is the check_interval if defined
-                     if next_attempt_interval > check_interval and \
-                        check_interval > 0:
-                        next_attempt_interval = check_interval
-                     num_attempts += 1
-                  else:
-                     # Installation was successful
-                     num_attempts = 0
-                  last_attempt = 0
-
-            # Verify timers are still running
-            monitor_timers()
-         except:
-            pass
-
-      return(stop(0))
-   except Exception, e:
-      if stop_running == False:
-         log(logging.INFO, logger_name, e)
-      if stop_running == True:
-         return(stop(0))
+      self.shutdown()
+      return(0)
+    except Exception, e:
+      if self.stop_running == True:
+        self.shutdown()
+        return(0)
       else:
-         return(stop(1))
+        log(logging.ERROR, self.log_name, e)
+        self.shutdown()
+        return(1)
 
 
-if __name__ == '__main__':
-    sys.exit(main())
+if __name__ == "__main__":
+   sys.exit(Configd().main())

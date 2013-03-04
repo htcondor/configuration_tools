@@ -15,13 +15,11 @@
 
 import os
 import sys
-import logging
 import signal
 import time
 import socket
 import threading
 import getopt
-import Queue
 import random
 import tempfile
 import shutil
@@ -59,8 +57,6 @@ class Configd:
     self.connect_opts = {"tag":"current"}
     self.checkin_interval = 0
     self.shutdown_interval = 0
-#    self.backoff_factor = 2
-#    self.backoff_const = 9
     self.log_name = os.path.basename(sys.argv[0])
     self.node_name = socket.gethostname()
     self.managedfile = ""
@@ -313,20 +309,6 @@ class Configd:
 
   def config(self):
     filename = self.opt_file
-
-#    try:
-#      val = int(read_condor_config("CONFIGD", ["BACKOFF_FACTOR"])["backoff_factor"])
-#      if val > 0:
-#         self.backoff_factor = val
-#    except:
-#      pass
-#
-#    try:
-#      val = int(read_condor_config("CONFIGD", ["BACKOFF_CONSTANT"])["backoff_constant"])
-#      if val > 0:
-#        self.backoff_const = val
-#    except:
-#      pass
 
     # Store connection params
     self.config_store()
@@ -864,38 +846,6 @@ class Configd:
           time.sleep(1)
           if self.notifications == True:
             self.check_for_notification()
-
-#          # Check to see if there is a new configuration version to install
-#          if version_queue.qsize() > 0:
-#            # There is a new configuration version, so trying to install it.
-#            # Record the time the last installation attempt was tried for
-#            # exponential backoff.
-#            if last_attempt == 0:
-#              last_attempt = time.time()
-#            check_interval = service.get_interval()
-#            if num_attempts == 0 or \
-#               (time.time() - last_attempt) >= next_attempt_interval:
-#
-#            if service.process_version_q() > 0:
-#              # There's still a version in the queue, so there was a
-#              # problem installing the configuruation.  This could be
-#              # an OS hiccup, a store communcation issue, or that the
-#              # configuration is just not valid.
-#
-#              # Subract a second to account to the sleep in the
-#              # main loop
-#              next_attempt_interval = (backoff_const + pow(backoff_factor, num_attempts))-1
-#
-#              # Maximum backoff time is the check_interval if defined
-#              if next_attempt_interval > check_interval and \
-#                 check_interval > 0:
-#                next_attempt_interval = check_interval
-#              num_attempts += 1
-#            else:
-#              # Installation was successful
-#              num_attempts = 0
-#            last_attempt = 0
-
 
                # Verify timers are still running
           self.monitor_timers()

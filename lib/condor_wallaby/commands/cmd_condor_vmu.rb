@@ -24,7 +24,7 @@ module Wallaroo
       end
     
       def self.description
-        "Add a feature that configures condor's Virtual Machine Universe to the store"
+        "Add a feature that configures condor's Virtual Machine Universe to the store."
       end
     
       def get_env(n)

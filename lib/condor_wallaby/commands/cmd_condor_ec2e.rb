@@ -166,7 +166,7 @@ module Wallaroo
       end
     
       def self.description
-        "Add a route to be used with condor's EC2 Enhanced to the store"
+        "Add a route to be used with condor's EC2 Enhanced to the store."
       end
     
       def act
@@ -197,7 +197,7 @@ module Wallaroo
       end
     
       def self.description
-        "Add EC2 Enhanced routes to a group"
+        "Add EC2 Enhanced routes to a group."
       end
     
       register_callback :after_option_parsing, :parse_args
@@ -226,7 +226,7 @@ module Wallaroo
       end
     
       def self.description
-        "Add EC2 Enhanced routes to a node"
+        "Add EC2 Enhanced routes to a node."
       end
     
       register_callback :after_option_parsing, :parse_args
@@ -255,7 +255,7 @@ module Wallaroo
       end
     
       def self.description
-        "Replace EC2 Enhanced routes on a group"
+        "Replace EC2 Enhanced routes on a group."
       end
     
       register_callback :after_option_parsing, :parse_args
@@ -284,7 +284,7 @@ module Wallaroo
       end
     
       def self.description
-        "Replace EC2 Enhanced routes on a node"
+        "Replace EC2 Enhanced routes on a node."
       end
     
       register_callback :after_option_parsing, :parse_args
@@ -315,7 +315,7 @@ module Wallaroo
       end
     
       def self.description
-        "Modify an EC2 Enhanced route in the store"
+        "Modify an EC2 Enhanced route in the store."
       end
     
       def parse_args(*args)
@@ -354,7 +354,7 @@ module Wallaroo
       end
     
       def self.description
-        "Remove an EC2 Enhanced route from the store"
+        "Remove an EC2 Enhanced route from the store."
       end
     
       register_callback :after_option_parsing, :parse_args

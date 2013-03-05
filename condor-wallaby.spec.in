@@ -47,7 +47,7 @@ Requires: condor >= 7.4.4-0.9
 Requires: python >= 2.3
 Requires: python-qpid
 Requires: python-condorutils >= 1.5-4
-Requires: python-wallaby
+Requires: python-wallaby2
 %if 0%{?fedora} == 0
 Obsoletes: condor-remote-configuration
 %endif
@@ -62,7 +62,7 @@ This package provides the tools needed for managed clients
 %package -n ruby-%{name}
 Summary: Tools for use with wallaby shell
 Group: Applications/System
-Requires: ruby-wallaby
+Requires: ruby-wallaby2
 Requires: ruby(abi) = %{?ruby_abi}
 
 %description -n ruby-%{name}
@@ -80,13 +80,13 @@ Tools for executing HTCondor specific commands in wallaby shell
 rm -rf %{buildroot}
 %endif
 mkdir -p %{buildroot}/%{ruby_install_dir}/condor_wallaby
-mkdir -p %{buildroot}/%{ruby_install_dir}/condor_wallaby/commands
+mkdir -p %{buildroot}/%{ruby_install_dir}/wallaroo/shell
 mkdir -p %{buildroot}/%_sbindir
 mkdir -p %{buildroot}/%_sysconfdir/condor/config.d
 cp -f condor_configd %{buildroot}/%_sbindir
 cp -f config/99configd.config %{buildroot}/%_sysconfdir/condor/config.d
 cp -f lib/condor_wallaby/*.rb %{buildroot}/%{ruby_install_dir}/condor_wallaby
-cp -f lib/condor_wallaby/commands/*.rb %{buildroot}/%{ruby_install_dir}/condor_wallaby/commands
+cp -f lib/condor_wallaby/commands/*.rb %{buildroot}/%{ruby_install_dir}/wallaroo/shell
 
 %if %{building_for_el5}
 %clean
@@ -109,9 +109,9 @@ rm -rf %{buildroot}
 %endif
 %doc LICENSE-2.0.txt
 %defattr(0644, root,root,-)
-/%{ruby_install_dir}/condor_wallaby/configparser.rb
-/%{ruby_install_dir}/condor_wallaby/commands/cmd_condor_ec2e.rb
-/%{ruby_install_dir}/condor_wallaby/commands/cmd_condor_vmu.rb
+%{ruby_install_dir}/condor_wallaby/configparser.rb
+%{ruby_install_dir}/wallaroo/shell/cmd_condor_ec2e.rb
+%{ruby_install_dir}/wallaroo/shell/cmd_condor_vmu.rb
 
 %changelog
 * Thu Jan 10 2013  <rrati@redhat> - 5.0.5-2

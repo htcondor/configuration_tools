@@ -243,6 +243,7 @@ class Configd:
       try:
         from qpid.messaging import Connection
       except:
+        self.notifications = False
         log(logging.INFO, self.log_name, "Can't find notification support libraries.  This node will not receive configuration notifications")
         return
 

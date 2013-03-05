@@ -54,9 +54,11 @@ class Timer (threading.Thread):
 
 class Configd:
   def __init__(self):
+    self.sysinfo = {}
     self.connect_opts = {"tag":"current"}
     self.checkin_interval = 0
     self.shutdown_interval = 0
+    self.sysinfo_interval = 0
     self.log_name = os.path.basename(sys.argv[0])
     self.node_name = socket.gethostname()
     self.managedfile = ""
@@ -75,6 +77,7 @@ class Configd:
     self.notifications = False
     self.periodic_timer = None
     self.shutdown_timer = None
+    self.sysinfo_timer = None
     self.broker_connection = None
     self.session = None
     self.receiver = None
@@ -82,6 +85,7 @@ class Configd:
     self.old_config_filename = "condor.old_config"
     self.periodic_thread = "Thread for Interval Timer"
     self.shutdown_thread = "Thread for Windows Shutdown Timer"
+    self.sysinfo_thread = "Thread for System Info Timer"
 
 
   def set_handlers(self):
@@ -341,6 +345,17 @@ class Configd:
         log(logging.WARNING, self.log_name, "Using default WIN_INTERVAL (5)")
         self.shutdown_interval = 5
 
+    try:
+      self.sysinfo_interval = int(read_condor_config("CONFIGD", ["UPDATE_INTERVAL"], permit_param_only = False)["update_interval"])
+    except ConfigError, error:
+      log(logging.INFO, self.log_name, error.msg)
+    except Exception, e:
+      log(logging.INFO, self.log_name, e)
+
+    if self.sysinfo_interval < 0:
+      log(logging.INFO, self.log_name, "Invalid UPDATE_INTERVAL. Using default (10)")
+      self.sysinfo_interval = 10
+
     if self.opt_file == "":
       try:
         filename = read_condor_config("", ["LOCAL_CONFIG_FILE"])["local_config_file"]
@@ -379,6 +394,7 @@ class Configd:
       return
     self.clear_interval_timer()
     self.clear_shutdown_timer()
+    self.clear_sysinfo_timer()
     self.setup_timers()
 
 
@@ -433,6 +449,13 @@ class Configd:
     self.shutdown_timer = None
 
 
+  def clear_sysinfo_timer(self):
+    if self.sysinfo_timer != None:
+      self.sysinfo_timer.stop()
+      del self.sysinfo_timer
+    self.sysinfo_timer = None
+
+
   def setup_timers(self):
     # Setup the timer for checking configuration version
     if self.periodic_timer == None:
@@ -444,14 +467,22 @@ class Configd:
       self.shutdown_timer = Timer(self.shutdown_interval, self.test_for_shutdown, self.shutdown_thread)
       self.shutdown_timer.start()
 
+    if self.sysinfo_timer == None and self.sysinfo_interval > 0:
+      self.sysinfo_timer = Timer(self.sysinfo_interval, self.update_metadata, self.sysinfo_thread)
+      self.sysinfo_timer.start()
+
 
   def monitor_timers(self):
     interval_found = False
     shutdown_found = False
+    sysinfo_found = False
 
     for thread in threading.enumerate():
       if thread.name == self.periodic_thread:
         interval_found = True
+
+      if thread.name == self.sysinfo_thread:
+        sysinfo_found = True
 
       if self.is_windows() and thread.name == self.shutdown_thread:
         shutdown_found = True
@@ -464,6 +495,10 @@ class Configd:
     if self.is_windows() and shutdown_found != True:
       log(logging.DEBUG, self.log_name, "Restarting windows shutdown timer")
       self.clear_shutdown_timer()
+
+    if sysinfo_found != True and self.sysinfo_interval > 0:
+      log(logging.DEBUG, self.log_name, "Restarting system info updating timer")
+      self.clear_sysinfo_timer()
 
     self.setup_timers()
 
@@ -802,6 +837,52 @@ class Configd:
       else:
         log(logging.DEBUG, self.log_name, "The notification is not for this node")
       self.session.acknowledge()
+
+
+  def loadavg(self):
+    (retval, lavg, err) = run_cmd("cat /proc/loadavg")
+    data = lavg.split()
+    self.sysinfo["loadAverage1Min"] = data.pop(0).strip()
+    self.sysinfo["loadAverage5Min"] = data.pop(0).strip()
+    self.sysinfo["loadAverage10Min"] = data.pop(0).strip()
+    procs = data.pop(0).strip().split('/')
+    self.sysinfo["procRunning"] = procs[0].strip()
+    self.sysinfo["procTotal"] = procs[1].strip()
+
+
+  def meminfo(self):
+    fields = ["MemTotal", "MemFree", "SwapTotal", "SwapFree"]
+
+    (retval, meminfo, err) = run_cmd("cat /proc/meminfo")
+    for line in meminfo.split('\n'):
+      if line.strip() != "":
+        (name, value) = line.split(':')
+        name.strip()
+        value.strip()
+        if name in fields:
+          self.sysinfo[name[0].lower() + name[1:]] = value.split()[0]
+
+
+  def osinfo(self):
+    self.sysinfo["nodeName"] = self.node_name
+    if not self.is_windows():
+      attr = {"osName": "s", "release": "r", "version":"v", "machine":"i"}
+      for a in attr.keys():
+        (ret, temp, err) = run_cmd("uname -%s" % attr[a])
+        self.sysinfo[a] = temp.strip()
+      (retval, temp, err) = run_cmd("cat /etc/redhat-release")
+      self.sysinfo["distro"] = temp.strip()
+
+
+  def update_metadata(self):
+    self.loadavg()
+    self.meminfo()
+    self.osinfo()
+    path = "/meta/sysinfo/%s" % self.node_name
+    conn = wallaroo.client.ConnectionMeta(**self.connect_opts)
+    meta = conn.fetch_json_resource(path, False, default={})
+    meta.update(self.sysinfo)
+    conn.put_json_resource(path, meta, False)
 
 
   def main(self):

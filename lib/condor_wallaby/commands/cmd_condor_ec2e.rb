@@ -19,7 +19,8 @@ module Wallaroo
   module Shell
     module Ec2eArgs
       def include
-        @config[:include] || fdata(:include) || "EC2Enhanced"
+        n = :include
+        config[n] || fdata(n) || "EC2Enhanced"
       end
 
       def name
@@ -27,55 +28,74 @@ module Wallaroo
       end
 
       def requirements
-        config[:requirements] || fdata(:requirements) || get_env("CONDOR_EC2E_ROUTE_REQUIREMENTS") || nil
+        n = :requirements
+        config[n] || fdata(n) || get_env("CONDOR_EC2E_ROUTE_REQUIREMENTS") || base[n] || nil
       end
 
-      def instance_type
-        config[:instance_type] || fdata(:instance_type) || get_env("CONDOR_EC2E_ROUTE_INSTANCE_TYPE") || nil
+      def instancetype
+        n = :instancetype
+        config[n] || fdata(n) || get_env("CONDOR_EC2E_ROUTE_INSTANCE_TYPE") || base[n] || nil
       end
 
-      def public_key
-        config[:public_key] || fdata(:public_key) || get_env('CONDOR_EC2E_ROUTE_AWS_PUBLIC_KEY') || nil
+      def amazonpublickey
+        n = :amazonpublickey
+        config[n] || fdata(n) || get_env('CONDOR_EC2E_ROUTE_AWS_PUBLIC_KEY') || base[n] || nil
       end
 
-      def private_key
-        config[:private_key] || fdata(:private_key) || get_env('CONDOR_EC2E_ROUTE_AWS_PRIVATE_KEY') || nil
+      def amazonprivatekey
+        n = :amazonprivatekey
+        config[n] || fdata(n) || get_env('CONDOR_EC2E_ROUTE_AWS_PRIVATE_KEY') || base[n] || nil
       end
 
-      def access_key
-        config[:access_key] || fdata(:access_key) || get_env('CONDOR_EC2E_ROUTE_AWS_ACCESS_KEY') || nil
+      def amazonaccesskey
+        n = :amazonaccesskey
+        config[n] || fdata(n) || get_env('CONDOR_EC2E_ROUTE_AWS_ACCESS_KEY') || base[n] || nil
       end
 
-      def secret_key
-        config[:secret_key] || fdata(:secret_key) || get_env('CONDOR_EC2E_ROUTE_AWS_SECRET_KEY') || nil
+      def amazonsecretkey
+        n = :amazonsecretkey
+        config[n] || fdata(n) || get_env('CONDOR_EC2E_ROUTE_AWS_SECRET_KEY') || base[n] || nil
       end
 
-      def rsa_key
-        config[:rsa_key] || fdata(:rsa_key) || get_env('CONDOR_EC2E_ROUTE_RSA_PUBLIC_KEY') || nil
+      def rsapublickey
+        n = :rsapublickey
+        config[n] || fdata(n) || get_env('CONDOR_EC2E_ROUTE_RSA_PUBLIC_KEY') || base[n] || nil
       end
 
-      def bucket
-        config[:bucket] || fdata(:bucket) || get_env('CONDOR_EC2E_ROUTE_S3_BUCKET') || nil
+      def s3bucket
+        n = :s3bucket
+        config[n] || fdata(n) || get_env('CONDOR_EC2E_ROUTE_S3_BUCKET') || base[n] || nil
       end
 
-      def queue
-        config[:queue] || fdata(:queue) || get_env('CONDOR_EC2E_ROUTE_SQS_QUEUE') || nil
+      def sqsqueue
+        n = :sqsqueue
+        config[n] || fdata(n) || get_env('CONDOR_EC2E_ROUTE_SQS_QUEUE') || base[n] || nil
       end
 
       def ami
-        config[:ami] || fdata(:ami) || get_env('CONDOR_EC2E_ROUTE_AMI') || nil
+        n = :ami
+        config[n] || fdata(n) || get_env('CONDOR_EC2E_ROUTE_AMI') || base[n] || nil
       end
 
       def cmd_args
-        ["name", "requirements", "instance_type", "public_key", "private_key", "access_key", "secret_key", "rsa_key", "bucket", "queue", "ami"]
+        ["requirements", "instancetype", "amazonpublickey", "amazonprivatekey", "amazonaccesskey", "amazonsecretkey", "rsapublickey", "s3bucket", "sqsqueue", "ami"]
       end
 
       def config
         @config ||= {}
       end
+
+      def base
+        @basefeature ||= {}
+      end
     end
 
     module Ec2eFeatureOpts
+      def init
+        @fdata = Hash.new {|h,k| h[k] = {}}
+        @options = {}
+      end
+
       def prefix
         "ec2e_routes_"
       end
@@ -90,10 +110,9 @@ module Wallaroo
       end
 
       def read_file
-        @fdata = {}
         if @options.has_key?(:infile)
           exit!(1, "#{@options[:infile]} no such file") if not File.exist?(@options[:infile])
-          @fdata = ConfigParser.parse(File.read(@options[:infile]))
+          @fdata.merge!(ConfigParser.parse(File.read(@options[:infile])))
         end
       end
 
@@ -101,14 +120,14 @@ module Wallaroo
         route = " [ GridResource = \"condor localhost $(COLLECTOR_HOST)\";"
         route += " Name = \"#{name}\";"
         route += " requirements = #{requirements};"
-        route += " set_amazonpublickey = \"#{public_key}\";"
-        route += " set_amazonprivatekey = \"#{private_key}\";"
-        route += " set_amazonaccesskey = \"#{access_key}\";"
-        route += " set_amazonsecretkey = \"#{secret_key}\";"
-        route += " set_rsapublickey = \"#{rsa_key}\";"
-        route += " set_amazoninstancetype = \"#{instance_type}\";"
-        route += " set_amazons3bucketname = \"#{bucket}\";"
-        route += " set_amazonsqsqueuename = \"#{queue}\";"
+        route += " set_amazonpublickey = \"#{amazonpublickey}\";"
+        route += " set_amazonprivatekey = \"#{amazonprivatekey}\";"
+        route += " set_amazonaccesskey = \"#{amazonaccesskey}\";"
+        route += " set_amazonsecretkey = \"#{amazonsecretkey}\";"
+        route += " set_rsapublickey = \"#{rsapublickey}\";"
+        route += " set_amazoninstancetype = \"#{instancetype}\";"
+        route += " set_amazons3bucketname = \"#{s3bucket}\";"
+        route += " set_amazonsqsqueuename = \"#{sqsqueue}\";"
         route += " set_amazonamiid = \"#{ami}\";"
         route += " set_remote_jobuniverse = 5; ]"
         route
@@ -116,11 +135,26 @@ module Wallaroo
 
       def self.included(receiver)
         if receiver.respond_to?(:register_callback)
+          receiver.register_callback :initializer, :init
           receiver.register_callback :after_option_parsing, :parse_args
         end
       end
 
       def parse_args(*args)
+        if @options.has_key?(:base)
+          route = store.getFeature(prefix+@options[:base]).parameters["JOB_ROUTER_ENTRIES"]
+          route.split(';').each do |line|
+            nvp = line.split('=', 2)
+            cmd_args.each do |c|
+              if nvp[0].include?(c)
+                base[c.to_sym] = nvp[1].strip.tr('"', '')
+              end
+            end
+          end
+        end
+
+        exit!(1, "you must specify a name for the route") if args.size < 1 && (not name) && (not @options.has_key?(:infile))
+        config[:name] = args.shift if args.count > 0 && (not name) && (not @options.has_key?(:infile))
         args.each do |arg|
           nvp = arg.split('=', 2)
           exit!(1, "#{nvp[0]} is not a valid option") if not cmd_args.include?(nvp[0].downcase)
@@ -132,7 +166,6 @@ module Wallaroo
 
     module Ec2eOptions
       def init_option_parser
-        @options = {}
         OptionParser.new do |opts|
           opts.banner = "Usage:  wallaby #{self.class.opname} [OPTIONS] ARG=VALUE ...\n#{self.class.description}"
   
@@ -152,7 +185,13 @@ module Wallaroo
           opts.on("-s", "--save", "save configuration to a file.  The file will be named after the route name") do
             @options[:save] = true
           end
+
+          extra_options(opts)
         end
+      end
+
+      def extra_options(o)
+        nil
       end
     end
 
@@ -169,6 +208,12 @@ module Wallaroo
         "Add a route to be used with condor's EC2 Enhanced to the store."
       end
     
+      def extra_options(o)
+        o.on("-b", "--baseroute NAME", "base changes off route NAME") do |r|
+          @options[:base] = r
+        end
+      end
+
       def act
         keys = @fdata.keys.empty? ? name : @fdata.keys
         keys.each do |k|
@@ -337,7 +382,7 @@ module Wallaroo
 
         cmd_args.each do |a|
           if self.send(a) == nil
-            route =~ /#{a.to_s.gsub(/_/, '')}[\w ]*=\s*"*([^;]+)"*/
+            route =~ /#{a.gsub(/_/, '')}[\w ]*=\s*"*([^;]+)"*/
             config[a.to_sym] = $1 if $1
           end
         end
@@ -366,8 +411,7 @@ module Wallaroo
 
       def act
         bad = store.checkFeatureValidity(@routes).collect {|n| n.gsub(/#{prefix}/, '')}
-        exit!(1, "route(s) #{bad.join(', ')} do not exist") if bad != []
-puts @routes.inspect
+        exit!(1, "routes #{bad.join(', ')} do not exist") if bad != []
         store.removeFeature(@routes)
         return 0
       end

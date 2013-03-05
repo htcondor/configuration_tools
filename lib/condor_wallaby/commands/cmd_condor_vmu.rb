@@ -37,31 +37,31 @@ module Wallaroo
       end
 
       def type
-        @config[:type] || fdata(:type) || get_env("CONDOR_VMU_TYPE") || :kvm
+        config[:type] || fdata(:type) || get_env("CONDOR_VMU_TYPE") || :kvm
       end
 
       def name
-        @config[:name] || ENV["CONDOR_VMU_NAME"] || ""
+        config[:name] || ENV["CONDOR_VMU_NAME"] || ""
       end
 
       def include
-        @config[:include] || fdata(:include) || "VMUniverse"
+        config[:include] || fdata(:include) || "VMUniverse"
       end
 
       def network
-        @config[:network] || fdata(:network) || get_env('CONDOR_VMU_NETWORK') || :false
+        config[:network] || fdata(:network) || get_env('CONDOR_VMU_NETWORK') || :false
       end
 
       def net_type
-        @config[:net_type] || fdata(:net_type) || get_env('CONDOR_VMU_NETWORK_TYPE') || nil
+        config[:net_type] || fdata(:net_type) || get_env('CONDOR_VMU_NETWORK_TYPE') || nil
       end
 
       def net_default
-        @config[:net_default] || fdata(:net_default) || get_env('CONDOR_VMU_NETWORK_DEFAULT') || nil
+        config[:net_default] || fdata(:net_default) || get_env('CONDOR_VMU_NETWORK_DEFAULT') || nil
       end
 
       def net_bridge
-        @config[:net_bridge] || fdata(:net_bridge) || get_env('CONDOR_VMU_NETWORK_BRIDGE') || nil
+        config[:net_bridge] || fdata(:net_bridge) || get_env('CONDOR_VMU_NETWORK_BRIDGE') || nil
       end
 
       def cmd_args
@@ -77,7 +77,6 @@ module Wallaroo
       end
 
       def init_option_parser
-        @config = {}
         @options = {}
         OptionParser.new do |opts|
           opts.banner = "Usage:  wallaby #{self.class.opname} [OPTIONS] ARG=VALUE ...\n#{self.class.description}"
@@ -92,7 +91,7 @@ module Wallaroo
           end
 
           opts.on("-i", "--include INCLUDE", "name of the feature to include (default VMUniverse)") do |inc|
-            @config[:include] = inc
+            config[:include] = inc
           end
 
           opts.on("-s", "--save", "save configuration to a file.  The file will be named after the feature") do
@@ -102,7 +101,7 @@ module Wallaroo
           opts.on("-t", "--type TYPE", "type of VM to support (default kvm)") do |type|
             t = type.downcase.to_sym
             exit!(1, "#{t} is not a supported VM type.  Supported types are #{vm_types.join(',')}") if not vm_types.include?(t)
-            @config[:type] = t
+            config[:type] = t
           end
         end
       end
@@ -119,11 +118,11 @@ module Wallaroo
 
       def parse_args(*args)
         exit!(1, "you must specify a name for the feature") if args.size < 1 && (name.empty? && (not @options.has_key?(:infile)))
-        @config[:name] = args.shift if args.count > 0 && (not @options.has_key?(:infile))
+        config[:name] = args.shift if args.count > 0 && name.empty? && (not @options.has_key?(:infile))
         args.each do |arg|
           nvp = arg.split('=', 2)
           exit!(1, "#{nvp[0]} is not a valid option") if not cmd_args.include?(nvp[0].downcase)
-          @config[nvp[0].downcase.to_sym] = nvp[1].downcase
+          config[nvp[0].downcase.to_sym] = nvp[1].downcase
         end
         read_file
       end
@@ -164,7 +163,7 @@ module Wallaroo
       def act
         keys = @fdata.keys.empty? ? name : @fdata.keys
         keys.each do |k|
-          @config[:name] = k
+          config[:name] = k
           tf = Tempfile.new("vmu_config")
           tf.write("#name #{name}\n")
           tf.write("#includes #{include}\n")

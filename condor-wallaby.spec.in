@@ -24,7 +24,7 @@ Version: #VERSION#
 Release: #RELEASE#%{?dist}
 Group: Applications/System
 License: ASL 2.0
-URL: http://git.fedorahosted.org/git/grid/configuration-tools.git
+URL: https://github.com/htcondor/configuration_tools.git
 Source0: https://fedorahosted.org/releases/g/r/grid/%{name}-%{version}.tar.gz
 #PATCHES#
 %if %{building_for_el5}
@@ -45,7 +45,6 @@ Summary: Wallaby configuration client for HTCondor
 Group: Applications/System
 Requires: condor >= 7.4.4-0.9
 Requires: python >= 2.3
-Requires: python-qpid
 Requires: python-condorutils >= 1.5-4
 Requires: python-wallaby2
 %if 0%{?fedora} == 0
@@ -114,6 +113,13 @@ rm -rf %{buildroot}
 %{ruby_install_dir}/wallaroo/shell/cmd_condor_vmu.rb
 
 %changelog
+* Tue Mar 05 2013  <rrati@redhat> - 6.0.0-1
+- Updated deps for wallaby2
+- configd now uses python-wallaby libs from wallaby2
+- configd supports SIGHUP on *nix
+- Removed condor_configure_* tools and support libs
+- New wallaby shell commands to configure condor VMU and EC2E features
+
 * Thu Jan 10 2013  <rrati@redhat> - 5.0.5-2
 - Fixed issue with empty annotation field from the editor (BZ880973)
 

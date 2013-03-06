@@ -6,10 +6,6 @@ require 'spec/mocks'
 require 'spec/autorun'
 require 'spec/matchers'
 
-require 'condor_wallaby/utils'
-
-require 'condor_wallaby/commands/cmd_ccp'
-require 'condor_wallaby/commands/cmd_ccs'
 
 Spec::Runner.configure do |config|
 

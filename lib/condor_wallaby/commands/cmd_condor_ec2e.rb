@@ -1,4 +1,6 @@
-# cmd_condor_ec2e.rb: Commands for configuring EC2 Enhanced
+# cmd_condor_ec2e.rb: Commands for configuring condor's EC2 Enhanced
+#
+# Copyright (c) 2013 Red Hat, Inc.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -14,107 +16,122 @@
 
 require 'tempfile'
 require 'condor_wallaby/configparser'
+require 'condor_wallaby/commandoptions'
+require 'condor_wallaby/commandargs'
 
 module Wallaroo
   module Shell
     module Ec2eArgs
-      def include
-        n = :include
-        config[n] || fdata(n) || "EC2Enhanced"
+      def def_include
+        "EC2Enhanced"
       end
 
-      def name
-        config[:name] || ENV["CONDOR_EC2E_ROUTE_NAME"] || nil
+      def noun
+        "route"
       end
 
-      def requirements
-        n = :requirements
-        config[n] || fdata(n) || get_env("CONDOR_EC2E_ROUTE_REQUIREMENTS") || base[n] || nil
+      def env_prefix
+        "CONDOR_EC2E_ROUTE"
       end
 
-      def instancetype
-        n = :instancetype
-        config[n] || fdata(n) || get_env("CONDOR_EC2E_ROUTE_INSTANCE_TYPE") || base[n] || nil
+#      def name
+#        config[:name] || ENV["CONDOR_EC2E_ROUTE_NAME"] || nil
+#      end
+#
+#      def requirements
+#        n = :requirements
+#        config[n] || fdata(n) || get_env("CONDOR_EC2E_ROUTE_REQUIREMENTS") || base[n] || nil
+#      end
+#
+#      def instance_type
+#        n = :instance_type
+#        config[n] || fdata(n) || get_env("CONDOR_EC2E_ROUTE_INSTANCE_TYPE") || base[n] || nil
+#      end
+#
+#      def amazon_public_key
+#        n = :amazonpublickey
+#        config[n] || fdata(n) || get_env('CONDOR_EC2E_ROUTE_AWS_PUBLIC_KEY') || base[n] || nil
+#      end
+#
+#      def amazonprivatekey
+#        n = :amazonprivatekey
+#        config[n] || fdata(n) || get_env('CONDOR_EC2E_ROUTE_AWS_PRIVATE_KEY') || base[n] || nil
+#      end
+#
+#      def amazonaccesskey
+#        n = :amazonaccesskey
+#        config[n] || fdata(n) || get_env('CONDOR_EC2E_ROUTE_AWS_ACCESS_KEY') || base[n] || nil
+#      end
+#
+#      def amazonsecretkey
+#        n = :amazonsecretkey
+#        config[n] || fdata(n) || get_env('CONDOR_EC2E_ROUTE_AWS_SECRET_KEY') || base[n] || nil
+#      end
+#
+#      def rsapublickey
+#        n = :rsapublickey
+#        config[n] || fdata(n) || get_env('CONDOR_EC2E_ROUTE_RSA_PUBLIC_KEY') || base[n] || nil
+#      end
+#
+#      def s3bucket
+#        n = :s3bucket
+#        config[n] || fdata(n) || get_env('CONDOR_EC2E_ROUTE_S3_BUCKET') || base[n] || nil
+#      end
+#
+#      def sqsqueue
+#        n = :sqsqueue
+#        config[n] || fdata(n) || get_env('CONDOR_EC2E_ROUTE_SQS_QUEUE') || base[n] || nil
+#      end
+#
+#      def ami
+#        n = :ami
+#        config[n] || fdata(n) || get_env('CONDOR_EC2E_ROUTE_AMI') || base[n] || nil
+#      end
+#
+      def self.included(receiver)
+        receiver.extend CmdArgs
       end
 
-      def amazonpublickey
-        n = :amazonpublickey
-        config[n] || fdata(n) || get_env('CONDOR_EC2E_ROUTE_AWS_PUBLIC_KEY') || base[n] || nil
+      module CmdArgs
+        def cmd_args
+          ["requirements", "instance-type", "amazon-public-key", "amazon-private-key", "amazon-access-key", "amazon-secret-key", "rsa-public-key", "s3-bucket", "sqs-queue", "ami"]
+        end
       end
 
-      def amazonprivatekey
-        n = :amazonprivatekey
-        config[n] || fdata(n) || get_env('CONDOR_EC2E_ROUTE_AWS_PRIVATE_KEY') || base[n] || nil
-      end
-
-      def amazonaccesskey
-        n = :amazonaccesskey
-        config[n] || fdata(n) || get_env('CONDOR_EC2E_ROUTE_AWS_ACCESS_KEY') || base[n] || nil
-      end
-
-      def amazonsecretkey
-        n = :amazonsecretkey
-        config[n] || fdata(n) || get_env('CONDOR_EC2E_ROUTE_AWS_SECRET_KEY') || base[n] || nil
-      end
-
-      def rsapublickey
-        n = :rsapublickey
-        config[n] || fdata(n) || get_env('CONDOR_EC2E_ROUTE_RSA_PUBLIC_KEY') || base[n] || nil
-      end
-
-      def s3bucket
-        n = :s3bucket
-        config[n] || fdata(n) || get_env('CONDOR_EC2E_ROUTE_S3_BUCKET') || base[n] || nil
-      end
-
-      def sqsqueue
-        n = :sqsqueue
-        config[n] || fdata(n) || get_env('CONDOR_EC2E_ROUTE_SQS_QUEUE') || base[n] || nil
-      end
-
-      def ami
-        n = :ami
-        config[n] || fdata(n) || get_env('CONDOR_EC2E_ROUTE_AMI') || base[n] || nil
-      end
-
-      def cmd_args
-        ["requirements", "instancetype", "amazonpublickey", "amazonprivatekey", "amazonaccesskey", "amazonsecretkey", "rsapublickey", "s3bucket", "sqsqueue", "ami"]
-      end
-
-      def config
-        @config ||= {}
-      end
-
-      def base
-        @basefeature ||= {}
-      end
+#      def config
+#        @config ||= {}
+#      end
+#
+#      def base
+#        @basefeature ||= {}
+#      end
     end
 
-    module Ec2eFeatureOpts
-      def init
-        @fdata = Hash.new {|h,k| h[k] = {}}
-        @options = {}
-      end
+    module Ec2eRouteOpts
+#      def init
+#        @fdata = Hash.new {|h,k| h[k] = {}}
+#        @options = {}
+#      end
 
       def prefix
         "ec2e_routes_"
       end
 
-      def get_env(n)
-        return ENV[n].to_sym if ENV.keys.include?(n)
-        nil
-      end
-
-      def fdata(arg)
-        @fdata.keys.include?(name) ? @fdata[name][arg] : nil
-      end
-
-      def read_file
-        if @options.has_key?(:infile)
-          exit!(1, "#{@options[:infile]} no such file") if not File.exist?(@options[:infile])
-          @fdata.merge!(ConfigParser.parse(File.read(@options[:infile])))
-        end
-      end
+#      def get_env(n)
+#        return ENV[n].to_sym if ENV.keys.include?(n)
+#        nil
+#      end
+#
+#      def fdata(arg)
+#        @fdata.keys.include?(name) ? @fdata[name][arg] : nil
+#      end
+#
+#      def read_file
+#        if @options.has_key?(:infile)
+#          exit!(1, "#{@options[:infile]} no such file") if not File.exist?(@options[:infile])
+#          @fdata.merge!(ConfigParser.parse(File.read(@options[:infile])))
+#        end
+#      end
 
       def form_route
         route = " [ GridResource = \"condor localhost $(COLLECTOR_HOST)\";"
@@ -133,72 +150,72 @@ module Wallaroo
         route
       end
 
-      def self.included(receiver)
-        if receiver.respond_to?(:register_callback)
-          receiver.register_callback :initializer, :init
-          receiver.register_callback :after_option_parsing, :parse_args
-        end
-      end
-
-      def parse_args(*args)
-        if @options.has_key?(:base)
-          route = store.getFeature(prefix+@options[:base]).parameters["JOB_ROUTER_ENTRIES"]
-          route.split(';').each do |line|
-            nvp = line.split('=', 2)
-            cmd_args.each do |c|
-              if nvp[0].include?(c)
-                base[c.to_sym] = nvp[1].strip.tr('"', '')
-              end
-            end
-          end
-        end
-
-        exit!(1, "you must specify a name for the route") if args.size < 1 && (not name) && (not @options.has_key?(:infile))
-        config[:name] = args.shift if args.count > 0 && (not name) && (not @options.has_key?(:infile))
-        args.each do |arg|
-          nvp = arg.split('=', 2)
-          exit!(1, "#{nvp[0]} is not a valid option") if not cmd_args.include?(nvp[0].downcase)
-          config[nvp[0].downcase.to_sym] = nvp[1].downcase
-        end
-        read_file
-      end
+#      def self.included(receiver)
+#        if receiver.respond_to?(:register_callback)
+#          receiver.register_callback :after_option_parsing, :parse_args
+#        end
+#      end
+#
+#      def parse_args(*args)
+#        if @options.has_key?(:base)
+#          route = store.getFeature(prefix+@options[:base]).parameters["JOB_ROUTER_ENTRIES"]
+#          route.split(';').each do |line|
+#            nvp = line.split('=', 2)
+#            cmd_args.each do |c|
+#              if nvp[0].include?(c)
+#                base[c.to_sym] = nvp[1].strip.tr('"', '')
+#              end
+#            end
+#          end
+#        end
+#
+#        exit!(1, "you must specify a name for the route") if args.size < 1 && (not name) && (not @options.has_key?(:infile))
+#        config[:name] = args.shift if args.count > 0 && (not name) && (not @options.has_key?(:infile))
+#        args.each do |arg|
+#          nvp = arg.split('=', 2)
+#          exit!(1, "#{nvp[0]} is not a valid option") if not cmd_args.include?(nvp[0].downcase)
+#          config[nvp[0].downcase.to_sym] = nvp[1].downcase
+#        end
+#        read_file
+#      end
     end
-
-    module Ec2eOptions
-      def init_option_parser
-        OptionParser.new do |opts|
-          opts.banner = "Usage:  wallaby #{self.class.opname} [OPTIONS] ARG=VALUE ...\n#{self.class.description}"
-  
-          opts.on("-h", "--help", "displays this message") do
-            puts @oparser
-            exit
-          end
-
-          opts.on("-f", "--file INFILE", "read feature data from INFILE.") do |f|
-            @options[:infile] = f
-          end
-
-          opts.on("-i", "--include INCLUDE", "name of the feature to include (default EC2Enhanced)") do |inc|
-            config[:include] = inc
-          end
-
-          opts.on("-s", "--save", "save configuration to a file.  The file will be named after the route name") do
-            @options[:save] = true
-          end
-
-          extra_options(opts)
-        end
-      end
-
-      def extra_options(o)
-        nil
-      end
-    end
+#
+#    module Ec2eOptions
+#      def init_option_parser
+#        OptionParser.new do |opts|
+#          opts.banner = "Usage:  wallaby #{self.class.opname} [OPTIONS] NAME ARG=VALUE ...\n#{self.class.description}"
+#  
+#          opts.on("-h", "--help", "displays this message") do
+#            puts @oparser
+#            exit
+#          end
+#
+#          opts.on("-f", "--file INFILE", "read feature data from INFILE.") do |f|
+#            @options[:infile] = f
+#          end
+#
+#          opts.on("-i", "--include INCLUDE", "name of the feature to include (default EC2Enhanced)") do |inc|
+#            config[:include] = inc
+#          end
+#
+#          opts.on("-s", "--save", "save configuration to a file.  The file will be named after the #{noun} name") do
+#            @options[:save] = true
+#          end
+#
+#          extra_options(opts)
+#        end
+#      end
+#
+#      def extra_options(o)
+#        nil
+#      end
+#    end
 
     class AddEc2eRoute < Command
       include Ec2eArgs
-      include Ec2eFeatureOpts
-      include Ec2eOptions
+      include CommandArgs
+      include Ec2eRouteOpts
+      include CommandOptions
 
       def self.opname
         "add-ec2e-route"
@@ -218,7 +235,7 @@ module Wallaroo
         keys = @fdata.keys.empty? ? name : @fdata.keys
         keys.each do |k|
           config[:name] = k
-          cmd_args.each do |a|
+          arg_list.each do |a|
             exit!(1, "you must specify #{a} for route #{name}") if self.send(a.to_sym) == nil
           end
           tf = Tempfile.new("ec2e_config")
@@ -235,7 +252,7 @@ module Wallaroo
     end
 
     class AddGroupEc2eRoute < Command
-      include Ec2eFeatureOpts
+      include Ec2eRouteOpts
 
       def self.opname
         "add-ec2e-routes-to-group"
@@ -264,7 +281,7 @@ module Wallaroo
     end
 
     class AddNodeEc2eRoute < Command
-      include Ec2eFeatureOpts
+      include Ec2eRouteOpts
 
       def self.opname
         "add-ec2e-routes-to-node"
@@ -293,7 +310,7 @@ module Wallaroo
     end
 
     class ReplaceGroupEc2eRoute < Command
-      include Ec2eFeatureOpts
+      include Ec2eRouteOpts
 
       def self.opname
         "replace-ec2e-routes-on-group"
@@ -322,7 +339,7 @@ module Wallaroo
     end
 
     class ReplaceNodeEc2eRoute < Command
-      include Ec2eFeatureOpts
+      include Ec2eRouteOpts
 
       def self.opname
         "replace-ec2e-routes-on-node"
@@ -352,8 +369,9 @@ module Wallaroo
 
     class ModifyEc2eRoute < Command
       include Ec2eArgs
-      include Ec2eFeatureOpts
-      include Ec2eOptions
+      include CommandArgs
+      include Ec2eRouteOpts
+      include CommandOptions
 
       def self.opname
         "modify-ec2e-route"
@@ -368,7 +386,7 @@ module Wallaroo
         config[:name] = args.shift
         args.each do |arg|
           nvp = arg.split('=', 2)
-          exit!(1, "#{nvp[0]} is not a valid option") if not cmd_args.include?(nvp[0].downcase)
+          exit!(1, "#{nvp[0]} is not a valid option") if not arg_list.include?(nvp[0].downcase)
           config[nvp[0].downcase.to_sym] = nvp[1].downcase
         end
         read_file
@@ -380,7 +398,7 @@ module Wallaroo
         feature = store.getFeature(prefix+name)
         route = feature.parameters["JOB_ROUTER_ENTRIES"]
 
-        cmd_args.each do |a|
+        arg_list.each do |a|
           if self.send(a) == nil
             route =~ /#{a.gsub(/_/, '')}[\w ]*=\s*"*([^;]+)"*/
             config[a.to_sym] = $1 if $1
@@ -392,7 +410,7 @@ module Wallaroo
     end
 
     class RemoveEc2eRoute < Command
-      include Ec2eFeatureOpts
+      include Ec2eRouteOpts
 
       def self.opname
         "remove-ec2e-route"

@@ -876,6 +876,7 @@ class Configd:
 
 
   def update_metadata(self):
+    log(logging.DEBUG, self.log_name, "Updating system metadata")
     self.loadavg()
     self.meminfo()
     self.osinfo()

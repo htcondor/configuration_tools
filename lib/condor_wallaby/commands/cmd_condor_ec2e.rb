@@ -232,6 +232,8 @@ module Wallaroo
       end
 
       def act
+k = class << AddEc2eRoute; self end
+puts k.method_defined?("requirements").inspect
         keys = @fdata.keys.empty? ? name : @fdata.keys
         keys.each do |k|
           config[:name] = k

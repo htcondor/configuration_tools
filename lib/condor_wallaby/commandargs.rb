@@ -36,7 +36,7 @@ puts "defining #{arg}"
 
         if receiver.respond_to?(:register_callback)
           receiver.register_callback :initializer, :init
-#          receiver.register_callback :after_option_parsing, :parse_args
+          receiver.register_callback :after_option_parsing, :parse_args
         end
       end
 
@@ -94,7 +94,6 @@ puts "defining #{arg}"
           end
         end
 
-puts arg_list.inspect
         exit!(1, "you must specify a name for the #{noun}") if args.size < 1 && (not name) && (not @options.has_key?(:infile))
         config[:name] = args.shift if args.count > 0 && (not name) && (not @options.has_key?(:infile))
         args.each do |arg|

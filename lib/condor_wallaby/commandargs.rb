@@ -19,13 +19,12 @@ module Wallaroo
     module CommandArgs
       def self.included(receiver)
         if receiver.respond_to?(:cmd_args)
-          receiver.instance_eval do
+          receiver.class_eval do
             define_method :arg_list do
-              @a ||= receiver.cmd_args
+              @a = receiver.cmd_args
             end
 
             receiver.cmd_args.each do |arg|
-puts "defining #{arg}"
               define_method arg.gsub(/-/, '_').to_sym do 
                 a = arg.gsub(/-/, '_').to_sym
                 config[a] || fdata(a) || get_env("#{env_prefix}_#{arg.gsub(/-/, '_').upcase}") || base[a] || nil

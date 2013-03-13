@@ -80,16 +80,18 @@ else
 endif
 	git format-patch ${SIMPLE_NAMES} -o SOURCES ${ORIG_VER}
 
-test: test_setup
-	@spec -b spec/*_spec.rb
+#test: test_setup
+test:
+#	@spec -b spec/*_spec.rb
+	@spec -b spec/commandargs_spec.rb
 
-test_setup: wallaby_dir
-	@rpm -q wallaby > /dev/null 2>&1 ; if [[ $$? != 0 ]]; then echo "a wallaby installation is required to run the test suit"; exit 1; fi
-	@curl -L 'http://git.fedorahosted.org/cgit/grid/wallaby-condor-db.git/plain/condor-base-db.snapshot.in?id2=master' -o lib/wallaby/base-db.yaml
-	@curl -L 'http://git.fedorahosted.org/cgit/grid/wallaby.git/plain/spec/spec_helper.rb?id2=master' -o lib/wallaby/spec_helper.rb
+#test_setup: wallaby_dir
+#	@rpm -q wallaby > /dev/null 2>&1 ; if [[ $$? != 0 ]]; then echo "a wallaby installation is required to run the test suit"; exit 1; fi
+#	@curl -L 'http://git.fedorahosted.org/cgit/grid/wallaby-condor-db.git/plain/condor-base-db.snapshot.in?id2=master' -o lib/wallaby/base-db.yaml
+#	@curl -L 'http://git.fedorahosted.org/cgit/grid/wallaby.git/plain/spec/spec_helper.rb?id2=master' -o lib/wallaby/spec_helper.rb
 
 wallaby_dir:
-	@mkdir -p lib/wallaby
+#	@mkdir -p lib/wallaby
 
 rpmdirs:
 	@mkdir -p ${RPMBUILD_DIRS}

@@ -109,10 +109,15 @@ rm -rf %{buildroot}
 %doc LICENSE-2.0.txt
 %defattr(0644, root,root,-)
 %{ruby_install_dir}/condor_wallaby/configparser.rb
+%{ruby_install_dir}/condor_wallaby/commandargs.rb
+%{ruby_install_dir}/condor_wallaby/commandoptions.rb
 %{ruby_install_dir}/wallaroo/shell/cmd_condor_ec2e.rb
 %{ruby_install_dir}/wallaroo/shell/cmd_condor_vmu.rb
 
 %changelog
+* Wed Mar 13 2013  <rrati@redhat> - 6.0.0-2
+- Code cleanup
+
 * Tue Mar 05 2013  <rrati@redhat> - 6.0.0-1
 - Updated deps for wallaby2
 - configd now uses python-wallaby libs from wallaby2

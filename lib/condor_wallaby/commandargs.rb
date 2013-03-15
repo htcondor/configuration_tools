@@ -76,7 +76,14 @@ module Wallaroo
       def read_file
         if @options.has_key?(:infile)
           exit!(1, "#{@options[:infile]} no such file") if not File.exist?(@options[:infile])
-          @fdata.merge!(ConfigParser.parse(File.read(@options[:infile])))
+          data = ConfigParser.parse(File.read(@options[:infile]))
+          data.each_pair do |k, h|
+            if @fdata.keys.include?(k)
+              @fdata[k].merge!(h)
+            else
+              @fdata[k] = h
+            end
+          end
         end
       end
 

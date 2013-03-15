@@ -18,7 +18,7 @@ Spec::Matchers.define :exit_with_code do |exp_code|
   match do |block|
     begin
       block.call
-    rescue Mrg::Grid::Config::Shell::ShellCommandFailure => e
+    rescue ExitStub::ShellError => e
       actual = e.status
     end
     actual and actual == exp_code
@@ -51,6 +51,19 @@ module Callbacks
   end
 end
 
+module ExitStub
+  class ShellError < RuntimeError
+    attr_accessor :status, :message
+  end
+
+  def exit!(status, message=nil)
+    e = ShellError.new
+    e.status = status
+    e.message = message
+    raise e
+  end
+end
+
 class TestClass
   include Callbacks
 
@@ -69,11 +82,13 @@ end
 
 class TestClass3
   include Wallaroo::Shell::CommandArgs
+  include ExitStub
 
   def initialize
     config[:name] = "from_config"
     config[:include] = "ConfigInclude"
     @fdata = {"from_config" => {:var=>"value", :include=>"FileInclude"}}
+    @options = {:infile=>"filename"}
   end
 
   def env_prefix
@@ -102,15 +117,6 @@ end
 #  end
 #end
 #
-module ExitStub
-  def exit!(status, message=nil)
-    error = Mrg::Grid::Config::Shell::ShellCommandFailure.new
-    error.status = status
-    error.message = message
-    raise error
-  end
-end
-
 #class UtilsTester
 #  include Mrg::Grid::Config::Shell::ToolUtils
 #  include OpNameStub

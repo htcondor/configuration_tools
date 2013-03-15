@@ -24,7 +24,7 @@ import random
 import tempfile
 import shutil
 import stat
-import wallaroo
+import wallaroo_config
 from condorutils.log import *
 from condorutils.readconfig import *
 
@@ -403,13 +403,14 @@ class Configd:
     return(os.name == "nt" or os.name == "ce")
 
 
-  def get_store_obj(self):
+  def get_node_obj(self):
+    opts = self.connect_opts
+    opts["node"] = self.node_name
     try:
-      obj = wallaroo.client.connect(**self.connect_opts)
+      obj = wallaroo_config.connect(**opts)
     except Exception, e:
       if self.stop_running == False:
-        log(logging.ERROR, self.log_name, e)
-        log(logging.ERROR, self.log_name, "Failed to contact configuration store")
+        log(logging.ERROR, self.log_name, "Exception retrieving node object")
       return(None)
     return(obj)
 
@@ -420,20 +421,6 @@ class Configd:
     except Exception, e:
       log(logging.DEBUG, self.log_name, e)
       self.receiver = None
-
-
-  def get_node_obj(self):
-    store = self.get_store_obj()
-    if store == None:
-      return(None)
-
-    try:
-      obj = store.getNode(self.node_name)
-    except Exception, e:
-      if self.stop_running == False:
-        log(logging.ERROR, self.log_name, "Exception retrieving node object")
-      return(None)
-    return(obj)
 
 
   def clear_interval_timer(self):
@@ -529,19 +516,22 @@ class Configd:
 
   def check_config_ver(self, ver=0, force=False):
     log(logging.DEBUG, self.log_name, "Checking version of configuration")
-    node_obj = self.get_node_obj()
-    if node_obj == None:
+    node = self.get_node_obj()
+    if node == None:
       return(False)
 
-    # If the passed version is 0, look at the last_updated_version
+    # If the passed version is 0, look at the last_updated
     if ver == 0:
-      ver = node_obj.last_updated_version
+      ver = node.config()["WALLABY_CONFIG_VERSION"]
 
     # Retrieve and install the node's configuration (if needed)
-    return(self.get_config(ver, force))
+    ret = self.get_config(ver, force)
+    if os.path.exists(self.old_config) == True:
+      os.remove(self.old_config)
+    return(ret)
 
 
-  def get_config(self, version=0, force=False):
+  def get_config(self, version="", force=False):
     ignore_params = ["WALLABY_FORCE_CONFIG_PULL", "WALLABY_FORCE_RESTART"]
 
     node_obj = self.get_node_obj()
@@ -586,15 +576,12 @@ class Configd:
 
     # Retrieve the node's configuration
     try:
-      if version == "":
-        config = node_obj.getConfig(**{})
-      else:
-        config = node_obj.getConfig(**{"version":version})
+      config = node_obj.config()
     except Exception, error:
       # Something has gone away
       if self.stop_running == False:
         log(logging.ERROR, self.log_name, error)
-        log(logging.ERROR, self.log_name, "Exception when attempting to retrieve configuration version \"%s\" from the store" % version)
+        log(logging.ERROR, self.log_name, "Exception when attempting to retrieve configuration from the store")
       return(False)
 
     try:
@@ -608,25 +595,17 @@ class Configd:
         else:
           os.write(file_hdl, "%s = %s\n" % (key, config[key]))
 
-      store = self.get_store_obj()
-
       # Add the wallaby group/feature information
-      features = []
-      for name in [node_obj.identity_group.name] + node_obj.memberships + ["+++DEFAULT"]:
-        o = store.getGroupByName(name)
-        for f in o.features:
-          if f not in features:
-            features += [f]
-
       print_str = ""
-      for feat in features:
+      log(logging.DEBUG, self.log_name, node_obj.features())
+      for feat in node_obj.features():
         print_str += "%s," % feat
       os.write(file_hdl, "WALLABYFEATURES = \"%s\"\n" % print_str[:-1])
 
       print_str = ""
-      for group in node_obj.memberships:
+      for group in node_obj.memberships():
         print_str += "%s," % group
-      os.write(file_hdl, "WallabyGroups = \"%s\"\n" % print_str[:-1])
+      os.write(file_hdl, "WALLABYGROUPS = \"%s\"\n" % print_str[:-1])
       os.write(file_hdl, "MASTER_ATTRS = $(MASTER_ATTRS), WallabyFeatures, WallabyGroups\n")
       os.write(file_hdl, "STARTD_ATTRS = $(STARTD_ATTRS), WallabyFeatures, WallabyGroups\n")
 
@@ -657,7 +636,7 @@ class Configd:
 
       # Ensure permissions for restart/reconfig
       try:
-        subs = store.subsystems
+        subs = node_obj.all_subsystems()
       except Exception, error:
         log(logging.WARNING, self.log_name, error)
         log(logging.WARNING, self.log_name, "Failed to retrieve subsystem list.  Configuration could break restart/reconfig functionality")
@@ -699,6 +678,7 @@ class Configd:
     (retval, out, err) = run_cmd("condor_config_val -dump", environ={"CONDOR_CONFIG":"%s" % file_name})
     if retval != 0:
       log(logging.ERROR, self.log_name, "Configuration is invalid.  Discarding")
+      os.remove(self.old_config)
       os.remove(file_name)
       return(False)
    
@@ -711,6 +691,7 @@ class Configd:
     except Exception, e:
       log(logging.ERROR, self.log_name, e)
       log(logging.ERROR, self.log_name, "Error installing new configuration file")
+      os.remove(self.old_config)
       os.remove(file_name)
       self.replacing_file = False
       return(False)
@@ -832,9 +813,11 @@ class Configd:
       log(logging.DEBUG, self.log_name, "Received a configuration change notification")
       if self.node_name in msg.content["nodes"] or '*' in msg.content["nodes"]:
         log(logging.DEBUG, self.log_name, "The notification is for this node")
-        ver = msg.content["version"]
-        if self.check_config_ver(ver) == False:
-          log(logging.ERROR, self.log_name, "Failed to install configuration version \"%s\"" % ver)
+#        ver = msg.content["version"]
+#        if self.check_config_ver(ver) == False:
+        if self.check_config_ver() == False:
+#          log(logging.ERROR, self.log_name, "Failed to install configuration version \"%s\"" % ver)
+          log(logging.ERROR, self.log_name, "Failed to install new configuration")
       else:
         log(logging.DEBUG, self.log_name, "The notification is not for this node")
       self.session.acknowledge()
@@ -881,7 +864,7 @@ class Configd:
     self.meminfo()
     self.osinfo()
     path = "/meta/sysinfo/%s" % self.node_name
-    conn = wallaroo.client.ConnectionMeta(**self.connect_opts)
+    conn = wallaroo_config.ConnectionMeta(**self.connect_opts)
     meta = conn.fetch_json_resource(path, False, default={})
     meta.update(self.sysinfo)
     conn.put_json_resource(path, meta, False)

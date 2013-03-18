@@ -21,7 +21,8 @@ try:
   connection.open()
   session = connection.session()
 
-  content = {"nodes": [socket.gethostname()], "version": "a1b2c3d4e5f6g7h8"}
+#  content = {"nodes": [socket.gethostname()], "version": "a1b2c3d4e5f6g7h8"}
+  content = {"nodes": [socket.gethostname()]}
   sender = session.sender(address)
   sender.send(Message(content=content))
 except MessagingError,m:

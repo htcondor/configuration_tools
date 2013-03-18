@@ -82,8 +82,7 @@ endif
 
 #test: test_setup
 test:
-#	@spec -b spec/*_spec.rb
-	@spec -b spec/commandargs_spec.rb
+	@spec -b spec/*_spec.rb
 
 #test_setup: wallaby_dir
 #	@rpm -q wallaby > /dev/null 2>&1 ; if [[ $$? != 0 ]]; then echo "a wallaby installation is required to run the test suit"; exit 1; fi

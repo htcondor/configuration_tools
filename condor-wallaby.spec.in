@@ -46,7 +46,7 @@ Group: Applications/System
 Requires: condor >= 7.4.4-0.9
 Requires: python >= 2.3
 Requires: python-condorutils >= 1.5-4
-Requires: python-wallaby2
+Requires: python-wallaby2-config
 %if 0%{?fedora} == 0
 Obsoletes: condor-remote-configuration
 %endif
@@ -115,6 +115,10 @@ rm -rf %{buildroot}
 %{ruby_install_dir}/wallaroo/shell/cmd_condor_vmu.rb
 
 %changelog
+* Mon Mar 18 2013  <rrati@redhat> - 6.0.1-1
+- Changed dep to python-wallaby2-config
+- The configd uses the new config library
+
 * Wed Mar 13 2013  <rrati@redhat> - 6.0.0-2
 - Code cleanup
 
